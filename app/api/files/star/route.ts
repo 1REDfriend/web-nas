@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { logerror } from '@/lib/logger';
 import { headers } from 'next/headers';
 import { UserJwtPayload } from '@/interfaces/userJwtpayload';
+import { validateUserPaths } from '@/middlewares/pathValidator';
 
 export async function POST(request: Request) {
     const body = await request.json();
@@ -46,6 +47,8 @@ export async function POST(request: Request) {
                 { status: 401 }
             );
         }
+
+        await validateUserPaths(userId, reqPath)
 
         const compositeId = {
             userId: userId,

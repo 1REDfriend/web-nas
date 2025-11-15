@@ -6,6 +6,8 @@ import { log, logerror } from '@/lib/logger';
 import { prisma } from '@/lib/db';
 import { UserJwtPayload } from '@/interfaces/userJwtpayload';
 import { headers } from 'next/headers';
+import { validateUserPaths } from '@/middlewares/pathValidator';
+import { error } from 'console';
 
 const ROOT_DIR = process.cwd();
 
@@ -25,25 +27,25 @@ export async function GET(request: Request) {
     const sortBy = (searchParams.get('sortBy') as SortOption) || 'name';
     const order = (searchParams.get('order') as OrderOption) || 'asc';
 
+    if (!payloadString) {
+        return NextResponse.json(
+            { error: 'Unauthorized' },
+            { status: 401 }
+        );
+    }
+
+    const userPayload: UserJwtPayload = await JSON.parse(payloadString);
+    const userId = userPayload.sub;
+
+    if (!userId) {
+        return NextResponse.json(
+            { error: 'Unauthorized' },
+            { status: 401 }
+        );
+    }
+
     if (!reqPath) {
         try {
-            if (!payloadString) {
-                return NextResponse.json(
-                    { error: 'Unauthorized' },
-                    { status: 401 }
-                );
-            }
-
-            const userPayload: UserJwtPayload = await JSON.parse(payloadString);
-            const userId = userPayload.sub;
-
-            if (!userId) {
-                return NextResponse.json(
-                    { error: 'Unauthorized' },
-                    { status: 401 }
-                );
-            }
-
             const pathMaps = await prisma.pathMap.findMany({
                 where: { userId: userId },
                 select: {
@@ -67,6 +69,8 @@ export async function GET(request: Request) {
             );
         }
     }
+
+    await validateUserPaths(userId, reqPath);
 
     try {
         const safePath = sanitizePath(ROOT_DIR, reqPath);
