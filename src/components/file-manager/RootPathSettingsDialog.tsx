@@ -1,0 +1,133 @@
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+    Dialog,
+    DialogTrigger,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from "@/components/ui/dialog";
+import { Settings } from "lucide-react";
+
+type ImportResponse = {
+    success?: boolean;
+    rootPath?: string;
+    message?: string;
+};
+
+export function RootPathSettingsDialog() {
+    const [rootPath, setRootPath] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [successMsg, setSuccessMsg] = useState<string | null>(null);
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [currentRootPath, setCurrentRootPath] = useState<string | null>(null);
+
+    async function handleSubmit(e: React.FormEvent) {
+        e.preventDefault();
+        setSuccessMsg(null);
+        setErrorMsg(null);
+
+        if (!rootPath.trim()) {
+            setErrorMsg("Please enter rootPath first.");
+            return;
+        }
+
+        try {
+            setLoading(true);
+
+            const res = await fetch("/api/files/import", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ rootPath: rootPath.trim() }),
+            });
+
+            const data: ImportResponse = await res.json();
+
+            if (!res.ok || !data?.success) {
+                setErrorMsg(
+                    data?.message || "Failed to add rootPath. Please try again."
+                );
+                return;
+            }
+
+            const finalRoot = data.rootPath ?? rootPath.trim();
+            setCurrentRootPath(finalRoot);
+            setSuccessMsg(`RootPath added: ${finalRoot}`);
+            setRootPath("");
+        } catch (err) {
+            console.error(err);
+            setErrorMsg("An error occurred connecting to the server.");
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                {/* ปุ่ม Setting ที่จะเรียก popup */}
+                <Button variant={"ghost"} className="w-full justify-start gap-2">
+                    <Settings className="w-4 h-4" />
+                    <span>Setting</span>
+                </Button>
+            </DialogTrigger>
+
+            <DialogContent className="bg-slate-950 border-white/10 text-slate-50">
+                <DialogHeader>
+                    <DialogTitle>Settings</DialogTitle>
+                    <DialogDescription className="text-slate-400">
+                        Set up <span className="font-mono text-xs">rootPath</span> for
+                        File management system
+                    </DialogDescription>
+                </DialogHeader>
+
+                <form className="space-y-4 mt-2" onSubmit={handleSubmit}>
+                    <div className="space-y-2">
+                        <Label htmlFor="rootPath">Root Path</Label>
+                        <Input
+                            id="rootPath"
+                            placeholder="For example, D:\\Projects or /home/user/files"
+                            value={rootPath}
+                            onChange={(e) => setRootPath(e.target.value)}
+                        />
+                        <p className="text-[11px] text-slate-500">
+                            body sent:{" "}
+                            <code className="font-mono">{`{ rootPath: "..." }`}</code>
+                        </p>
+                    </div>
+
+                    {errorMsg && (
+                        <p className="text-xs text-red-400">{errorMsg}</p>
+                    )}
+
+                    {successMsg && (
+                        <div className="text-xs text-emerald-400 space-y-1">
+                            <p>{successMsg}</p>
+                            {currentRootPath && (
+                                <p className="text-slate-300">
+                                    Use the current rootPath:{" "}
+                                    <span className="font-mono text-[11px]">
+                                        {currentRootPath}
+                                    </span>
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="flex justify-end">
+                        <Button type="submit" disabled={loading}>
+                            {loading ? "Recording..." : "Add rootPath"}
+                        </Button>
+                    </div>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}

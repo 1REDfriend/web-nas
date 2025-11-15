@@ -1,0 +1,70 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "windows"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  USER
+  GUEST
+}
+
+model User {
+  id String @id @default(cuid())
+  username String @unique
+  passwordHash String @map("password_hash")
+  gmail String? @map("gmail")
+  role Role @default(GUEST)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  pathMaps PathMap[]
+  activeSession ActiveSession[]
+  starPaths StarPath[]
+
+  @@map("users")
+}
+
+model ActiveSession {
+  id String @id @default(cuid())
+  token String
+  userAgent String
+  created_at DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @map("user_id")
+
+  @@index([userId], name: "dix_active_session_user_id")
+  @@map("active_session")
+}
+
+model PathMap {
+  id String @id @default(cuid())
+  rootPath String @map("root_path")
+  description String?
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @map("user_id")
+
+  @@index([userId], name: "idx_path_maps_user_id")
+  @@map("path_maps")
+}
+
+model StarPath {
+  id String @id @default(cuid())
+  rootPath String @map("root_path")
+
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String @map("user_id")
+
+  @@index([userId], name: "idx_star_path_user_id")
+  @@unique([userId, rootPath], name: "idx_user_path_unique")
+  @@map("star_paths")
+}
