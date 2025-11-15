@@ -30,7 +30,7 @@ export function FileManagerGrid({
             <div className="p-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 {listLoading && !files.length && (
                     <div className="col-span-full flex justify-center py-10 text-sm text-slate-400">
-                        กำลังโหลดไฟล์...
+                        Loading file...
                     </div>
                 )}
 
@@ -120,7 +120,7 @@ export function FileManagerGrid({
                         <Folder className="w-10 h-10 mb-3 text-slate-600" />
                         <p className="text-sm font-medium">No files found</p>
                         <p className="text-xs text-slate-500 mt-1">
-                            ลองเปลี่ยนคำค้นหรือเลือกโฟลเดอร์อื่นดูสิ 😄
+                            Try changing your search term or selecting a different folder 😄
                         </p>
                     </div>
                 )}

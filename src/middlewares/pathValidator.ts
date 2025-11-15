@@ -1,5 +1,3 @@
-'use server'
-
 import { prisma } from '@/lib/db';
 import { logerror } from '@/lib/logger';
 import { NextResponse } from 'next/server';
@@ -26,7 +24,7 @@ function normalizePath(p: string): string {
 export async function validateUserPaths(
     userId: string,
     paths: string | string[],
-): Promise<PathValidationResult> {
+): Promise<NextResponse | PathValidationResult> {
     const pathList = toPathArray(paths);
 
     if (pathList.length === 0) {
@@ -89,7 +87,17 @@ export async function validateUserPathsOrThrow(
     paths: string | string[],
 ): Promise<void> {
     const result = await validateUserPaths(userId, paths);
-    if (!result.ok && result.failedPath) {
-        throw new PathForbiddenError(result.failedPath);
+    if (result instanceof NextResponse) {
+        try {
+            const errorBody = await result.json();
+            if (errorBody.failedPath) {
+                throw new PathForbiddenError(errorBody.failedPath);
+            } else {
+                throw new Error(errorBody.message || 'Validation failed');
+            }
+        } catch (e) {
+            if (e instanceof PathForbiddenError) throw e;
+            throw new Error(`Validation failed with status ${result.status}`);
+        }
     }
 }

@@ -116,7 +116,7 @@ export function FileManagerPreviewPanel({
                         <Separator className="bg-white/5" />
 
                         <div className="text-xs text-slate-400">
-                            {previewLoading && <p>กำลังโหลดเนื้อหาไฟล์...</p>}
+                            {previewLoading && <p>Loading file content...</p>}
                             {previewError && (
                                 <p className="text-red-400">{previewError}</p>
                             )}
@@ -127,14 +127,14 @@ export function FileManagerPreviewPanel({
                             )}
                             {!previewLoading && !previewError && !previewContent && (
                                 <p className="text-slate-500">
-                                    ไฟล์นี้ไม่มีตัวอย่างให้แสดง หรือเป็นไฟล์ไบนารี
+                                    This file does not have a preview or is a binary file.
                                 </p>
                             )}
                         </div>
                     </div>
                 ) : (
                     <p className="text-sm text-slate-500 p-4">
-                        Select a file เพื่อดูตัวอย่างด้านขวา
+                        Select a file To see the example on the right
                     </p>
                 )}
             </ScrollArea>

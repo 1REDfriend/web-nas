@@ -2,12 +2,13 @@ import { NextResponse } from 'next/server';
 import { readdir, stat } from 'fs-extra';
 import path from 'path';
 import { sanitizePath } from '@/lib/security';
-import { log, logerror } from '@/lib/logger';
+import { logerror } from '@/lib/logger';
 import { prisma } from '@/lib/db';
 import { UserJwtPayload } from '@/interfaces/userJwtpayload';
 import { headers } from 'next/headers';
 import { validateUserPaths } from '@/middlewares/pathValidator';
-import { error } from 'console';
+import { FileItem } from '@/components/file-manager/config';
+import { raw } from '@prisma/client/runtime/library';
 
 const ROOT_DIR = process.cwd();
 
@@ -55,8 +56,28 @@ export async function GET(request: Request) {
                 }
             });
 
+            const starPaths = await prisma.starPath.findMany({
+                where: { userId: userId },
+                select: {
+                    rootPath: true,
+                }
+            })
+
+            const starredSet = new Set(starPaths.map((sp) => sp.rootPath));
+
+            const data = pathMaps.map((p) => ({
+                id: p.id,
+                name: p.description ?? path.basename(p.rootPath),
+                path: p.rootPath,
+                type: "directory",
+                size: undefined,
+                updatedAt: undefined,
+                folder: null,
+                isStarred: starredSet.has(p.rootPath),
+            }));
+
             return NextResponse.json({
-                data: pathMaps,
+                data,
                 meta: {
                     totalPaths: pathMaps.length
                 }
@@ -70,7 +91,11 @@ export async function GET(request: Request) {
         }
     }
 
-    await validateUserPaths(userId, reqPath);
+    try {
+        await validateUserPaths(userId, reqPath);
+    } catch (err: unknown) {
+        logerror("[List file vaidate Failed] : " + err)
+    }
 
     try {
         const safePath = sanitizePath(ROOT_DIR, reqPath);
@@ -94,23 +119,31 @@ export async function GET(request: Request) {
             const startIndex = (page - 1) * limit;
             const paginatedFiles = files.slice(startIndex, startIndex + limit);
 
-            resultFiles = await Promise.all(paginatedFiles.map(async (file) => {
-                return await getFileStats(safePath, file);
-            }));
+            resultFiles = await Promise.all(
+                paginatedFiles.map(async (file) => {
+                    return await getFileStats(safePath, file, reqPath);
+                })
+            );
         } else {
             const allFilesWithStats = await Promise.all(
-                files.map(async (file) => await getFileStats(safePath, file))
+                files.map(async (file) => await getFileStats(safePath, file, reqPath))
             );
 
             const validFiles = allFilesWithStats.filter((f): f is NonNullable<typeof f> => f !== null);
 
             validFiles.sort((a, b) => {
                 let comparison = 0;
+                const aSize = typeof a.size === 'number' ? a.size : 0;
+                const bSize = typeof b.size === 'number' ? b.size : 0;
+
                 if (sortBy === 'size') {
-                    comparison = a.size - b.size;
+                    comparison = aSize - bSize;
                 } else if (sortBy === 'date') {
-                    comparison = a.lastModified.getTime() - b.lastModified.getTime();
+                    const aDate = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+                    const bDate = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+                    comparison = aDate - bDate;
                 }
+
                 return order === 'asc' ? comparison : -comparison;
             });
 
@@ -139,19 +172,31 @@ export async function GET(request: Request) {
     }
 }
 
-async function getFileStats(dirPath: string, fileName: string) {
+async function getFileStats(dirPath: string, fileName: string, reqPath: string) {
     try {
         const filePath = path.join(dirPath, fileName);
         const stats = await stat(filePath);
-        return {
+
+        const isDir = stats.isDirectory();
+        const ext = path.extname(fileName);
+        const type = isDir ? 'directory' : ext.replace('.', '') || 'file';
+
+        const relativePath = path
+            .join('/', path.relative(ROOT_DIR, filePath))
+            .replace(/\\/g, '/');
+
+        const item: FileItem = {
+            id: relativePath,
             name: fileName,
-            isDir: stats.isDirectory(),
-            size: stats.size,
-            lastModified: stats.mtime,
-            metadata: stats,
-            path: filePath,
-            extension: path.extname(fileName)
+            path: relativePath,
+            type,
+            size: isDir ? undefined : stats.size,
+            updatedAt: stats.mtime.toISOString(),
+            folder: reqPath,
+            isStarred: false,
         };
+
+        return item;
     } catch (err: unknown) {
         logerror("[File List Failed] : " + err);
         return null

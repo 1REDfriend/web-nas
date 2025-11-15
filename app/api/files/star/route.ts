@@ -6,8 +6,8 @@ import { UserJwtPayload } from '@/interfaces/userJwtpayload';
 import { validateUserPaths } from '@/middlewares/pathValidator';
 
 export async function POST(request: Request) {
-    const body = await request.json();
-    const { path: reqPath } = body;
+    const { searchParams } = new URL(request.url);
+    const reqPath = searchParams.get('path');
 
     if (typeof reqPath !== 'string' || !reqPath) {
         return NextResponse.json(

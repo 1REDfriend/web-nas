@@ -103,9 +103,11 @@ export function RootPathSettingsDialog() {
                         </p>
                     </div>
 
-                    {errorMsg && (
-                        <p className="text-xs text-red-400">{errorMsg}</p>
-                    )}
+                    <div>
+                        {errorMsg && (
+                            <p className="text-xs text-red-400">{errorMsg}</p>
+                        )}
+                    </div>
 
                     {successMsg && (
                         <div className="text-xs text-emerald-400 space-y-1">
