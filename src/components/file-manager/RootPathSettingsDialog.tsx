@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/dialog";
 import { Settings } from "lucide-react";
 import { logerror } from "@/lib/logger";
+import { Separator } from "../ui/separator";
+import { PathMapSetting } from "./PathMapSetting";
 
 type ImportResponse = {
     success?: boolean;
@@ -73,8 +75,7 @@ export function RootPathSettingsDialog() {
     return (
         <Dialog>
             <DialogTrigger asChild>
-                {/* ปุ่ม Setting ที่จะเรียก popup */}
-                <Button variant={"ghost"} className="w-full justify-start gap-2">
+                <Button variant={"ghost"} className="w-full justify-start gap-2 ">
                     <Settings className="w-4 h-4" />
                     <span>Setting</span>
                 </Button>
@@ -82,7 +83,7 @@ export function RootPathSettingsDialog() {
 
             <DialogContent className="bg-slate-950 border-white/10 text-slate-50">
                 <DialogHeader>
-                    <DialogTitle>Settings</DialogTitle>
+                    <DialogTitle className="text-rose-500">Settings</DialogTitle>
                     <DialogDescription className="text-slate-400">
                         Set up <span className="font-mono text-xs">rootPath</span> for
                         File management system
@@ -91,7 +92,7 @@ export function RootPathSettingsDialog() {
 
                 <form className="space-y-4 mt-2" onSubmit={handleSubmit}>
                     <div className="space-y-2">
-                        <Label htmlFor="rootPath">Root Path</Label>
+                        <Label htmlFor="rootPath">Add Root Path</Label>
                         <Input
                             id="rootPath"
                             placeholder="For example, D:\\Projects or /home/user/files"
@@ -130,6 +131,14 @@ export function RootPathSettingsDialog() {
                         </Button>
                     </div>
                 </form>
+
+                <Separator className="bg-white/5" />
+
+                <section>
+                    <p className=" font-bold text-xl mb-5 text-rose-500">Import Mananagement</p>
+
+                    <PathMapSetting/>
+                </section>
             </DialogContent>
         </Dialog>
     );

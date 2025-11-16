@@ -20,8 +20,11 @@ import { FileManagerGrid } from "@/components/file-manager/FileManagerGrid";
 import { FileManagerPreviewPanel } from "@/components/file-manager/FileManagerPreviewPanel";
 import { UploadDialog } from "@/components/file-manager/FileUploadDialog";
 import { useRouter } from "next/navigation";
+import { ComtextMenuBar } from "@/components/ComtextMenuBar";
 
 export default function FileManagerPage() {
+  const [contextMenu, setContextMenu] = useState(null)
+
   const [selectedFolder, setSelectedFolder] = useState<FolderId>("all");
   const [files, setFiles] = useState<FileItem[]>([]);
   const [meta, setMeta] = useState<FileListMeta | null>(null);
@@ -257,38 +260,29 @@ export default function FileManagerPage() {
     FOLDERS.find((f) => f.id === selectedFolder)?.label ?? "Files";
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-50">
-      <FileManagerTopBar
-        query={query}
-        searchCount={searchCount}
-        onQueryChange={(value) => {
-          setPage(1);
-          setQuery(value);
-        }}
-      />
-
-      <UploadDialog
-        currentPath={currentPath ?? ""}
-        onUploaded={() => {
-          setRefetchTrigger((count) => count + 1);
-        }}
-        triggerEnable={false}
-        enableGlobalDrop={true}
-      />
-
-      {/* Main layout */}
-      <main className="flex flex-1 overflow-hidden">
-        <FileManagerSidebarNav
-          selectedFolder={selectedFolder}
-          onSelectFolder={(folderId) => {
-            setSelectedFolder(folderId);
+    <ComtextMenuBar>
+      <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-50">
+        <FileManagerTopBar
+          query={query}
+          searchCount={searchCount}
+          onQueryChange={(value) => {
             setPage(1);
+            setQuery(value);
           }}
         />
 
-        {/* Middle & right panels */}
-        <section className="flex flex-1 overflow-hidden">
-          <FileManagerFolderTree
+        <UploadDialog
+          currentPath={currentPath ?? ""}
+          onUploaded={() => {
+            setRefetchTrigger((count) => count + 1);
+          }}
+          triggerEnable={false}
+          enableGlobalDrop={true}
+        />
+
+        {/* Main layout */}
+        <main className="flex flex-1 overflow-hidden">
+          <FileManagerSidebarNav
             selectedFolder={selectedFolder}
             onSelectFolder={(folderId) => {
               setSelectedFolder(folderId);
@@ -296,49 +290,60 @@ export default function FileManagerPage() {
             }}
           />
 
-          {/* Center: file list */}
-          <div className="flex-1 flex flex-col">
-            <FileManagerToolbar
-              title={currentFolderLabel}
-              visibleCount={visibleFiles.length}
-              listError={listError}
-              meta={meta}
-              page={page}
-              totalPages={totalPages}
-              listLoading={listLoading}
-              hasActiveFile={!!activeFile}
-              onPrevPage={() => setPage((p) => Math.max(1, p - 1))}
-              onNextPage={() => setPage((p) => Math.min(totalPages, p + 1))}
-              onDownloadActive={() => {
-                if (activeFile) handleDownload(activeFile);
+          {/* Middle & right panels */}
+          <section className="flex flex-1 overflow-hidden">
+            <FileManagerFolderTree
+              selectedFolder={selectedFolder}
+              onSelectFolder={(folderId) => {
+                setSelectedFolder(folderId);
+                setPage(1);
               }}
             />
 
-            <FileManagerGrid
-              files={visibleFiles}
-              activeFilePath={activeFile?.path ?? null}
-              listLoading={listLoading}
-              onSelectFile={setActiveFilePath}
-              onDownload={handleDownload}
-              onRename={handleRename}
-              onDelete={handleDelete}
-              onToggleStar={handleToggleStar}
-              onOpenDirectory={handleOpenDirectory}
-            />
-          </div>
+            {/* Center: file list */}
+            <div className="flex-1 flex flex-col">
+              <FileManagerToolbar
+                title={currentFolderLabel}
+                visibleCount={visibleFiles.length}
+                listError={listError}
+                meta={meta}
+                page={page}
+                totalPages={totalPages}
+                listLoading={listLoading}
+                hasActiveFile={!!activeFile}
+                onPrevPage={() => setPage((p) => Math.max(1, p - 1))}
+                onNextPage={() => setPage((p) => Math.min(totalPages, p + 1))}
+                onDownloadActive={() => {
+                  if (activeFile) handleDownload(activeFile);
+                }}
+              />
 
-          <FileManagerPreviewPanel
-            activeFile={activeFile}
-            previewContent={previewContent}
-            previewSize={previewSize}
-            previewLoading={previewLoading}
-            previewError={previewError}
-            onDownload={handleDownload}
-            onToggleStar={handleToggleStar}
-            onDelete={handleDelete}
-          />
-        </section>
-      </main>
-    </div>
+              <FileManagerGrid
+                files={visibleFiles}
+                activeFilePath={activeFile?.path ?? null}
+                listLoading={listLoading}
+                onSelectFile={setActiveFilePath}
+                onDownload={handleDownload}
+                onRename={handleRename}
+                onDelete={handleDelete}
+                onToggleStar={handleToggleStar}
+                onOpenDirectory={handleOpenDirectory}
+              />
+            </div>
+
+            <FileManagerPreviewPanel
+              activeFile={activeFile}
+              previewContent={previewContent}
+              previewSize={previewSize}
+              previewLoading={previewLoading}
+              previewError={previewError}
+              onDownload={handleDownload}
+              onToggleStar={handleToggleStar}
+              onDelete={handleDelete}
+            />
+          </section>
+        </main>
+      </div>
+    </ComtextMenuBar>
   );
 }
