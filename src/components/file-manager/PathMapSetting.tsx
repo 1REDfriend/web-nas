@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 
 import {
     Table,
@@ -147,18 +147,6 @@ export function PathMapSetting() {
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex justify-end gap-2">
-                                                <Button
-                                                    size="icon"
-                                                    variant="ghost"
-                                                    onClick={() =>
-                                                        handleEdit(
-                                                            userId,
-                                                            item.rootPath,
-                                                        )
-                                                    }
-                                                >
-                                                    <Pencil className="h-4 w-4" />
-                                                </Button>
                                                 <Button
                                                     size="icon"
                                                     variant="ghost"

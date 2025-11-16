@@ -45,3 +45,4 @@ next-env.d.ts
 /prisma/src/generated/prisma
 prisma/main.sqlite
 prisma/main.sqlite
+prisma/main.sqlite

@@ -30,7 +30,7 @@ export async function getImport(
         params.set("userId", userId)
 
         const res = await fetch(`/api/admin/files/get-import?${params.toString()}`, {
-            method: 'GET',
+            method: 'POST',
             headers: {
                 "Content-Type": "application/json",
             },
