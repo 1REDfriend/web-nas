@@ -5,5 +5,6 @@ export const ENV = ({
     JWT_SECRET: process.env.JWT_SECRET || "",
     GMAIL: process.env.GMAIL || "",
     GMAIL_PASSWORD: process.env.GMAIL_PASSWORD || "",
-    TOKEN_COOKIE: process.env.TOKEN_COOKIE || ""
+    TOKEN_COOKIE: process.env.TOKEN_COOKIE || "",
+    STORAGE_ROOT: process.env.STORAGE_ROOT || ""
 })

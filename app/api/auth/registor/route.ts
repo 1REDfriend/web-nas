@@ -93,6 +93,7 @@ export async function POST(request: Request) {
             data: {
                 username: username,
                 passwordHash: hashedPassword,
+                role: admin.length > 0 ? 'USER' : 'ADMIN'
             }
         });
 

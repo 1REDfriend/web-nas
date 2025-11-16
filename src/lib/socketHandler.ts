@@ -3,8 +3,8 @@ import os from 'os';
 import jwt from 'jsonwebtoken';
 import * as pty from 'node-pty';
 import { prisma } from '@/lib/db';
-import { constTrue } from 'effect/Function';
 import { ENV } from './ENV';
+import { logerror } from './logger';
 
 const shell = os.platform() === 'win32' ? 'cmd.exe' : 'bash';
 const JWT_SECRET = ENV.JWT_SECRET;
@@ -25,20 +25,20 @@ export function initializeSocketIO(io: Server) {
             const payload = jwt.verify(token, JWT_SECRET) as JwtPayload;
             const userId = payload.userId;
 
-            const pathMap = await prisma.path_maps.findFirst({
+            const pathMap = await prisma.pathMap.findFirst({
                 where: {
                     userId: userId
                 },
                 select: {
-                    root_path: constTrue
+                    rootPath: true
                 }
             });
 
-            if (!pathMap || !pathMap.root_path) {
+            if (!pathMap || !pathMap.rootPath) {
                 throw new Error('Authorization failed: No valid path map found for user');
             }
 
-            const userRootDir = pathMap.root_path;
+            const userRootDir = pathMap.rootPath;
             console.log(`Client ${userId} connected to terminal at ${userRootDir}`);
 
             const ptyProcess = pty.spawn(shell, [], {
@@ -68,7 +68,7 @@ export function initializeSocketIO(io: Server) {
 
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error('Socket connection error:', errorMessage);
+            logerror('Socket connection error:' + errorMessage);
             socket.emit('message', `\r\nConnection failed: ${errorMessage}\r\n`);
             socket.disconnect(true);
         }

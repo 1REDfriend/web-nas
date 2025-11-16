@@ -18,6 +18,8 @@ import { FileManagerFolderTree } from "@/components/file-manager/FileManagerFold
 import { FileManagerToolbar } from "@/components/file-manager/FileManagerToolbar";
 import { FileManagerGrid } from "@/components/file-manager/FileManagerGrid";
 import { FileManagerPreviewPanel } from "@/components/file-manager/FileManagerPreviewPanel";
+import { UploadDialog } from "@/components/file-manager/FileUploadDialog";
+import { useRouter } from "next/navigation";
 
 export default function FileManagerPage() {
   const [selectedFolder, setSelectedFolder] = useState<FolderId>("all");
@@ -27,6 +29,7 @@ export default function FileManagerPage() {
 
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
+  const [currentPath, setCurrentPath] = useState<string | null>(null);
 
   const [listLoading, setListLoading] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
@@ -35,6 +38,9 @@ export default function FileManagerPage() {
   const [previewSize, setPreviewSize] = useState<number | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [refetchTrigger, setRefetchTrigger] = useState(0);
+
+  const router = useRouter()
 
   useEffect(() => {
     const controller = new AbortController();
@@ -44,7 +50,8 @@ export default function FileManagerPage() {
         setListLoading(true);
         setListError(null);
 
-        const folderPath = FOLDER_PATHS[selectedFolder];
+        const baseFolderPath = FOLDER_PATHS[selectedFolder];
+        const folderPath = currentPath || baseFolderPath;
 
         const { data, meta } = await fileService.fetchFiles(
           {
@@ -85,7 +92,7 @@ export default function FileManagerPage() {
     loadFiles();
 
     return () => controller.abort();
-  }, [selectedFolder, page, query]);
+  }, [selectedFolder, page, query, currentPath, refetchTrigger]);
 
   const visibleFiles = useMemo(() => {
     let data = [...files];
@@ -117,7 +124,7 @@ export default function FileManagerPage() {
   const activePath = activeFile?.path || "";
 
   useEffect(() => {
-    if (!activePath) {
+    if (!activePath || activeFile?.type === "directory") {
       setPreviewContent(null);
       setPreviewSize(null);
       return;
@@ -179,7 +186,7 @@ export default function FileManagerPage() {
 
       URL.revokeObjectURL(url);
     } catch (err) {
-      console.error(err);
+      logerror(err + "");
       alert(err instanceof Error ? err.message : "File download failed");
     }
   }
@@ -193,7 +200,7 @@ export default function FileManagerPage() {
         )
       );
     } catch (err) {
-      console.error(err);
+      logerror(err + "");
       alert(
         err instanceof Error ? err.message : "Unable to update star status"
       );
@@ -207,7 +214,7 @@ export default function FileManagerPage() {
       await fileService.deleteFile(file.path);
       setFiles((prev) => prev.filter((f) => f.path !== file.path));
     } catch (err) {
-      console.error(err);
+      logerror(err + "");
       alert(err instanceof Error ? err.message : "Failed to delete file");
     }
   }
@@ -227,9 +234,23 @@ export default function FileManagerPage() {
         )
       );
     } catch (err) {
-      console.error(err);
+      logerror(err + "");
       alert(err instanceof Error ? err.message : "Failed to rename the file.");
     }
+  }
+
+  function handleOpenDirectory(path: string) {
+    const baseFolderPath = FOLDER_PATHS[selectedFolder];
+    let relative = path;
+    if (baseFolderPath && path.startsWith(baseFolderPath)) {
+      relative = path.slice(baseFolderPath.length);
+    }
+
+    relative = relative.replace(/^\/+/, "");
+
+    setCurrentPath(relative || null);
+    setPage(1);
+    setActiveFilePath(null);
   }
 
   const currentFolderLabel =
@@ -244,6 +265,15 @@ export default function FileManagerPage() {
           setPage(1);
           setQuery(value);
         }}
+      />
+
+      <UploadDialog
+        currentPath={currentPath ?? ""}
+        onUploaded={() => {
+          setRefetchTrigger((count) => count + 1);
+        }}
+        triggerEnable={false}
+        enableGlobalDrop={true}
       />
 
       {/* Main layout */}
@@ -293,6 +323,7 @@ export default function FileManagerPage() {
               onRename={handleRename}
               onDelete={handleDelete}
               onToggleStar={handleToggleStar}
+              onOpenDirectory={handleOpenDirectory}
             />
           </div>
 

@@ -4,10 +4,17 @@ import fs from 'fs-extra';
 import path from 'path';
 import mime from 'mime-types';
 import archiver from "archiver";
+import { ENV } from "@/lib/ENV";
 
 export async function POST(request: Request) {
     const body = await request.json()
     const { reqFile } = body;
+
+    const ROOT_STORAGE_PATH = ENV.STORAGE_ROOT;
+    if (!ROOT_STORAGE_PATH) {
+        logerror("[FATAL ERROR] STORAGE_ROOT environment variable is not set.");
+        return NextResponse.json({ error: "Internal Server Configuration Error" }, { status: 500 });
+    }
 
     try {
         if (!reqFile) {
@@ -16,35 +23,29 @@ export async function POST(request: Request) {
                 { status: 400 }
             )
         }
-        const reqFilePath = path.join(process.cwd(), reqFile);
+        const physicalPath = path.join(ROOT_STORAGE_PATH, reqFile);
 
-        if (!fs.existsSync(reqFilePath)) {
-            return new NextResponse('File not found',
-                { status: 404 }
-            );
-        }
+        const resolvedRoot = path.resolve(ROOT_STORAGE_PATH);
+        const resolvedPath = path.resolve(physicalPath);
 
-        const relativePath = reqFile.startsWith('/') ? reqFile.substring(1) : reqFile;
-        const filePath = path.resolve(reqFilePath, relativePath);
-
-        if (!filePath.startsWith(reqFilePath)) {
+        if (!resolvedPath.startsWith(resolvedRoot)) {
             logerror(`[File Download Failed] : Forbidden path access attempt: ${reqFile}`);
             return NextResponse.json({ error: 'Forbidden path' }, { status: 403 });
         }
 
-        if (!fs.existsSync(filePath)) {
+        if (!fs.existsSync(physicalPath)) {
             return new NextResponse('File or directory not found',
                 { status: 404 }
             );
         }
 
-        const stats = fs.statSync(filePath);
+        const stats = fs.statSync(physicalPath);
         const headers = new Headers();
 
         if (stats.isFile()) {
-            const fileBuffer = fs.readFileSync(filePath);
-            const filename = path.basename(filePath);
-            const contentType = mime.lookup(filePath) || 'application/octet-stream';
+            const fileBuffer = fs.readFileSync(physicalPath);
+            const filename = path.basename(physicalPath);
+            const contentType = mime.lookup(physicalPath) || 'application/octet-stream';
 
             headers.set('Content-Type', contentType);
             headers.set('Content-Disposition', `attachment; filename="${filename}"`);
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
         }
 
         if (stats.isDirectory()) {
-            const zipFileName = `${path.basename(filePath)}.zip`;
+            const zipFileName = `${path.basename(physicalPath)}.zip`;
             const archive = archiver('zip', {
                 zlib: { level: 9 },
             });
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
                         controller.error(err);
                     });
 
-                    archive.directory(filePath, false);
+                    archive.directory(physicalPath, false);
                     archive.finalize();
                 },
             });
@@ -93,9 +94,15 @@ export async function POST(request: Request) {
         );
     } catch (err: unknown) {
         logerror("[File Downoad Failed] : " + err);
+        if (err instanceof Error && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+            return NextResponse.json(
+                { error: 'Path not found' },
+                { status: 404 }
+            );
+        }
         return NextResponse.json(
-            { error: 'Path not found' },
-            { status: 404 }
+            { error: 'Internal Server Error' },
+            { status: 500 }
         );
     }
 }

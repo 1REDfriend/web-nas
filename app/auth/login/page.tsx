@@ -12,6 +12,7 @@ import {
     CardContent,
 } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
+import { logerror } from "@/lib/logger";
 
 type LoginResponse =
     | {
@@ -71,7 +72,7 @@ export default function LoginPage() {
             setPassword("");
             router.push("/");
         } catch (err) {
-            console.error(err);
+            logerror(err + "");
             setError("An error occurred connecting to the server.");
         } finally {
             setLoading(false);

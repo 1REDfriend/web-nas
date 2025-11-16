@@ -13,6 +13,7 @@ import {
     DialogDescription,
 } from "@/components/ui/dialog";
 import { Settings } from "lucide-react";
+import { logerror } from "@/lib/logger";
 
 type ImportResponse = {
     success?: boolean;
@@ -45,7 +46,7 @@ export function RootPathSettingsDialog() {
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ rootPath: rootPath.trim() }),
+                body: JSON.stringify({ virtualPath: rootPath.trim() }),
             });
 
             const data: ImportResponse = await res.json();
@@ -62,7 +63,7 @@ export function RootPathSettingsDialog() {
             setSuccessMsg(`RootPath added: ${finalRoot}`);
             setRootPath("");
         } catch (err) {
-            console.error(err);
+            logerror(err + "");
             setErrorMsg("An error occurred connecting to the server.");
         } finally {
             setLoading(false);

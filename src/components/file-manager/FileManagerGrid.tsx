@@ -13,6 +13,7 @@ type FileManagerGridProps = {
     onRename: (file: FileItem) => void;
     onDelete: (file: FileItem) => void;
     onToggleStar: (file: FileItem) => void;
+    onOpenDirectory: (path: string) => void;
 };
 
 export function FileManagerGrid({
@@ -24,6 +25,7 @@ export function FileManagerGrid({
     onRename,
     onDelete,
     onToggleStar,
+    onOpenDirectory,
 }: FileManagerGridProps) {
     return (
         <ScrollArea className="flex-1">
@@ -37,17 +39,32 @@ export function FileManagerGrid({
                 {!listLoading &&
                     files.map((file) => {
                         const isActive = activeFilePath === file.path;
+                        const isDirectory = file.type === "directory";
+
                         return (
                             <Card
                                 key={file.path || file.id}
                                 className={`cursor-pointer border-white/10 bg-slate-900/70 hover:bg-slate-800/80 transition ${isActive ? "ring-1 ring-red-500/60" : ""
                                     }`}
-                                onClick={() => onSelectFile(file.path)}
+                                onClick={() => {
+                                    onSelectFile(file.path);
+                                }}
+                                onDoubleClick={(e) => {
+                                    e.stopPropagation();
+                                    if (isDirectory) {
+                                        onOpenDirectory(file.path);
+                                    }
+                                }}
                             >
                                 <CardHeader className="pb-2 flex flex-row items-start justify-between gap-2">
                                     <div className="flex items-center gap-2">
                                         <div className="w-8 h-8 rounded-md bg-red-500/20 flex items-center justify-center">
-                                            <FileIcon className="w-4 h-4 text-red-400" />
+                                            {/* แยก icon ให้โฟลเดอร์/ไฟล์ ถ้าไม่อยากเปลี่ยน icon ลบเงื่อนไขนี้ออกได้ */}
+                                            {isDirectory ? (
+                                                <Folder className="w-4 h-4 text-red-400" />
+                                            ) : (
+                                                <FileIcon className="w-4 h-4 text-red-400" />
+                                            )}
                                         </div>
                                         <div className="flex flex-col">
                                             <CardTitle className="text-sm truncate max-w-[160px]">
@@ -75,7 +92,7 @@ export function FileManagerGrid({
                                 <CardContent className="pt-0 text-xs text-slate-400 space-y-1">
                                     {file.size && <p>Size: {file.size}</p>}
                                     {file.updatedAt && <p>Updated: {file.updatedAt}</p>}
-                                    <div className="flex gap-2 pt-1">
+                                    {/* <div className="flex gap-2 pt-1">
                                         <Button
                                             size="sm"
                                             variant="outline"
@@ -109,7 +126,7 @@ export function FileManagerGrid({
                                         >
                                             Trash
                                         </Button>
-                                    </div>
+                                    </div> */}
                                 </CardContent>
                             </Card>
                         );

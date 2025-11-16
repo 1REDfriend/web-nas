@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db';
 import { logerror } from '@/lib/logger';
+import { log } from 'console';
 import { NextResponse } from 'next/server';
 
 export type PathValidationResult = {
@@ -21,11 +22,26 @@ function normalizePath(p: string): string {
     return path;
 }
 
+function ensureLeadingSlash(p: string): string {
+    const path = normalizePath(p);
+
+    if (/^[A-Za-z]:\//.test(path)) {
+        return path;
+    }
+
+    if (!path.startsWith('/')) {
+        return '/' + path;
+    }
+
+    return path;
+}
+
 export async function validateUserPaths(
     userId: string,
     paths: string | string[],
 ): Promise<NextResponse | PathValidationResult> {
-    const pathList = toPathArray(paths);
+    const rawList = toPathArray(paths);
+    const pathList = rawList.map(ensureLeadingSlash);
 
     if (pathList.length === 0) {
         return { ok: true };
@@ -37,13 +53,14 @@ export async function validateUserPaths(
             select: { rootPath: true },
         });
 
-        const allowedRootPaths = userPathMaps.map((p) => normalizePath(p.rootPath));
+        const allowedRootPaths = userPathMaps.map((p) => ensureLeadingSlash(p.rootPath));
 
-        for (const rawPath of pathList) {
-            const path = normalizePath(rawPath);
+        for (let i = 0; i < pathList.length; i++) {
+            const rawPath = rawList[i];
+            const path = pathList[i];
 
             const isPathValid = allowedRootPaths.some((root) => {
-                const r = normalizePath(root);
+                const r = root;
                 return path === r || path.startsWith(r.endsWith('/') ? r : r + '/');
             });
 

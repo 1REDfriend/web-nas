@@ -156,3 +156,30 @@ export async function renameFile(
     }
     return json;
 }
+
+export async function upload(
+    currentPath: string,
+    file: File
+) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('currentPath', currentPath);
+
+    try {
+        const res = await fetch('/api/files/upload', {
+            method: 'POST',
+            body: formData,
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            throw new Error(data.error || 'Upload failed');
+        }
+
+        return data;
+
+    } catch (error: unknown) {
+        logerror('[Error in upload service] : ' +  error);
+    }
+}

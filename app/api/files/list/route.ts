@@ -1,23 +1,34 @@
 import { NextResponse } from 'next/server';
 import { readdir, stat } from 'fs-extra';
 import path from 'path';
-import { sanitizePath } from '@/lib/security';
 import { logerror } from '@/lib/logger';
 import { prisma } from '@/lib/db';
 import { UserJwtPayload } from '@/interfaces/userJwtpayload';
 import { headers } from 'next/headers';
 import { validateUserPaths } from '@/middlewares/pathValidator';
 import { FileItem } from '@/components/file-manager/config';
-import { raw } from '@prisma/client/runtime/library';
+import { ENV } from '@/lib/ENV';
 
-const ROOT_DIR = process.cwd();
+function normalizeFsPath(p: string): string {
+    let pathStr = p.trim().replace(/\\/g, '/');
+
+    if (/^[A-Za-z]:\//.test(pathStr)) {
+        return pathStr;
+    }
+
+    if (!pathStr.startsWith('/')) {
+        pathStr = '/' + pathStr;
+    }
+
+    return pathStr;
+}
 
 type SortOption = 'name' | 'size' | 'date';
 type OrderOption = 'asc' | 'desc';
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
-    const reqPath = searchParams.get('path');
+    const rawReqPath = searchParams.get('path');
 
     const headersList = await headers();
     const payloadString = headersList.get('x-user-payload');
@@ -45,7 +56,16 @@ export async function GET(request: Request) {
         );
     }
 
-    if (!reqPath) {
+    const ROOT_STORAGE_PATH = ENV.STORAGE_ROOT;
+    if (!ROOT_STORAGE_PATH) {
+        logerror("[FATAL ERROR] STORAGE_ROOT environment variable is not set.");
+        return NextResponse.json(
+            { error: "Internal Server Configuration Error" },
+            { status: 500 }
+        );
+    }
+
+    if (!rawReqPath) {
         try {
             const pathMaps = await prisma.pathMap.findMany({
                 where: { userId: userId },
@@ -65,10 +85,33 @@ export async function GET(request: Request) {
 
             const starredSet = new Set(starPaths.map((sp) => sp.rootPath));
 
+            const userPathSet = new Set<string>();
+            const duplicateIds: (typeof pathMaps)[number]['id'][] = [];
+            const uniquePathMaps: typeof pathMaps = [];
+
+            for (const p of pathMaps) {
+                const normalizedRoot = normalizeFsPath(p.rootPath);
+
+                if (userPathSet.has(normalizedRoot)) {
+                    duplicateIds.push(p.id);
+                } else {
+                    userPathSet.add(normalizedRoot);
+                    uniquePathMaps.push(p);
+                }
+            }
+
+            if (duplicateIds.length > 0) {
+                await prisma.pathMap.deleteMany({
+                    where: {
+                        id: { in: duplicateIds }
+                    }
+                });
+            }
+
             const data = pathMaps.map((p) => ({
                 id: p.id,
                 name: p.description ?? path.basename(p.rootPath),
-                path: p.rootPath,
+                path: normalizeFsPath(p.rootPath),
                 type: "directory",
                 size: undefined,
                 updatedAt: undefined,
@@ -91,15 +134,17 @@ export async function GET(request: Request) {
         }
     }
 
-    try {
-        await validateUserPaths(userId, reqPath);
-    } catch (err: unknown) {
-        logerror("[List file vaidate Failed] : " + err)
+    const reqPath = normalizeFsPath(rawReqPath);
+
+    const validation = await validateUserPaths(userId, reqPath);
+    if (validation instanceof NextResponse) {
+        return validation;
     }
 
     try {
-        const safePath = sanitizePath(ROOT_DIR, reqPath);
-        let files = await readdir(safePath);
+        const physicalPath = path.join(ROOT_STORAGE_PATH, reqPath);
+
+        let files = await readdir(physicalPath);
 
         if (search) {
             files = files.filter(file =>
@@ -121,12 +166,12 @@ export async function GET(request: Request) {
 
             resultFiles = await Promise.all(
                 paginatedFiles.map(async (file) => {
-                    return await getFileStats(safePath, file, reqPath);
+                    return await getFileStats(physicalPath, file, reqPath);
                 })
             );
         } else {
             const allFilesWithStats = await Promise.all(
-                files.map(async (file) => await getFileStats(safePath, file, reqPath))
+                files.map(async (file) => await getFileStats(physicalPath, file, reqPath))
             );
 
             const validFiles = allFilesWithStats.filter((f): f is NonNullable<typeof f> => f !== null);
@@ -165,34 +210,49 @@ export async function GET(request: Request) {
         });
     } catch (err: unknown) {
         logerror("[File List Failed] : " + err);
+
+        if (err instanceof Error) {
+            if ('code' in err && (err as { code: string }).code === 'ENOENT') {
+                logerror("[File List Failed] : Path not found. " + err.message);
+
+                await prisma.pathMap.deleteMany({
+                    where: { rootPath: reqPath }
+                })
+
+                return NextResponse.json(
+                    { error: 'Path not found' },
+                    { status: 404 }
+                );
+            }
+        }
+
+        logerror("[File List Failed] : " + err);
         return NextResponse.json(
-            { error: 'Path not found' },
-            { status: 404 }
+            { error: 'Internal Server Error' },
+            { status: 500 }
         );
     }
 }
 
-async function getFileStats(dirPath: string, fileName: string, reqPath: string) {
+async function getFileStats(physicalDirPath: string, fileName: string, virtualDirPath: string) {
     try {
-        const filePath = path.join(dirPath, fileName);
-        const stats = await stat(filePath);
+        const physicalFilePath = path.join(physicalDirPath, fileName);
+        const stats = await stat(physicalFilePath);
 
         const isDir = stats.isDirectory();
         const ext = path.extname(fileName);
         const type = isDir ? 'directory' : ext.replace('.', '') || 'file';
 
-        const relativePath = path
-            .join('/', path.relative(ROOT_DIR, filePath))
-            .replace(/\\/g, '/');
+        const virtualFilePath = path.join(virtualDirPath, fileName).replace(/\\/g, '/');
 
         const item: FileItem = {
-            id: relativePath,
+            id: virtualFilePath,
             name: fileName,
-            path: relativePath,
+            path: virtualFilePath,
             type,
             size: isDir ? undefined : stats.size,
             updatedAt: stats.mtime.toISOString(),
-            folder: reqPath,
+            folder: virtualDirPath,
             isStarred: false,
         };
 

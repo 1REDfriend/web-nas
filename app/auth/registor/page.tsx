@@ -13,6 +13,7 @@ import {
     CardContent,
 } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
+import { logerror } from "@/lib/logger";
 
 export default function RegisterPage() {
     const [username, setUsername] = useState("");
@@ -57,7 +58,7 @@ export default function RegisterPage() {
             setPassword("");
             router.push('/auth/login');
         } catch (err) {
-            console.error(err);
+            logerror(err + "");
             setError("An error occurred connecting to the server.");
         } finally {
             setLoading(false);
