@@ -1,14 +1,18 @@
-import { logerror } from "@/lib/logger";
+import { log, logerror } from "@/lib/logger";
 import { NextResponse } from "next/server";
 import fs from 'fs-extra';
 import path from 'path';
-
-const BASE_DIR = path.resolve(process.cwd(), 'user_files');
+import { ENV } from "@/lib/ENV";
 
 const getSafePath = (userPath: string): string => {
-    const resolvedPath = path.resolve(path.join(BASE_DIR, userPath));
+    const cleaned = userPath.trim().replace(/^[\\/]+/, "").replace(/\\/g, "/");
+    const resolvedPath = path.resolve(ENV.STORAGE_ROOT, cleaned);
 
-    if (!resolvedPath.startsWith(BASE_DIR)) {
+    const rootWithSep = ENV.STORAGE_ROOT.endsWith(path.sep)
+        ? ENV.STORAGE_ROOT
+        : ENV.STORAGE_ROOT + path.sep;
+
+    if (!(resolvedPath === ENV.STORAGE_ROOT || resolvedPath.startsWith(rootWithSep))) {
         throw new Error("Invalid path: Access denied.");
     }
 
@@ -19,7 +23,6 @@ export async function POST(request: Request) {
     const { searchParams } = new URL(request.url);
     const reqFile = searchParams.get('file');
     const reqOption = searchParams.get('option');
-    const body = await request.json();
 
     try {
         if (!reqFile) {
@@ -33,6 +36,9 @@ export async function POST(request: Request) {
 
         if (reqOption == "rename") {
             const { newName } = await request.json();
+            const rootWithSep = ENV.STORAGE_ROOT.endsWith(path.sep)
+                ? ENV.STORAGE_ROOT
+                : ENV.STORAGE_ROOT + path.sep;
 
             if (!newName || typeof newName !== 'string' || newName.includes('/') || newName.includes('..')) {
                 return NextResponse.json(
@@ -43,7 +49,7 @@ export async function POST(request: Request) {
 
             const newSafePath = path.resolve(path.dirname(safeFilePath), newName);
 
-            if (!newSafePath.startsWith(BASE_DIR)) {
+            if (!(newSafePath === ENV.STORAGE_ROOT || newSafePath.startsWith(rootWithSep))) {
                 return NextResponse.json(
                     { error: "Invalid new path" },
                     { status: 403 }
@@ -55,6 +61,7 @@ export async function POST(request: Request) {
         }
 
         if (reqOption == "moveTo" || reqOption == "cut") {
+            const body = await request.json();
             const { destination } = body;
             if (!destination) {
                 return NextResponse.json(
@@ -93,6 +100,13 @@ export async function POST(request: Request) {
         if (reqOption == "place") {
             const { type, content } = await request.json();
 
+            if (type !== "file" && type !== "folder") {
+                return NextResponse.json(
+                    { error: "Invalid 'place' type. Must be 'file' or 'folder'." }, 
+                    { status: 400 }
+                );
+            }
+
             if (type === "folder") {
                 await fs.ensureDir(safeFilePath);
                 return NextResponse.json(
@@ -111,6 +125,7 @@ export async function POST(request: Request) {
         }
 
         if (reqOption == "delete") {
+            log("LOG : " + safeFilePath)
             await fs.remove(safeFilePath);
             return NextResponse.json({ success: true, message: "File or folder deleted", deletedPath: safeFilePath });
         }
