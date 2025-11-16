@@ -88,12 +88,19 @@ export async function POST(request: Request) {
             );
         }
 
-        await prisma.pathMap.deleteMany({
+        const { count } = await prisma.pathMap.deleteMany({
             where: {
                 userId: reqPathUserId,
                 rootPath: rawReqPath
             }
         })
+
+        if (count <= 0 ) {
+            return NextResponse.json(
+                { error : "No path Found"},
+                {status : 404}
+            )
+        }
 
         return NextResponse.json(
             {message: "Remove pathMap successful" ,success: true}
