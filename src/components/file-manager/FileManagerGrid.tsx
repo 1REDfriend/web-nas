@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Button } from "@/components/ui/button";
+import ptb from 'pretty-bytes'
 import { File as FileIcon, Folder, Star } from "lucide-react";
 import { FileItem } from "./config";
 
@@ -28,7 +28,7 @@ export function FileManagerGrid({
     onOpenDirectory,
 }: FileManagerGridProps) {
     return (
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 overflow-y-scroll">
             <div className="p-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 {listLoading && !files.length && (
                     <div className="col-span-full flex justify-center py-10 text-sm text-slate-400">
@@ -63,7 +63,7 @@ export function FileManagerGrid({
                                             {isDirectory ? (
                                                 <Folder className="w-4 h-4 text-red-400" />
                                             ) : (
-                                                <FileIcon className="w-4 h-4 text-red-400" />
+                                                <FileIcon className="w-4 h-4 text-red-200" />
                                             )}
                                         </div>
                                         <div className="flex flex-col">
@@ -90,7 +90,7 @@ export function FileManagerGrid({
                                     </button>
                                 </CardHeader>
                                 <CardContent className="pt-0 text-xs text-slate-400 space-y-1">
-                                    {file.size && <p>Size: {file.size}</p>}
+                                    {file.size && <p>Size: {ptb(Number(file.size))}</p>}
                                     {file.updatedAt && <p>Updated: {file.updatedAt}</p>}
                                     {/* <div className="flex gap-2 pt-1">
                                         <Button

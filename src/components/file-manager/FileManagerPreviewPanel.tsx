@@ -3,6 +3,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { DownloadCloud, File as FileIcon, Star, Trash2 } from "lucide-react";
 import { FileItem } from "./config";
+import ptb from 'pretty-bytes'
 
 type FileManagerPreviewPanelProps = {
     activeFile: FileItem | null;
@@ -49,8 +50,7 @@ export function FileManagerPreviewPanel({
                                     {activeFile.type || "File"}
                                 </span>
                                 <span className="text-xs text-slate-400">
-                                    {activeFile.size ?? previewSize ?? "-"}{" "}
-                                    {previewSize ? "bytes" : ""}
+                                    Size: {ptb(Number(activeFile.size ?? 0)) ?? ptb(Number(previewSize)) ?? "-"}
                                 </span>
                             </div>
                         </div>

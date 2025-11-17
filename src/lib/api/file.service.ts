@@ -75,6 +75,26 @@ export async function fetchFilePreview(
 ): Promise<{ content: string | null; size: number | null }> {
     const params = new URLSearchParams();
     params.set("file", path);
+    params.set("option", "preview")
+
+    const res = await fetch(`${API_BASE}/read?${params.toString()}`, {
+        signal,
+    });
+
+    await handleApiError(res);
+    const json = await res.json();
+    return {
+        content: json.content ?? null,
+        size: json.size ?? null,
+    };
+}
+
+export async function fetchFileRead(
+    path: string,
+    signal: AbortSignal
+): Promise<{ content: string | null; size: number | null }> {
+    const params = new URLSearchParams();
+    params.set("file", path);
 
     const res = await fetch(`${API_BASE}/read?${params.toString()}`, {
         signal,

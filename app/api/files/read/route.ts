@@ -2,10 +2,12 @@ import { logerror } from "@/lib/logger";
 import { NextResponse } from "next/server";
 import fs from "fs-extra";
 import path from "path";
+import { ENV } from "@/lib/ENV";
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const reqFile = searchParams.get('file');
+    const reqOption = searchParams.get('option')
 
     if (!reqFile) {
         return NextResponse.json(
@@ -14,20 +16,21 @@ export async function GET(request: Request) {
         );
     }
 
-    const BASE_DIR = process.cwd();
+    const physicalPath = path.join(ENV.STORAGE_ROOT, reqFile)
+    const resolveRootPath = path.resolve(ENV.STORAGE_ROOT)
+    const resolvePhysicalPath = path.resolve(physicalPath)
 
     try {
-        const fullPath = path.resolve(BASE_DIR, reqFile);
 
-        if (!fullPath.startsWith(BASE_DIR)) {
-            logerror(`[Access Denied] Attempt to access: ${fullPath}`);
+        if (!resolvePhysicalPath.startsWith(resolveRootPath)) {
+            logerror(`[Access Denied] Attempt to access: ${physicalPath}`);
             return NextResponse.json(
                 { error: "Access Denied" },
                 { status: 403 }
             );
         }
 
-        const exists = await fs.pathExists(fullPath);
+        const exists = await fs.pathExists(physicalPath);
         if (!exists) {
             return NextResponse.json(
                 { error: "File not found" },
@@ -35,7 +38,7 @@ export async function GET(request: Request) {
             );
         }
 
-        const stat = await fs.stat(fullPath);
+        const stat = await fs.stat(physicalPath);
         if (!stat.isFile()) {
             return NextResponse.json(
                 { error: "Path is a directory, not a file" },
@@ -43,7 +46,17 @@ export async function GET(request: Request) {
             );
         }
 
-        const content = await fs.readFile(fullPath, "utf-8");
+        const content = await fs.readFile(physicalPath, "utf-8");
+        if (reqOption == "preview") {
+            const lines = content.split('\n').slice(0, 16);
+            const limitedContent = lines.join('\n');
+
+            return NextResponse.json({
+            file: reqFile,
+            size: stat.size,
+            content: limitedContent
+        });
+        }
 
         return NextResponse.json({
             file: reqFile,

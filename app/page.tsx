@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import * as fileService from "@/lib/api/file.service";
 import { logerror } from "@/lib/logger";
@@ -19,12 +19,10 @@ import { FileManagerToolbar } from "@/components/file-manager/FileManagerToolbar
 import { FileManagerGrid } from "@/components/file-manager/FileManagerGrid";
 import { FileManagerPreviewPanel } from "@/components/file-manager/FileManagerPreviewPanel";
 import { UploadDialog } from "@/components/file-manager/FileUploadDialog";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ComtextMenuBar } from "@/components/ComtextMenuBar";
 
 export default function FileManagerPage() {
-  const [contextMenu, setContextMenu] = useState(null)
-
   const [selectedFolder, setSelectedFolder] = useState<FolderId>("all");
   const [files, setFiles] = useState<FileItem[]>([]);
   const [meta, setMeta] = useState<FileListMeta | null>(null);
@@ -32,7 +30,6 @@ export default function FileManagerPage() {
 
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
-  const [currentPath, setCurrentPath] = useState<string | null>(null);
 
   const [listLoading, setListLoading] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
@@ -43,7 +40,19 @@ export default function FileManagerPage() {
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [refetchTrigger, setRefetchTrigger] = useState(0);
 
+  const searchParams = useSearchParams()
   const router = useRouter()
+
+  const urlPath = searchParams?.get("path")
+
+  const handlePathChange = useCallback((newPath : string) => {
+    if (!searchParams) return
+
+    const params = new URLSearchParams(searchParams)
+    params.set('path', newPath)
+    router.push(`?${params.toString()}`, { scroll: false })
+    setActiveFilePath(null)
+  }, [searchParams, router, urlPath])
 
   useEffect(() => {
     const controller = new AbortController();
@@ -54,7 +63,7 @@ export default function FileManagerPage() {
         setListError(null);
 
         const baseFolderPath = FOLDER_PATHS[selectedFolder];
-        const folderPath = currentPath || baseFolderPath;
+        const folderPath = urlPath || baseFolderPath;
 
         const { data, meta } = await fileService.fetchFiles(
           {
@@ -95,7 +104,7 @@ export default function FileManagerPage() {
     loadFiles();
 
     return () => controller.abort();
-  }, [selectedFolder, page, query, currentPath, refetchTrigger]);
+  }, [selectedFolder, page, query, urlPath, refetchTrigger]);
 
   const visibleFiles = useMemo(() => {
     let data = [...files];
@@ -251,7 +260,7 @@ export default function FileManagerPage() {
 
     relative = relative.replace(/^\/+/, "");
 
-    setCurrentPath(relative || null);
+    handlePathChange(relative)
     setPage(1);
     setActiveFilePath(null);
   }
@@ -261,7 +270,7 @@ export default function FileManagerPage() {
 
   return (
     <ComtextMenuBar>
-      <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-50">
+      <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-50 max-h-screen">
         <FileManagerTopBar
           query={query}
           searchCount={searchCount}
@@ -272,7 +281,7 @@ export default function FileManagerPage() {
         />
 
         <UploadDialog
-          currentPath={currentPath ?? ""}
+          currentPath={urlPath ?? ""}
           onUploaded={() => {
             setRefetchTrigger((count) => count + 1);
           }}
