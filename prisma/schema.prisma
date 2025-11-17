@@ -53,8 +53,22 @@ model PathMap {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String @map("user_id")
 
+  pathMapCategories PathMapCategory[]
+
   @@index([userId], name: "idx_path_maps_user_id")
   @@map("path_maps")
+}
+
+model PathMapCategory {
+  id String @id @default(cuid())
+  rootPath String @map("root_path")
+  toPath String @map("to_path")
+
+  pathMap PathMap @relation(fields: [pathMapId], references: [id], onDelete: Cascade)
+  pathMapId String @map("path_map_id")
+
+  @@index([pathMapId], name: "idx_path_maps_category_path_maps_id")
+  @@map("path_maps_cetagory")
 }
 
 model StarPath {
