@@ -28,6 +28,7 @@ model User {
   pathMaps PathMap[]
   activeSession ActiveSession[]
   starPaths StarPath[]
+  categoryPaths CategoryPath[]
 
   @@map("users")
 }
@@ -53,8 +54,6 @@ model PathMap {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String @map("user_id")
 
-  pathMapCategories PathMapCategory[]
-
   @@index([userId], name: "idx_path_maps_user_id")
   @@map("path_maps")
 }
@@ -62,13 +61,22 @@ model PathMap {
 model PathMapCategory {
   id String @id @default(cuid())
   rootPath String @map("root_path")
-  toPath String @map("to_path")
 
-  pathMap PathMap @relation(fields: [pathMapId], references: [id], onDelete: Cascade)
-  pathMapId String @map("path_map_id")
+  categoryPath CategoryPath @relation(fields: [categoryPathId], references: [id], onDelete: Cascade)
+  categoryPathId String @map("path_map_id")
 
-  @@index([pathMapId], name: "idx_path_maps_category_path_maps_id")
+  @@index([categoryPathId], name: "idx_path_maps_category_category_path")
   @@map("path_maps_cetagory")
+}
+
+model CategoryPath {
+  id String @id @default(cuid())
+  rootPath String @map("root_path")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @map("user_id")
+
+  pathMapCategory PathMapCategory[]
 }
 
 model StarPath {

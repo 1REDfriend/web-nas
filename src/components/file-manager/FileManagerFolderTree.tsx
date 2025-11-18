@@ -1,7 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ListFilter, ChevronRight, Folder as FolderIcon } from "lucide-react";
+import { ListFilter, ChevronRight, Folder as FolderIcon, PlusIcon } from "lucide-react";
 import { FOLDERS, FolderId } from "./config";
+import { useState } from "react";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "../ui/input-group";
 
 type FileManagerFolderTreeProps = {
     selectedFolder: FolderId;
@@ -12,18 +14,32 @@ export function FileManagerFolderTree({
     selectedFolder,
     onSelectFolder,
 }: FileManagerFolderTreeProps) {
+    const [toggleCreate, setToggleCreate] = useState(false)
+
+    const handleToggle = () => {
+        setToggleCreate(!toggleCreate)
+    }
+
     return (
         <div className="hidden lg:flex w-64 border-r border-white/10 flex-col bg-slate-950/40">
             <div className="flex items-center justify-between px-4 py-3">
                 <span className="text-xs font-semibold uppercase text-slate-500">
                     Folders
                 </span>
-                <Button variant="ghost" size="icon">
-                    <ListFilter className="w-4 h-4" />
+                <Button onClick={handleToggle} className="bg-white/5 rounded-md active:scale-90 duration-150 ease-in-out" variant="ghost" size="icon">
+                    <PlusIcon className=" w-5 h-5" />
                 </Button>
             </div>
             <ScrollArea className="flex-1">
                 <div className="px-3 pb-4 space-y-1 text-sm">
+                    {toggleCreate && (
+                        <InputGroup>
+                            <InputGroupInput placeholder="Add Folder Name..." />
+                            <InputGroupAddon>
+                                <FolderIcon />
+                            </InputGroupAddon>
+                        </InputGroup>
+                    )}
                     {FOLDERS.filter((f) => f.id !== "all").map((folder) => (
                         <button
                             key={folder.id}

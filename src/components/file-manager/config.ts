@@ -29,8 +29,6 @@ export type FileListMeta = {
 
 export const FOLDERS = [
     { id: "all", label: "All files", icon: HomeIcon },
-    { id: "projects", label: "Projects", icon: Folder },
-    { id: "media", label: "Media", icon: Folder },
     { id: "starred", label: "Starred", icon: Star },
     { id: "recent", label: "Recent", icon: Clock },
     { id: "trash", label: "Trash", icon: Trash2 },
@@ -38,8 +36,6 @@ export const FOLDERS = [
 
 export const FOLDER_PATHS: Record<(typeof FOLDERS)[number]["id"], string | null> = {
     all: null,
-    projects: "/projects",
-    media: "/media",
     starred: null,
     recent: null,
     trash: "/trash",
