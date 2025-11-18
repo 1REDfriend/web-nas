@@ -20,6 +20,11 @@ export function FileManagerFolderTree({
         setToggleCreate(!toggleCreate)
     }
 
+    const handleEnther = () => {
+        setToggleCreate(false)
+        
+    }
+
     return (
         <div className="hidden lg:flex w-64 border-r border-white/10 flex-col bg-slate-950/40">
             <div className="flex items-center justify-between px-4 py-3">

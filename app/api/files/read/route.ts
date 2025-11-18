@@ -52,10 +52,10 @@ export async function GET(request: Request) {
             const limitedContent = lines.join('\n');
 
             return NextResponse.json({
-            file: reqFile,
-            size: stat.size,
-            content: limitedContent
-        });
+                file: reqFile,
+                size: stat.size,
+                content: limitedContent
+            });
         }
 
         return NextResponse.json({
