@@ -203,3 +203,27 @@ export async function upload(
         logerror('[Error in upload service] : ' +  error);
     }
 }
+
+
+export async function addFolderFavorite(
+    path : string,
+    favorite?: string
+) {
+    const params = new URLSearchParams();
+    params.set("path", path);
+    if (favorite) params.set("like", favorite);
+
+    const res = await fetch(`${API_BASE}/folder?${params.toString()}`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        }
+    });
+
+    await handleApiError(res);
+    const json = await res.json();
+    if (!json.success) {
+        throw new Error(json.message || "Cannot add folder");
+    }
+    return json;
+}

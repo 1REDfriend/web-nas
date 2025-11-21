@@ -4,6 +4,7 @@ import { ListFilter, ChevronRight, Folder as FolderIcon, PlusIcon } from "lucide
 import { FOLDERS, FolderId } from "./config";
 import { useState } from "react";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "../ui/input-group";
+import { addFolderFavorite } from "@/lib/api/file.service";
 
 type FileManagerFolderTreeProps = {
     selectedFolder: FolderId;
@@ -15,14 +16,28 @@ export function FileManagerFolderTree({
     onSelectFolder,
 }: FileManagerFolderTreeProps) {
     const [toggleCreate, setToggleCreate] = useState(false)
+    const [folderName, setFolderName] = useState("")
 
     const handleToggle = () => {
         setToggleCreate(!toggleCreate)
     }
 
-    const handleEnther = () => {
-        setToggleCreate(false)
-        
+    const handleEnter = () => {
+        if (folderName.trim()) { // เช็คว่ามีข้อความจริงๆ (ไม่ใช่อักขระว่าง)
+            addFolderFavorite(folderName);
+            setToggleCreate(false);
+            setFolderName("");
+        }
+    }
+
+    const handleFolderName = (event : React.ChangeEvent<HTMLInputElement>) => {
+        setFolderName(event.target?.value)
+    }
+
+    const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === "Enter") {
+            handleEnter();
+        }
     }
 
     return (
@@ -38,8 +53,13 @@ export function FileManagerFolderTree({
             <ScrollArea className="flex-1">
                 <div className="px-3 pb-4 space-y-1 text-sm">
                     {toggleCreate && (
-                        <InputGroup>
-                            <InputGroupInput placeholder="Add Folder Name..." />
+                        <InputGroup >
+                            <InputGroupInput placeholder="Add Folder Name..." 
+                                value={folderName}
+                                onChange={handleFolderName}
+                                onKeyDown={handleKeyDown}
+                                autoFocus
+                            />
                             <InputGroupAddon>
                                 <FolderIcon />
                             </InputGroupAddon>
