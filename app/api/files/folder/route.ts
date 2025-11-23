@@ -3,6 +3,8 @@ import { logerror } from "@/lib/logger";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { xUserPayload } from "@/lib/api/user/x-user-payload";
+import { error } from "console";
 
 export async function POST(request: Request) {
     const { searchParams } = new URL(request.url);
@@ -139,6 +141,40 @@ export async function POST(request: Request) {
         }
     } catch (err: unknown) {
         logerror("[create folder failed] : " + err)
+        return NextResponse.json(
+            { error: "internal Error : who are you" },
+            { status: 500 }
+        )
+    }
+}
+
+export async function GET() {
+    const userPayload = await xUserPayload()
+    
+    if (!userPayload) {
+        return NextResponse.json(
+            { error: 'Unauthorized' },
+            { status: 401 }
+        );
+    }
+
+    const userId = userPayload.sub
+    
+    try {
+        const categoryPath = await prisma.categoryPath.findMany({
+            where : {userId: userId},
+            select : {
+                id: true,
+                rootPath: true,
+                pathMapCategory: true
+            }
+        })
+
+        return NextResponse.json(
+            {message: 'get successful', categoryPath}
+        )
+    } catch (err : unknown) {
+        logerror("[get create folder failed] : " + err)
         return NextResponse.json(
             { error: "internal Error : who are you" },
             { status: 500 }

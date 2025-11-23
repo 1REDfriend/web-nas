@@ -12,10 +12,11 @@ import {
     DialogTitle,
     DialogDescription,
 } from "@/components/ui/dialog";
-import { Settings } from "lucide-react";
+import { LogIn, Settings } from "lucide-react";
 import { logerror } from "@/lib/logger";
 import { Separator } from "../ui/separator";
 import { PathMapSetting } from "./PathMapSetting";
+import { useRouter } from "next/navigation";
 
 type ImportResponse = {
     success?: boolean;
@@ -29,6 +30,8 @@ export function RootPathSettingsDialog() {
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [currentRootPath, setCurrentRootPath] = useState<string | null>(null);
+
+    const route = useRouter()
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -90,6 +93,14 @@ export function RootPathSettingsDialog() {
                     </DialogDescription>
                 </DialogHeader>
 
+                <Button
+                    onClick={() => {
+                        route.push("/auth/pass-change")
+                    }}
+                >
+                    <LogIn /> Change Password!
+                </Button>
+
                 <form className="space-y-4 mt-2" onSubmit={handleSubmit}>
                     <div className="space-y-2">
                         <Label htmlFor="rootPath">Add Root Path</Label>
@@ -137,7 +148,7 @@ export function RootPathSettingsDialog() {
                 <section>
                     <p className=" font-bold text-xl mb-5 text-rose-500">Import Mananagement</p>
 
-                    <PathMapSetting/>
+                    <PathMapSetting />
                 </section>
             </DialogContent>
         </Dialog>

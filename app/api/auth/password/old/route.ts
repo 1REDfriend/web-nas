@@ -5,7 +5,7 @@ import bcrypt from 'bcrypt';
 
 export async function POST(request: Request) {
     const body = await request.json();
-    const { username ,oldPassword, newPassword} = body;
+    const { username , oldPass : oldPassword, newPass : newPassword} = body;
 
     try {
         if (!username || !oldPassword || !newPassword) {

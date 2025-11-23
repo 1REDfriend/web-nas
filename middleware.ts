@@ -41,7 +41,7 @@ export async function middleware(request: NextRequest) {
         let pathFromDestination: string | null = null;
         const contentType = request.headers.get('content-type');
 
-        if (contentType && contentType.includes('application/json')) {
+    if (contentType && contentType.includes('application/json') && request.method != "GET") {
             try {
                 const clonedRequest = request.clone();
                 const body = await clonedRequest.json();
@@ -78,6 +78,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
     matcher: [
+        '/api/auth/user-check',
         '/api/((?!auth|_next/static|_next/image|favicon.ico).*)'
     ],
 };

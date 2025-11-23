@@ -16,9 +16,13 @@ type PathItem = {
     id: string;
     rootPath: string;
     userId: string;
+    user?: { username: string }; // เพิ่มตรงนี้
 };
 
-type GroupedData = Record<string, { id: string; rootPath: string }[]>;
+type GroupedData = Record<string, { 
+    username: string; 
+    paths: { id: string; rootPath: string }[] 
+}>;
 
 type GetImportResponse = {
     success: boolean;
@@ -40,10 +44,13 @@ function groupByUserId(items: PathItem[]): GroupedData {
 
     return items.reduce<GroupedData>((acc, item) => {
         if (!acc[item.userId]) {
-            acc[item.userId] = [];
+            acc[item.userId] = {
+                username: item.user?.username || "Unknown User",
+                paths: []
+            };
         }
 
-        acc[item.userId].push({
+        acc[item.userId].paths.push({
             id: item.id,
             rootPath: item.rootPath,
         });
@@ -78,10 +85,6 @@ export function PathMapSetting() {
     useEffect(() => {
         void fetchData();
     }, []);
-
-    const handleEdit = (userId: string, path: string) => {
-        // TODO: open edit dialog or form
-    };
 
     const handleDelete = useCallback(
         async (userId: string, reqPath: string) => {
@@ -123,10 +126,10 @@ export function PathMapSetting() {
             )}
 
             {!loading &&
-                Object.entries(importData).map(([userId, paths]) => (
+                Object.entries(importData).map(([userId, data]) => (
                     <div key={userId} className="space-y-2">
                         <h2 className="text-sm font-semibold text-muted-foreground">
-                            {userId}
+                            User: <span className="text-foreground">{data.username}</span>
                         </h2>
 
                         <Table>
@@ -140,7 +143,7 @@ export function PathMapSetting() {
                             </TableHeader>
 
                             <TableBody>
-                                {paths.map((item) => (
+                                {data.paths.map((item) => (
                                     <TableRow key={item.id}>
                                         <TableCell className="font-mono text-xs">
                                             {item.rootPath}

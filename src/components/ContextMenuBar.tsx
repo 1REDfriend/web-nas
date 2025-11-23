@@ -23,7 +23,7 @@ type ComtextMenuBarProps = {
     children: ReactNode;
 };
 
-export function ComtextMenuBar({ children }: ComtextMenuBarProps) {
+export function ContextMenuBar({ children }: ComtextMenuBarProps) {
     const [shareOpen, setShareOpen] = useState(false);
 
     const handleAction = (action: string) => {

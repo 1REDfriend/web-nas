@@ -1,28 +1,31 @@
-// app/auth/registor/page.tsx
-"use client";
+'use client'
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label";
-import {
-    Card,
-    CardHeader,
-    CardTitle,
-    CardDescription,
-    CardContent,
-} from "@/components/ui/card";
-import { useRouter } from "next/navigation";
+import { passChange } from "@/lib/api/auth/pass-change";
 import { logerror } from "@/lib/logger";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
-export default function RegisterPage() {
+type LoginResponse =
+    | {
+        message: string;
+        user?: { name?: string } | string;
+    };
+
+export default function PassChange() {
+
     const [username, setUsername] = useState("");
-    const [password, setPassword] = useState("");
+    const [oldPassword, setOldPassword] = useState("");
+    const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
 
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [userName, setUserName] = useState<string | null>(null);
 
     const router = useRouter();
 
@@ -30,39 +33,36 @@ export default function RegisterPage() {
         e.preventDefault();
         setMessage(null);
         setError(null);
+        setUserName(null);
 
-        if (!username || !password || !confirmPassword) {
+        if (!username || !oldPassword || !newPassword || !confirmPassword) {
             setError("Please enter both your username and password.");
             return;
         }
 
-        if (password != confirmPassword) {
-            setError("Confirm Password not same!")
+        if (newPassword != confirmPassword) {
+            setError("Confirm password not same!")
             return
         }
 
         try {
             setLoading(true);
 
-            const res = await fetch("/api/auth/registor", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ username, password }),
-            });
+            const data: LoginResponse = await passChange(username, oldPassword, newPassword);
 
-            const data = await res.json();
+            setMessage(data?.message || "Login successful");
 
-            if (!res.ok) {
-                setError(data?.message || "Unsuccessful membership application");
-                return;
+            if (typeof data?.user === "string") {
+                setUserName(data.user);
+            } else if (data?.user && typeof data.user === "object") {
+                setUserName(data.user.name ?? null);
             }
 
-            setMessage(data?.message || "User registered successfully");
             setUsername("");
-            setPassword("");
-            router.push('/auth/login');
+            setOldPassword("");
+            setNewPassword("");
+            setConfirmPassword("");
+            router.push("/auth/login");
         } catch (err) {
             logerror(err + "");
             setError("An error occurred connecting to the server.");
@@ -75,9 +75,9 @@ export default function RegisterPage() {
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-50 px-4">
             <Card className="w-full max-w-md border-white/10 bg-slate-950/80 backdrop-blur">
                 <CardHeader>
-                    <CardTitle>Register</CardTitle>
+                    <CardTitle>Pass Change</CardTitle>
                     <CardDescription>
-                        Create your new account
+                        passchange in with your account
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -94,14 +94,26 @@ export default function RegisterPage() {
                         </div>
 
                         <div className="space-y-1">
-                            <Label htmlFor="password">Password</Label>
+                            <Label htmlFor="password">Old Password</Label>
                             <Input
-                                id="password"
+                                id="oldPassword"
                                 type="password"
-                                autoComplete="new-password"
+                                autoComplete="current-password"
                                 placeholder="••••••••"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
+                                value={oldPassword}
+                                onChange={(e) => setOldPassword(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="space-y-1">
+                            <Label htmlFor="password">New Password</Label>
+                            <Input
+                                id="newPassword"
+                                type="password"
+                                autoComplete="current-password"
+                                placeholder="••••••••"
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
                             />
                         </div>
 
@@ -110,7 +122,7 @@ export default function RegisterPage() {
                             <Input
                                 id="confirmPassword"
                                 type="password"
-                                autoComplete="new-password"
+                                autoComplete="current-password"
                                 placeholder="••••••••"
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -124,9 +136,14 @@ export default function RegisterPage() {
                         )}
 
                         {message && (
-                            <p className="text-xs text-emerald-400 mt-1">
-                                {message}
-                            </p>
+                            <div className="mt-1 text-xs text-emerald-400 space-y-1">
+                                <p>{message}</p>
+                                {userName && (
+                                    <p>
+                                        User: <span className="font-semibold">{userName}</span>
+                                    </p>
+                                )}
+                            </div>
                         )}
 
                         <Button
@@ -134,11 +151,11 @@ export default function RegisterPage() {
                             className="w-full mt-2"
                             disabled={loading}
                         >
-                            {loading ? "Applying..." : "Apply for membership"}
+                            {loading ? "Changing in..." : "Change Please"}
                         </Button>
                     </form>
                 </CardContent>
             </Card>
         </div>
-    );
-}
+    )
+} 

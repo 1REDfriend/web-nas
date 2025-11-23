@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import * as fileService from "@/lib/api/file.service";
+import { categoryPath as CategoryPath } from "@/interfaces/path";
 import { logerror } from "@/lib/logger";
 
 import {
@@ -10,7 +11,6 @@ import {
   FOLDER_PATHS,
   FileItem,
   FileListMeta,
-  FolderId,
 } from "@/components/file-manager/config";
 import { FileManagerTopBar } from "@/components/file-manager/FileManagerTopBar";
 import { FileManagerSidebarNav } from "@/components/file-manager/FileManagerSidebarNav";
@@ -20,13 +20,15 @@ import { FileManagerGrid } from "@/components/file-manager/FileManagerGrid";
 import { FileManagerPreviewPanel } from "@/components/file-manager/FileManagerPreviewPanel";
 import { UploadDialog } from "@/components/file-manager/FileUploadDialog";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ComtextMenuBar } from "@/components/ComtextMenuBar";
+import LoginCheck from "@/components/auth/loginCheck";
+import { ContextMenuBar } from "@/components/ContextMenuBar";
 
 export default function FileManagerPage() {
-  const [selectedFolder, setSelectedFolder] = useState<FolderId>("all");
+  const [selectedFolder, setSelectedFolder] = useState("all");
   const [files, setFiles] = useState<FileItem[]>([]);
   const [meta, setMeta] = useState<FileListMeta | null>(null);
   const [activeFilePath, setActiveFilePath] = useState<string | null>(null);
+  const [categoryPaths, setCategoryPaths] = useState<CategoryPath[]>([]);
 
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -40,19 +42,57 @@ export default function FileManagerPage() {
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [refetchTrigger, setRefetchTrigger] = useState(0);
 
-  const searchParams = useSearchParams()
-  const router = useRouter()
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
-  const urlPath = searchParams?.get("path")
+  const urlPath = searchParams?.get("path");
 
-  const handlePathChange = useCallback((newPath : string) => {
-    if (!searchParams) return
+  const handlePathChange = useCallback(
+    (newPath: string) => {
+      if (!searchParams) return;
 
-    const params = new URLSearchParams(searchParams)
-    params.set('path', newPath)
-    router.push(`?${params.toString()}`, { scroll: false })
-    setActiveFilePath(null)
-  }, [searchParams, router, urlPath])
+      const params = new URLSearchParams(searchParams);
+
+      if (!newPath) {
+        params.delete("path");
+      } else {
+        params.set("path", newPath);
+      }
+
+      router.push(`?${params.toString()}`, { scroll: false });
+      setActiveFilePath(null);
+    },
+    [searchParams, router, urlPath]
+  );
+
+  useEffect(() => {
+    const fetchCategoryPaths = async () => {
+      try {
+        const result = await fileService.addFolderFavorite();
+
+        let paths: CategoryPath[] = [];
+
+        if (result && typeof result === "object" && "categoryPath" in result) {
+          const cp = (result as { categoryPath: unknown }).categoryPath;
+
+          if (Array.isArray(cp)) {
+            paths = cp as CategoryPath[];
+          }
+        }
+
+        setCategoryPaths(paths);
+      } catch (err: unknown) {
+        logerror(
+          err instanceof Error
+            ? `Error fetching categoryPath: ${err.message}`
+            : "Error fetching categoryPath"
+        );
+        setCategoryPaths([]);
+      }
+    };
+
+    fetchCategoryPaths();
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -62,8 +102,24 @@ export default function FileManagerPage() {
         setListLoading(true);
         setListError(null);
 
-        const baseFolderPath = FOLDER_PATHS[selectedFolder];
-        const folderPath = urlPath || baseFolderPath;
+        let baseFolderPath: string | null =
+          categoryPaths.find((c) => c.id === selectedFolder)?.rootPath ??
+          (FOLDER_PATHS as Record<string, string | null>)[selectedFolder];
+
+        if (baseFolderPath && !baseFolderPath.startsWith("/")) {
+          baseFolderPath = `/${baseFolderPath}`;
+        }
+
+        let folderPath: string | null = urlPath || baseFolderPath || null;
+
+        if (folderPath && !folderPath.startsWith("/")) {
+          folderPath = `/${folderPath}`;
+        }
+
+        if (folderPath === "/") {
+          folderPath = null;
+        }
+
 
         const { data, meta } = await fileService.fetchFiles(
           {
@@ -104,7 +160,7 @@ export default function FileManagerPage() {
     loadFiles();
 
     return () => controller.abort();
-  }, [selectedFolder, page, query, urlPath, refetchTrigger]);
+  }, [selectedFolder, page, query, urlPath, refetchTrigger, categoryPaths]);
 
   const visibleFiles = useMemo(() => {
     let data = [...files];
@@ -176,7 +232,7 @@ export default function FileManagerPage() {
     loadPreview();
 
     return () => controller.abort();
-  }, [activePath]);
+  }, [activePath, activeFile?.type]);
 
   const searchCount = meta?.totalFiles ?? visibleFiles.length;
   const totalPages = meta
@@ -252,24 +308,40 @@ export default function FileManagerPage() {
   }
 
   function handleOpenDirectory(path: string) {
-    const baseFolderPath = FOLDER_PATHS[selectedFolder];
-    let relative = path;
-    if (baseFolderPath && path.startsWith(baseFolderPath)) {
-      relative = path.slice(baseFolderPath.length);
+    let baseFolderPath: string | null =
+      categoryPaths.find((c) => c.id === selectedFolder)?.rootPath ??
+      (FOLDER_PATHS as Record<string, string | null>)[selectedFolder];
+
+    if (baseFolderPath && !baseFolderPath.startsWith("/")) {
+      baseFolderPath = `/${baseFolderPath}`;
+    }
+
+    let normalized = path;
+    if (!normalized.startsWith("/")) {
+      normalized = `/${normalized}`;
+    }
+
+    let relative = normalized;
+
+    if (baseFolderPath && normalized.startsWith(baseFolderPath)) {
+      relative = normalized.slice(baseFolderPath.length);
     }
 
     relative = relative.replace(/^\/+/, "");
 
-    handlePathChange(relative)
+    handlePathChange(relative);
     setPage(1);
     setActiveFilePath(null);
   }
 
   const currentFolderLabel =
-    FOLDERS.find((f) => f.id === selectedFolder)?.label ?? "Files";
+    categoryPaths.find((c) => c.id === selectedFolder)?.rootPath ??
+    FOLDERS.find((f) => f.id === selectedFolder)?.label ??
+    "Files";
 
   return (
-    <ComtextMenuBar>
+    <ContextMenuBar>
+      <LoginCheck />
       <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-50 max-h-screen">
         <FileManagerTopBar
           query={query}
@@ -353,6 +425,6 @@ export default function FileManagerPage() {
           </section>
         </main>
       </div>
-    </ComtextMenuBar>
+    </ContextMenuBar>
   );
 }

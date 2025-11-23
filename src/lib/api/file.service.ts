@@ -200,30 +200,42 @@ export async function upload(
         return data;
 
     } catch (error: unknown) {
-        logerror('[Error in upload service] : ' +  error);
+        logerror('[Error in upload service] : ' + error);
     }
 }
 
 
 export async function addFolderFavorite(
-    path : string,
+    path?: string,
     favorite?: string
 ) {
     const params = new URLSearchParams();
-    params.set("path", path);
+    if (path) params.set("path", path);
     if (favorite) params.set("like", favorite);
 
-    const res = await fetch(`${API_BASE}/folder?${params.toString()}`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        }
-    });
+    let res;
+
+    if (path || favorite) {
+        res = await fetch(`${API_BASE}/folder?${params.toString()}`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            }
+        });
+    } else {
+        res = await fetch(`${API_BASE}/folder`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+            }
+        });
+    }
+
 
     await handleApiError(res);
-    const json = await res.json();
-    if (!json.success) {
-        throw new Error(json.message || "Cannot add folder");
+    const data = await res.json();
+    if (!data.success && !data.message) {
+        throw new Error(data.error || "Cannot add folder");
     }
-    return json;
+    return data;
 }

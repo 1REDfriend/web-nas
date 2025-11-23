@@ -35,7 +35,8 @@ export async function GET(request: Request) {
             select: {
                 id: true,
                 rootPath: true,
-                userId: true
+                userId: true,
+                user: true
             }
         })
 

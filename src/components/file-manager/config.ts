@@ -6,8 +6,6 @@ import {
     Clock,
 } from "lucide-react";
 
-export type FolderId = "all" | "projects" | "media" | "starred" | "recent" | "trash";
-
 export type FileItem = {
     id?: string | number;
     name: string;
