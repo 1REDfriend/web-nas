@@ -12,11 +12,12 @@ import {
     DialogTitle,
     DialogDescription,
 } from "@/components/ui/dialog";
-import { LogIn, Settings } from "lucide-react";
+import { LogIn, Settings, UserPlus } from "lucide-react";
 import { logerror } from "@/lib/logger";
 import { Separator } from "../ui/separator";
 import { PathMapSetting } from "./PathMapSetting";
 import { useRouter } from "next/navigation";
+import { UserManageSetting } from "./UserManageSetting";
 
 type ImportResponse = {
     success?: boolean;
@@ -101,6 +102,14 @@ export function RootPathSettingsDialog() {
                     <LogIn /> Change Password!
                 </Button>
 
+                <Button
+                    onClick={() => {
+                        route.push("/admin/user/create")
+                    }}
+                >
+                    <UserPlus /> Add User
+                </Button>
+
                 <form className="space-y-4 mt-2" onSubmit={handleSubmit}>
                     <div className="space-y-2">
                         <Label htmlFor="rootPath">Add Root Path</Label>
@@ -145,10 +154,20 @@ export function RootPathSettingsDialog() {
 
                 <Separator className="bg-white/5" />
 
-                <section>
-                    <p className=" font-bold text-xl mb-5 text-rose-500">Import Mananagement</p>
+                <section className="space-y-4">
+                    <p className="font-bold text-lg text-rose-500">User Management</p>
+                    <div className="bg-slate-900/30 p-2 rounded-lg border border-white/5">
+                        <UserManageSetting />
+                    </div>
+                </section>
 
-                    <PathMapSetting />
+                <Separator className="bg-white/5" />
+
+                <section className="space-y-4">
+                    <p className="font-bold text-lg text-rose-500">Import Management</p>
+                    <div className="bg-slate-900/30 p-2 rounded-lg border border-white/5">
+                        <PathMapSetting />
+                    </div>
                 </section>
             </DialogContent>
         </Dialog>
