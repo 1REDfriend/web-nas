@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChevronRight, Folder as FolderIcon, PlusIcon, Trash2, Pencil } from "lucide-react";
+import { ChevronRight, Folder as FolderIcon, PlusIcon, Trash2, Pencil, Plus } from "lucide-react";
 import { FOLDERS } from "./config";
 import { useEffect, useState } from "react";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "../ui/input-group";
@@ -16,6 +16,7 @@ import {
     ContextMenuTrigger,
     ContextMenuSeparator,
 } from "@/components/ui/context-menu";
+import { useRouter } from "next/navigation";
 
 type FileManagerFolderTreeProps = {
     selectedFolder: string;
@@ -34,6 +35,8 @@ export function FileManagerFolderTree({
     const [folderName, setFolderName] = useState("")
     const [categoryPath, setCategoryPath] = useState<categoryPath[]>([])
 
+    const router = useRouter();
+
     const handleToggle = () => {
         setToggleCreate(!toggleCreate)
     }
@@ -43,6 +46,7 @@ export function FileManagerFolderTree({
             addFolderFavorite(folderName);
             setToggleCreate(false);
             setFolderName("");
+            router.refresh();
         }
     }
 
@@ -79,6 +83,11 @@ export function FileManagerFolderTree({
                 <span className="text-xs font-semibold uppercase text-slate-500">
                     Folders
                 </span>
+                <Button className="bg-white/5"
+                    onClick={handleToggle}
+                >
+                    <Plus />
+                </Button>
             </div>
             <ScrollArea className="flex-1">
                 <div className="px-3 pb-4 space-y-1 text-sm">

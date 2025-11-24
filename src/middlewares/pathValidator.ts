@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db';
+import { ENV } from '@/lib/ENV';
 import { logerror } from '@/lib/logger';
 import { NextResponse } from 'next/server';
 
@@ -58,9 +59,15 @@ export async function validateUserPaths(
             const rawPath = rawList[i];
             const path = pathList[i];
 
-            const isPathValid = allowedRootPaths.some((root) => {
+            const isPathValid = allowedRootPaths.some(async (root) => {
                 const r = root;
-                return path === r || path.startsWith(r.endsWith('/') ? r : r + '/');
+                const isExitsPathCategory = await prisma.categoryPath.findFirst({
+                    where: {
+                        userId,
+                        rootPath: path
+                    }
+                })
+                return path === r || path.startsWith(r.endsWith('/') ? r : r + '/') || isExitsPathCategory;
             });
 
             if (!isPathValid) {

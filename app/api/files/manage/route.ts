@@ -1,23 +1,18 @@
-import { log, logerror } from "@/lib/logger";
 import { NextResponse } from "next/server";
-import fs from 'fs-extra';
-import path from 'path';
-import { ENV } from "@/lib/ENV";
+import { logerror } from "@/lib/logger";
+import { getSafePath } from "@/lib/utils/filesystem/utils";
+import { renameAction } from "@/lib/utils/filesystem/actions/rename";
+import { moveAction } from "@/lib/utils/filesystem/actions/move";
+import { copyAction } from "@/lib/utils/filesystem/actions/copy";
+import { placeAction } from "@/lib/utils/filesystem/actions/place";
+import { deleteAction } from "@/lib/utils/filesystem/actions/delete";
 
-const getSafePath = (userPath: string): string => {
-    const cleaned = userPath.trim().replace(/^[\\/]+/, "").replace(/\\/g, "/");
-    const resolvedPath = path.resolve(ENV.STORAGE_ROOT, cleaned);
-
-    const rootWithSep = ENV.STORAGE_ROOT.endsWith(path.sep)
-        ? ENV.STORAGE_ROOT
-        : ENV.STORAGE_ROOT + path.sep;
-
-    if (!(resolvedPath === ENV.STORAGE_ROOT || resolvedPath.startsWith(rootWithSep))) {
-        throw new Error("Invalid path: Access denied.");
-    }
-
-    return resolvedPath;
-};
+interface FileActionBody {
+    newName?: string;
+    destination?: string;
+    type?: string;
+    content?: string;
+}
 
 export async function POST(request: Request) {
     const { searchParams } = new URL(request.url);
@@ -26,119 +21,53 @@ export async function POST(request: Request) {
 
     try {
         if (!reqFile) {
-            return NextResponse.json(
-                { error: "No File Select" },
-                { status: 400 }
-            );
+            return NextResponse.json({ error: "No File Select" }, { status: 400 });
         }
 
         const safeFilePath = getSafePath(reqFile);
 
-        if (reqOption == "rename") {
-            const { newName } = await request.json();
-            const rootWithSep = ENV.STORAGE_ROOT.endsWith(path.sep)
-                ? ENV.STORAGE_ROOT
-                : ENV.STORAGE_ROOT + path.sep;
+        let body: FileActionBody = {};
+        try { body = await request.json() as FileActionBody; } catch (e) { }
 
-            if (!newName || typeof newName !== 'string' || newName.includes('/') || newName.includes('..')) {
-                return NextResponse.json(
-                    { error: "Invalid new name" },
-                    { status: 400 }
-                );
-            }
+        let result;
 
-            const newSafePath = path.resolve(path.dirname(safeFilePath), newName);
+        switch (reqOption) {
+            case "rename":
+                result = await renameAction(safeFilePath, body.newName || "");
+                break;
 
-            if (!(newSafePath === ENV.STORAGE_ROOT || newSafePath.startsWith(rootWithSep))) {
-                return NextResponse.json(
-                    { error: "Invalid new path" },
-                    { status: 403 }
-                );
-            }
+            case "moveTo":
+            case "cut":
+                result = await moveAction(safeFilePath, body.destination || "");
+                break;
 
-            await fs.rename(safeFilePath, newSafePath);
-            return NextResponse.json({ success: true, message: "File renamed", newPath: newSafePath });
+            case "copy":
+                result = await copyAction(safeFilePath, body.destination || "");
+                break;
+
+            case "place":
+                result = await placeAction(safeFilePath, body.type || "", body.content || "");
+                break;
+
+            case "delete":
+                result = await deleteAction(safeFilePath);
+                break;
+
+            default:
+                return NextResponse.json({ error: "Invalid operation specified" }, { status: 400 });
         }
 
-        if (reqOption == "moveTo" || reqOption == "cut") {
-            const body = await request.json();
-            const { destination } = body;
-            if (!destination) {
-                return NextResponse.json(
-                    { error: "No destination specified" },
-                    { status: 400 }
-                );
-            }
+        return NextResponse.json({ success: true, ...result });
 
-            const safeDestFolder = getSafePath(destination);
-            const finalDestPath = path.join(safeDestFolder, path.basename(safeFilePath));
-
-            await fs.move(safeFilePath, finalDestPath, { overwrite: false });
-            return NextResponse.json(
-                { success: true, message: "File moved", newPath: finalDestPath }
-            );
-        }
-
-        if (reqOption == "copy") {
-            const { destination } = await request.json();
-            if (!destination) {
-                return NextResponse.json(
-                    { error: "No destination specified" },
-                    { status: 400 }
-                );
-            }
-
-            const safeDestFolder = getSafePath(destination);
-            const finalDestPath = path.join(safeDestFolder, path.basename(safeFilePath));
-
-            await fs.copy(safeFilePath, finalDestPath, { overwrite: false });
-            return NextResponse.json(
-                { success: true, message: "File copied", newPath: finalDestPath }
-            );
-        }
-
-        if (reqOption == "place") {
-            const { type, content } = await request.json();
-
-            if (type !== "file" && type !== "folder") {
-                return NextResponse.json(
-                    { error: "Invalid 'place' type. Must be 'file' or 'folder'." }, 
-                    { status: 400 }
-                );
-            }
-
-            if (type === "folder") {
-                await fs.ensureDir(safeFilePath);
-                return NextResponse.json(
-                    { success: true, message: "Folder created", newPath: safeFilePath }
-                );
-            }
-
-            if (type === "file") {
-                await fs.outputFile(safeFilePath, content || "");
-                return NextResponse.json(
-                    { success: true, message: "File created", newPath: safeFilePath }
-                );
-            }
-
-            return NextResponse.json({ error: "Invalid 'place' type. Must be 'file' or 'folder'." }, { status: 400 });
-        }
-
-        if (reqOption == "delete") {
-            log("LOG : " + safeFilePath)
-            await fs.remove(safeFilePath);
-            return NextResponse.json({ success: true, message: "File or folder deleted", deletedPath: safeFilePath });
-        }
-
-        return NextResponse.json(
-            { error: "Invalid operation specified" },
-            { status: 400 }
-        );
     } catch (err: unknown) {
-        logerror("[Manage File Failed] : " + err);
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        logerror("[Manage File Failed] : " + errorMessage);
+
+        const isUserError = errorMessage.includes("Invalid") || errorMessage.includes("No destination") || errorMessage.includes("Access denied");
+
         return NextResponse.json(
-            { error: "Internal Error" },
-            { status: 500 }
+            { error: errorMessage || "Internal Error" },
+            { status: isUserError ? 400 : 500 }
         );
     }
 }
