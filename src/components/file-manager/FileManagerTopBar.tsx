@@ -5,18 +5,20 @@ import {
     InputGroupAddon,
     InputGroupInput,
 } from "@/components/ui/input-group";
-import { Search, Upload, Plus } from "lucide-react";
+import { Search, Upload, Plus, TerminalSquare } from "lucide-react";
 
 type FileManagerTopBarProps = {
     query: string;
     searchCount: number;
     onQueryChange: (value: string) => void;
+    onOpenTerminal?: () => void;
 };
 
 export function FileManagerTopBar({
     query,
     searchCount,
     onQueryChange,
+    onOpenTerminal,
 }: FileManagerTopBarProps) {
     return (
         <header className="flex items-center justify-between w-full h-16 bg-red-500/5 border-b border-white/10 px-6 md:px-10 backdrop-blur" >
@@ -50,6 +52,12 @@ export function FileManagerTopBar({
 
                 {/* Actions (ยังไม่ได้ผูก API upload / create folder ให้) */}
                 <div className="hidden sm:flex items-center gap-2" >
+                    <Button 
+                    onClick={onOpenTerminal}
+                    variant="outline" size="icon" className="border-white/10"
+                    >
+                        <TerminalSquare className="w-4 h-4" />
+                    </Button>
                     <Button variant="outline" size="icon" className="border-white/10" >
                         <Upload className="w-4 h-4" />
                     </Button>

@@ -22,6 +22,9 @@ import { UploadDialog } from "@/components/file-manager/FileUploadDialog";
 import { useRouter, useSearchParams } from "next/navigation";
 import LoginCheck from "@/components/auth/loginCheck";
 import { ContextMenuBar } from "@/components/ContextMenuBar";
+import { Terminal } from "@/components/Terminal";
+import TerminalView from "@/components/terminal/terminal-view";
+import dynamic from "next/dynamic";
 
 export default function FileManagerPage() {
   const [selectedFolder, setSelectedFolder] = useState("all");
@@ -41,6 +44,9 @@ export default function FileManagerPage() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [refetchTrigger, setRefetchTrigger] = useState(0);
+
+  const [isTerminalOpen, setIsTerminalOpen] = useState(false);
+  const currentUser = "AdminTon";
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -334,6 +340,15 @@ export default function FileManagerPage() {
     setActiveFilePath(null);
   }
 
+  const handleOpenTerminal = () => {
+    setIsTerminalOpen(!isTerminalOpen);
+  };
+
+  const TerminalView = dynamic(() => import("@/components/terminal/terminal-view"), {
+    ssr: false,
+    loading: () => <div className="text-white text-center p-10">Loading Terminal...</div>
+  });
+
   const currentFolderLabel =
     categoryPaths.find((c) => c.id === selectedFolder)?.rootPath ??
     FOLDERS.find((f) => f.id === selectedFolder)?.label ??
@@ -342,38 +357,30 @@ export default function FileManagerPage() {
   return (
     <ContextMenuBar>
       <LoginCheck />
-      <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-50 max-h-screen">
-        <FileManagerTopBar
-          query={query}
-          searchCount={searchCount}
-          onQueryChange={(value) => {
-            setPage(1);
-            setQuery(value);
-          }}
-        />
-
-        <UploadDialog
-          currentPath={urlPath ?? ""}
-          onUploaded={() => {
-            setRefetchTrigger((count) => count + 1);
-          }}
-          triggerEnable={false}
-          enableGlobalDrop={true}
-        />
-
-        {/* Main layout */}
-        <main className="flex flex-1 overflow-hidden">
-          <FileManagerSidebarNav
-            selectedFolder={selectedFolder}
-            onSelectFolder={(folderId) => {
-              setSelectedFolder(folderId);
+      {!isTerminalOpen && (
+        <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-50 max-h-screen">
+          <FileManagerTopBar
+            query={query}
+            searchCount={searchCount}
+            onQueryChange={(value) => {
               setPage(1);
+              setQuery(value);
             }}
+            onOpenTerminal={handleOpenTerminal}
           />
 
-          {/* Middle & right panels */}
-          <section className="flex flex-1 overflow-hidden">
-            <FileManagerFolderTree
+          <UploadDialog
+            currentPath={urlPath ?? ""}
+            onUploaded={() => {
+              setRefetchTrigger((count) => count + 1);
+            }}
+            triggerEnable={false}
+            enableGlobalDrop={true}
+          />
+
+          {/* Main layout */}
+          <main className="flex flex-1 overflow-hidden">
+            <FileManagerSidebarNav
               selectedFolder={selectedFolder}
               onSelectFolder={(folderId) => {
                 setSelectedFolder(folderId);
@@ -381,50 +388,76 @@ export default function FileManagerPage() {
               }}
             />
 
-            {/* Center: file list */}
-            <div className="flex-1 flex flex-col">
-              <FileManagerToolbar
-                title={currentFolderLabel}
-                visibleCount={visibleFiles.length}
-                listError={listError}
-                meta={meta}
-                page={page}
-                totalPages={totalPages}
-                listLoading={listLoading}
-                hasActiveFile={!!activeFile}
-                onPrevPage={() => setPage((p) => Math.max(1, p - 1))}
-                onNextPage={() => setPage((p) => Math.min(totalPages, p + 1))}
-                onDownloadActive={() => {
-                  if (activeFile) handleDownload(activeFile);
+            {/* Middle & right panels */}
+            <section className="flex flex-1 overflow-hidden">
+              <FileManagerFolderTree
+                selectedFolder={selectedFolder}
+                onSelectFolder={(folderId) => {
+                  setSelectedFolder(folderId);
+                  setPage(1);
                 }}
               />
 
-              <FileManagerGrid
-                files={visibleFiles}
-                activeFilePath={activeFile?.path ?? null}
-                listLoading={listLoading}
-                onSelectFile={setActiveFilePath}
-                onDownload={handleDownload}
-                onRename={handleRename}
-                onDelete={handleDelete}
-                onToggleStar={handleToggleStar}
-                onOpenDirectory={handleOpenDirectory}
-              />
-            </div>
+              {/* Center: file list */}
+              <div className="flex-1 flex flex-col">
+                <FileManagerToolbar
+                  title={currentFolderLabel}
+                  visibleCount={visibleFiles.length}
+                  listError={listError}
+                  meta={meta}
+                  page={page}
+                  totalPages={totalPages}
+                  listLoading={listLoading}
+                  hasActiveFile={!!activeFile}
+                  onPrevPage={() => setPage((p) => Math.max(1, p - 1))}
+                  onNextPage={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  onDownloadActive={() => {
+                    if (activeFile) handleDownload(activeFile);
+                  }}
+                />
 
-            <FileManagerPreviewPanel
-              activeFile={activeFile}
-              previewContent={previewContent}
-              previewSize={previewSize}
-              previewLoading={previewLoading}
-              previewError={previewError}
-              onDownload={handleDownload}
-              onToggleStar={handleToggleStar}
-              onDelete={handleDelete}
-            />
-          </section>
-        </main>
-      </div>
+                <FileManagerGrid
+                  files={visibleFiles}
+                  activeFilePath={activeFile?.path ?? null}
+                  listLoading={listLoading}
+                  onSelectFile={setActiveFilePath}
+                  onDownload={handleDownload}
+                  onRename={handleRename}
+                  onDelete={handleDelete}
+                  onToggleStar={handleToggleStar}
+                  onOpenDirectory={handleOpenDirectory}
+                />
+              </div>
+
+              <FileManagerPreviewPanel
+                activeFile={activeFile}
+                previewContent={previewContent}
+                previewSize={previewSize}
+                previewLoading={previewLoading}
+                previewError={previewError}
+                onDownload={handleDownload}
+                onToggleStar={handleToggleStar}
+                onDelete={handleDelete}
+              />
+            </section>
+          </main>
+        </div>
+      )}
+      {isTerminalOpen && (
+        <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-50 max-h-screen">
+          <FileManagerTopBar
+            query={query}
+            searchCount={searchCount}
+            onQueryChange={(value) => {
+              setPage(1);
+              setQuery(value);
+            }}
+            onOpenTerminal={handleOpenTerminal}
+          />
+
+          <TerminalView username={currentUser} />
+        </div>
+      )}
     </ContextMenuBar>
   );
 }
