@@ -1,18 +1,18 @@
 
-export function log(msg : string) {
+export function log(...args: unknown[]) {
     if (typeof window === 'undefined') {
-        console.log(msg);
+        console.log(...args);
     }
 }
 
-export function logwarn(msg : string) {
+export function logwarn(...args: unknown[]) {
     if (typeof window === 'undefined') {
-        console.warn(msg);
+        console.warn(...args);
     }
 }
 
-export function logerror(msg : string) {
+export function logerror(...args: unknown[]) {
     if (typeof window === 'undefined') {
-        console.error(msg);
+        console.error(...args);
     }
 }

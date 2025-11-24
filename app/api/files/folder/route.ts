@@ -4,23 +4,22 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { xUserPayload } from "@/lib/api/user/x-user-payload";
+import fs from "fs-extra";
+import { pathReplaceValidate } from "@/lib/reosolvePath";
+import { ENV } from "@/lib/ENV";
 
 export async function POST(request: Request) {
     const { searchParams } = new URL(request.url);
     const reqPath = searchParams.get('path');
     const reqFavoritePath = searchParams.get('like')
+    const userPayload = await xUserPayload()
 
-    const headersList = await headers();
-    const payloadString = headersList.get('x-user-payload');
-
-    if (!payloadString) {
+    if (!userPayload) {
         return NextResponse.json(
             { error: 'Unauthorized' },
             { status: 401 }
         );
     }
-
-    const userPayload: UserJwtPayload = await JSON.parse(payloadString);
     const userId = userPayload.sub;
 
     try {
@@ -70,6 +69,21 @@ export async function POST(request: Request) {
                 )
             }
 
+            const validatedSuffix = await pathReplaceValidate(reqPath);
+            const validatedSuffixUserId = await pathReplaceValidate(userId)
+
+            if (!validatedSuffix) {
+                logerror("[Normalize folder path Failed]")
+                return NextResponse.json(
+                    { error: "No Path Found" },
+                    { status: 400 }
+                )
+            }
+
+            const fullPath = ENV.STORAGE_INTERNAL + validatedSuffixUserId + validatedSuffix;
+
+            await fs.ensureDir(fullPath)
+
             await prisma.categoryPath.create({
                 data: {
                     userId: userId,
@@ -81,62 +95,7 @@ export async function POST(request: Request) {
                 { message: "Create Folder successful" }
             )
         } else {
-            if (!reqFavoritePath) {
-                return NextResponse.json(
-                    { error: "No Path Like found" },
-                    { status: 400 }
-                )
-            }
-
-            const exitsPathLike = await prisma.categoryPath.findFirst({
-                where: {
-                    userId: userId,
-                    pathMapCategory: {
-                        some: {
-                            rootPath: reqFavoritePath
-                        }
-                    }
-                },
-                include: {
-                    pathMapCategory: {
-                        where: {
-                            rootPath: reqFavoritePath
-                        }
-                    }
-                }
-            })
-
-            if (!exitsPathLike || exitsPathLike?.pathMapCategory) {
-                return NextResponse.json(
-                    { error: "Path is exited" },
-                    { status: 400 }
-                )
-            }
-
-            const categoryPath = await prisma.categoryPath.findFirst({
-                where: {
-                    userId: userId,
-                    rootPath: reqPath
-                }
-            })
-
-            if (!categoryPath) {
-                return NextResponse.json(
-                    { error: "Path is not found" },
-                    { status: 400 }
-                )
-            }
-
-            await prisma.pathMapCategory.create({
-                data: {
-                    categoryPathId: categoryPath.id,
-                    rootPath: reqFavoritePath
-                }
-            })
-
-            return NextResponse.json(
-                { message: "Favorite Folder successful" }
-            )
+            //! Nothing wait for build move folder
         }
     } catch (err: unknown) {
         logerror("[create folder failed] : " + err)
@@ -149,7 +108,7 @@ export async function POST(request: Request) {
 
 export async function GET() {
     const userPayload = await xUserPayload()
-    
+
     if (!userPayload) {
         return NextResponse.json(
             { error: 'Unauthorized' },
@@ -158,11 +117,11 @@ export async function GET() {
     }
 
     const userId = userPayload.sub
-    
+
     try {
         const categoryPath = await prisma.categoryPath.findMany({
-            where : {userId: userId},
-            select : {
+            where: { userId: userId },
+            select: {
                 id: true,
                 rootPath: true,
                 pathMapCategory: true
@@ -170,9 +129,9 @@ export async function GET() {
         })
 
         return NextResponse.json(
-            {message: 'get successful', categoryPath}
+            { message: 'get successful', categoryPath }
         )
-    } catch (err : unknown) {
+    } catch (err: unknown) {
         logerror("[get create folder failed] : " + err)
         return NextResponse.json(
             { error: "internal Error : who are you" },
