@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/db';
 import { logerror } from '@/lib/logger';
-import { log } from 'console';
 import { NextResponse } from 'next/server';
 
 export type PathValidationResult = {

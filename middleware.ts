@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 import { ENV } from '@/lib/ENV';
-import { log, logerror } from '@/lib/logger';
+import { logerror } from '@/lib/logger';
 
 const COOKIE_NAME = ENV.TOKEN_COOKIE;
 const secret = new TextEncoder().encode(ENV.JWT_SECRET);

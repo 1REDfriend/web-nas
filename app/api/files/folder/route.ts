@@ -4,7 +4,6 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { xUserPayload } from "@/lib/api/user/x-user-payload";
-import { error } from "console";
 
 export async function POST(request: Request) {
     const { searchParams } = new URL(request.url);

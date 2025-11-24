@@ -43,7 +43,6 @@ export function FileManagerFolderTree({
             addFolderFavorite(folderName);
             setToggleCreate(false);
             setFolderName("");
-            // ควรมีการ refresh data ตรงนี้ถ้าต้องการให้ update ทันที
         }
     }
 
@@ -80,9 +79,6 @@ export function FileManagerFolderTree({
                 <span className="text-xs font-semibold uppercase text-slate-500">
                     Folders
                 </span>
-                <Button onClick={handleToggle} className="bg-white/5 rounded-md active:scale-90 duration-150 ease-in-out" variant="ghost" size="icon">
-                    <PlusIcon className=" w-5 h-5" />
-                </Button>
             </div>
             <ScrollArea className="flex-1">
                 <div className="px-3 pb-4 space-y-1 text-sm">
