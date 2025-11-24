@@ -27,7 +27,7 @@ export async function POST(request: Request) {
         const safeFilePath = getSafePath(reqFile);
 
         let body: FileActionBody = {};
-        try { body = await request.json() as FileActionBody; } catch (e) { }
+        try { body = await request.json() as FileActionBody; } catch { }
 
         let result;
 
