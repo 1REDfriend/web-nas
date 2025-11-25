@@ -2,7 +2,6 @@ import path from 'path';
 import { stat } from 'fs-extra';
 import { FileItem } from '@/components/file-manager/config';
 
-// ฟังก์ชันปรับ Path ให้เป็น format มาตรฐาน
 export function normalizeFsPath(p: string): string {
     let pathStr = p.trim().replace(/\\/g, '/');
 
@@ -17,7 +16,6 @@ export function normalizeFsPath(p: string): string {
     return pathStr;
 }
 
-// ฟังก์ชันดึงข้อมูล Stat ของไฟล์เดียว
 export async function getFileStats(physicalDirPath: string, fileName: string, virtualDirPath: string): Promise<FileItem | null> {
     try {
         const physicalFilePath = path.join(physicalDirPath, fileName);
