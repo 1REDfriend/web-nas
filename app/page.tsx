@@ -22,9 +22,8 @@ import { UploadDialog } from "@/components/file-manager/FileUploadDialog";
 import { useRouter, useSearchParams } from "next/navigation";
 import LoginCheck from "@/components/auth/loginCheck";
 import { ContextMenuBar } from "@/components/ContextMenuBar";
-import { Terminal } from "@/components/Terminal";
-import TerminalView from "@/components/terminal/terminal-view";
 import dynamic from "next/dynamic";
+import { CreateFolderDialog } from "@/components/file-manager/CreateFolderDialog";
 
 export default function FileManagerPage() {
   const [selectedFolder, setSelectedFolder] = useState("all");

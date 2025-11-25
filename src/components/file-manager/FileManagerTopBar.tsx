@@ -6,6 +6,7 @@ import {
     InputGroupInput,
 } from "@/components/ui/input-group";
 import { Search, Upload, Plus, TerminalSquare } from "lucide-react";
+import { CreateFolderDialog } from "./CreateFolderDialog";
 
 type FileManagerTopBarProps = {
     query: string;
@@ -61,10 +62,7 @@ export function FileManagerTopBar({
                     <Button variant="outline" size="icon" className="border-white/10" >
                         <Upload className="w-4 h-4" />
                     </Button>
-                    < Button className="gap-2" >
-                        <Plus className="w-4 h-4" />
-                        New folder
-                    </Button>
+                    <CreateFolderDialog currentPath="/"/>
                 </div>
             </div>
         </header>
