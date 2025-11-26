@@ -1,3 +1,5 @@
+import { log, logerror } from "@/lib/logger";
+
 export interface CreateFolderResponse {
     success: boolean;
     message?: string;
@@ -5,22 +7,27 @@ export interface CreateFolderResponse {
 }
 
 export async function createFolderApi(path: string, name: string): Promise<CreateFolderResponse> {
-    const response = await fetch("/api/folder", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            path,
-            name,
-        }),
-    });
+    try {
+        const response = await fetch("/api/files/folder/create", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                path,
+                name,
+            }),
+        });
 
-    const data = await response.json();
+        const data = await response.json();
 
-    if (!response.ok) {
-        throw new Error(data.error || "Failed to create folder");
+        if (!response.ok) {
+            throw new Error(data.error || "Failed to create folder");
+        }
+
+        return data;
+    } catch (err : unknown) {
+        logerror("[create folder service Failed] :", err)
+        return {success: false, error: "Internal Error"}
     }
-
-    return data;
 }

@@ -8,20 +8,19 @@ import { getUserRootPaths, removeInvalidPathMap } from '@/lib/service/user-path-
 import { normalizeFsPath } from '@/lib/utils/fs-helper';
 import { getDirectoryFiles } from '@/lib/service/file-brower-service';
 import { xUserPayload } from '@/lib/api/user/x-user-payload';
+import { createInternalFolder } from '@/lib/folder/createInternalFolder';
 
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const rawReqPath = searchParams.get('path');
 
-        // Params Extraction
         const page = parseInt(searchParams.get('page') || '1');
         const limit = parseInt(searchParams.get('limit') || '50');
         const search = searchParams.get('search') || '';
         const sortBy = (searchParams.get('sortBy') as 'name' | 'size' | 'date') || 'name';
         const order = (searchParams.get('order') as 'asc' | 'desc') || 'asc';
 
-        // --- Auth Check ---
         const payloadString = await xUserPayload()
 
         if (!payloadString) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -50,10 +49,8 @@ export async function GET(request: Request) {
             }
         }
 
-        // --- Case 2: List Files in Directory ---
         const reqPath = normalizeFsPath(rawReqPath);
 
-        // Validate Path Permission
         const validation = await validateUserPaths(userId, reqPath);
         if (validation instanceof NextResponse) return validation;
 
@@ -63,6 +60,10 @@ export async function GET(request: Request) {
         if (!fs.existsSync(physicalPath)) {
             selectedRoot = ENV.STORAGE_INTERNAL;
             physicalPath = path.join(selectedRoot, userId, reqPath);
+        }
+
+        if (reqPath === "/trash") {
+            createInternalFolder(userId, "/trash")
         }
 
         const { data, totalFiles } = await getDirectoryFiles({

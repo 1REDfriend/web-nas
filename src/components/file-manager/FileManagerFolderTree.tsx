@@ -7,8 +7,6 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "../ui/input-group"
 import { addFolderFavorite } from "@/lib/api/file.service";
 import { categoryPath } from "@/interfaces/path";
 import { logerror } from "@/lib/logger";
-
-// Import Shadcn Context Menu
 import {
     ContextMenu,
     ContextMenuContent,

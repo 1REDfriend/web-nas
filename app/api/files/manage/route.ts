@@ -6,6 +6,7 @@ import { moveAction } from "@/lib/utils/filesystem/actions/move";
 import { copyAction } from "@/lib/utils/filesystem/actions/copy";
 import { placeAction } from "@/lib/utils/filesystem/actions/place";
 import { deleteAction } from "@/lib/utils/filesystem/actions/delete";
+import { xUserPayload } from "@/lib/api/user/x-user-payload";
 
 interface FileActionBody {
     newName?: string;
@@ -18,6 +19,16 @@ export async function POST(request: Request) {
     const { searchParams } = new URL(request.url);
     const reqFile = searchParams.get('file');
     const reqOption = searchParams.get('option');
+    const userPayload = await xUserPayload();
+
+    if (!userPayload) {
+        return NextResponse.json(
+            {error : "No user Found"},
+            { status: 401}
+        )
+    }
+
+    const userId = userPayload.sub
 
     try {
         if (!reqFile) {
@@ -50,7 +61,7 @@ export async function POST(request: Request) {
                 break;
 
             case "delete":
-                result = await deleteAction(safeFilePath);
+                result = await deleteAction( userId ,safeFilePath);
                 break;
 
             default:

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { FolderPlus } from "lucide-react"
 import { toast } from "sonner"
 
@@ -24,11 +24,14 @@ interface CreateFolderDialogProps {
     onSuccess?: () => void;
 }
 
-export function CreateFolderDialog({ currentPath, onSuccess }: CreateFolderDialogProps) {
+export function CreateFolderDialog({ onSuccess }: CreateFolderDialogProps) {
     const [open, setOpen] = useState(false)
     const [folderName, setFolderName] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const router = useRouter()
+    const params = useSearchParams()
+
+    const currentPath = params?.get("path") || ""
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -38,11 +41,18 @@ export function CreateFolderDialog({ currentPath, onSuccess }: CreateFolderDialo
         setIsLoading(true)
 
         try {
-            await createFolderApi(currentPath, folderName)
+            const data = await createFolderApi(currentPath, folderName)
 
-            toast.success("Folder created successfully", {
-                description: `Folder "${folderName}" Already built`,
-            })
+            if (data.success) {
+                toast.success("Folder created successfully", {
+                    description: `Folder "${folderName}" Already built`,
+                })
+            } else {
+                toast.error("Folder created Failed", {
+                    description: `Folder "${folderName}"`,
+                })
+            }
+
 
             setFolderName("")
             setOpen(false)

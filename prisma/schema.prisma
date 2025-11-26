@@ -29,6 +29,7 @@ model User {
   activeSession ActiveSession[]
   starPaths StarPath[]
   categoryPaths CategoryPath[]
+  trashShedule TrashShedule[]
 
   @@map("users")
 }
@@ -89,4 +90,19 @@ model StarPath {
   @@index([userId], name: "idx_star_path_user_id")
   @@unique([userId, rootPath], name: "idx_user_path_unique")
   @@map("star_paths")
+}
+
+model TrashShedule {
+  id          String       @id @default(cuid())
+  item        String       @map("item")
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String       @map("user_id")
+
+  addDate    DateTime      @default(now())
+  expireDate DateTime
+
+  @@index([userId], name: "idx_trash_schedule_user_id")
+  @@unique([userId, item], name: "idx_user_item_unique")
+  @@map("trash_schedule")
 }

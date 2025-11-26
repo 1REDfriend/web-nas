@@ -5,3 +5,7 @@ export const ENV = ({
     STORAGE_ROOT: process.env.STORAGE_ROOT || "",
     STORAGE_INTERNAL: process.env.STORAGE_INTERNAL || "storage"
 })
+
+export const setting = {
+    expireTrash: 30 // day only
+}

@@ -1,6 +1,6 @@
 import { xUserPayload } from "@/lib/api/user/x-user-payload";
 import { ENV } from "@/lib/ENV";
-import { logerror } from "@/lib/logger";
+import { log, logerror } from "@/lib/logger";
 import { pathReplaceValidate } from "@/lib/reosolvePath";
 import { getSafePath } from "@/lib/utils/filesystem/utils";
 import { normalizeFsPath } from "@/lib/utils/fs-helper";
@@ -29,7 +29,7 @@ export async function POST(request:Request) {
             )
         }
 
-        craeteFolder(path, name);
+        createFolder(path, name);
 
         return NextResponse.json(
             { success: true, message: "Create folder Successful"}
@@ -43,11 +43,12 @@ export async function POST(request:Request) {
     }
 }
 
-async function craeteFolder(path : string, name: string) {
+async function createFolder(path : string, name: string) {
     const nameNormal = normalizeFsPath(name)
     const pathNormal = normalizeFsPath(path)
     const validatePath = await pathReplaceValidate(pathNormal + nameNormal)
 
     const fullPath = getSafePath(validatePath || "")
+    log("[Create Folder Path] :", fullPath)
     fs.ensureDir(fullPath)
 }
