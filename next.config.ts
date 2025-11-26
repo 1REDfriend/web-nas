@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
       ]
     }
   },
+  transpilePackages: ['@novnc/novnc'],
 };
 
 export default nextConfig;

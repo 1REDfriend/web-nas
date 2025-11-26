@@ -22,8 +22,8 @@ import { UploadDialog } from "@/components/file-manager/FileUploadDialog";
 import { useRouter, useSearchParams } from "next/navigation";
 import LoginCheck from "@/components/auth/loginCheck";
 import { ContextMenuBar } from "@/components/ContextMenuBar";
-import dynamic from "next/dynamic";
-import { CreateFolderDialog } from "@/components/file-manager/CreateFolderDialog";
+import VncClient from "@/components/vnc/vncScreen";
+import { getWsUrl } from "@/lib/getWsUrl";
 
 export default function FileManagerPage() {
   const [selectedFolder, setSelectedFolder] = useState("all");
@@ -45,7 +45,6 @@ export default function FileManagerPage() {
   const [refetchTrigger, setRefetchTrigger] = useState(0);
 
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
-  const currentUser = "AdminTon";
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -343,11 +342,6 @@ export default function FileManagerPage() {
     setIsTerminalOpen(!isTerminalOpen);
   };
 
-  const TerminalView = dynamic(() => import("@/components/terminal/terminal-view"), {
-    ssr: false,
-    loading: () => <div className="text-white text-center p-10">Loading Terminal...</div>
-  });
-
   const currentFolderLabel =
     categoryPaths.find((c) => c.id === selectedFolder)?.rootPath ??
     FOLDERS.find((f) => f.id === selectedFolder)?.label ??
@@ -453,8 +447,7 @@ export default function FileManagerPage() {
             }}
             onOpenTerminal={handleOpenTerminal}
           />
-
-          <TerminalView username={currentUser} />
+          <VncClient wsUrl={getWsUrl()} />
         </div>
       )}
     </ContextMenuBar>

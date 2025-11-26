@@ -7,5 +7,9 @@ export const ENV = ({
 })
 
 export const setting = {
-    expireTrash: 30 // day only
+    expireTrash: 30, // day only
+
+    ws_port: 6080,
+    vnc_host: '127.0.0.1',
+    vnc_port: 5900
 }
