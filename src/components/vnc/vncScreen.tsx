@@ -4,15 +4,19 @@ import { useMemo } from 'react';
 
 export default function VncPage() {
     const src = useMemo(() => {
+        const vncHost = 'localhost';
+        const vncPort = '6081';
+
         const params = new URLSearchParams({
-            host: 'localhost',
-            port: '3001',
-            path: 'vnc',
-            autoconnect: '1',
+            host: vncHost,
+            port: vncPort,
+            path: 'websockify',
             encrypt: '0',
+            autoconnect: '1',
+            resize: 'scale',
         });
 
-        return `/novnc/vnc.html?${params.toString()}`;
+        return `http://${vncHost}:${vncPort}/vnc.html?${params.toString()}`;
     }, []);
 
     return (
@@ -20,7 +24,7 @@ export default function VncPage() {
             <iframe
                 src={src}
                 className="w-full h-full border-0"
-                allowFullScreen
+                allow="fullscreen"
             />
         </div>
     );
