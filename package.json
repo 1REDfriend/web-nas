@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "server": "tsx server.ts",
+    "vnc-proxy": "tsx src/lib/vnc/vnc-proxy.ts",
     "lint": "eslint"
   },
   "dependencies": {
