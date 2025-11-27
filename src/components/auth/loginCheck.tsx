@@ -1,9 +1,10 @@
 import { userLoginCheck } from "@/lib/api/user/userLoginCheck";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export default function LoginCheck() {
     const router = useRouter()
+    const searcharams = useSearchParams()
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [loading, setLoading] = useState(true);
 
@@ -21,7 +22,7 @@ export default function LoginCheck() {
         }
 
         checker()
-    }, [router])
+    }, [router, searcharams])
 
     if (loading) return <p>Loading...</p>;
     if (!isAuthenticated) return null;

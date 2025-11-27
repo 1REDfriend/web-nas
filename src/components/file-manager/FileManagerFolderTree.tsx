@@ -14,7 +14,7 @@ import {
     ContextMenuTrigger,
     ContextMenuSeparator,
 } from "@/components/ui/context-menu";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 type FileManagerFolderTreeProps = {
     selectedFolder: string;
