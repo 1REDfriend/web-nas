@@ -22,8 +22,7 @@ import { UploadDialog } from "@/components/file-manager/FileUploadDialog";
 import { useRouter, useSearchParams } from "next/navigation";
 import LoginCheck from "@/components/auth/loginCheck";
 import { ContextMenuBar } from "@/components/ContextMenuBar";
-import VncClient from "@/components/vnc/vncScreen";
-import { getWsUrl } from "@/lib/getWsUrl";
+import VncPage from "@/components/vnc/vncScreen";
 
 export default function FileManagerPage() {
   const [selectedFolder, setSelectedFolder] = useState("all");
@@ -447,7 +446,7 @@ export default function FileManagerPage() {
             }}
             onOpenTerminal={handleOpenTerminal}
           />
-          <VncClient wsUrl={getWsUrl()} />
+          <VncPage />
         </div>
       )}
     </ContextMenuBar>
