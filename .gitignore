@@ -47,3 +47,4 @@ prisma/main.sqlite
 
 *lock.*
 package-lock.json
+/public/novnc
