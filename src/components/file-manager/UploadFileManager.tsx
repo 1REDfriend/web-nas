@@ -47,6 +47,7 @@ export function UploadFileManager({
         if (!selectedFiles) return;
         setFiles((prev) => [...prev, ...Array.from(selectedFiles)]);
 
+        // Reset เพื่อให้เลือกไฟล์เดิมซ้ำได้
         e.target.value = "";
     };
 
@@ -60,7 +61,41 @@ export function UploadFileManager({
         setCurrentFileName("");
     };
 
-    // --- Upload Logic ---
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    async function scanFiles(entry: FileSystemEntry, path = ""): Promise<File[]> {
+        if (entry.isFile) {
+            const fileEntry = entry as FileSystemFileEntry;
+            return new Promise((resolve) => {
+                fileEntry.file((file: File) => {
+                    const fullPath = path + file.name;
+                    Object.defineProperty(file, "webkitRelativePath", {
+                        value: fullPath,
+                    });
+                    resolve([file]);
+                });
+            });
+        } else if (entry.isDirectory) {
+            const dirEntry = entry as FileSystemDirectoryEntry;
+            const dirReader = dirEntry.createReader();
+
+            const entries = await new Promise<FileSystemEntry[]>((resolve, reject) => {
+                dirReader.readEntries(
+                    (results) => resolve(results),
+                    (err) => reject(err)
+                );
+            });
+
+            const files: File[] = [];
+            for (const childEntry of entries) {
+                const childFiles = await scanFiles(childEntry, path + entry.name + "/");
+                files.push(...childFiles);
+            }
+            return files;
+        }
+        return [];
+    }
+
+    // --- Upload Logic (Key Change Here) ---
     const handleUpload = async () => {
         if (!files.length) return;
 
@@ -76,19 +111,35 @@ export function UploadFileManager({
                 const file = files[i];
                 const percent = Math.round(((i) / files.length) * 100);
 
-                setCurrentFileName(file.name);
+                const relativePath = file.webkitRelativePath as string;
+                let targetDirectory = currentPath;
+
+                if (relativePath) {
+                    const pathParts = relativePath.split('/');
+                    if (pathParts.length > 1) {
+                        pathParts.pop();
+                        const folderStructure = pathParts.join('/');
+                        const base = currentPath === '/' ? '' : currentPath;
+                        targetDirectory = `${base}/${folderStructure}`;
+                    }
+                }
+
+                // Update UI display
+                const displayName = relativePath || file.name;
+                setCurrentFileName(displayName);
                 setUploadProgress(percent);
-                toast.loading(`Uploading: ${file.name}`, {
+
+                toast.loading(`Uploading: ${displayName}`, {
                     id: toastId,
-                    description: `${percent}% completed (${i}/${files.length})`
+                    description: `${percent}% completed`
                 });
-                await upload(currentPath, file);
+                await upload(targetDirectory, file);
             }
 
             setUploadProgress(100);
             toast.success("Upload Completed", {
                 id: toastId,
-                description: `Successfully uploaded ${files.length} files.`
+                description: `Successfully uploaded ${files.length} items.`
             });
 
             clearFiles();
@@ -115,7 +166,7 @@ export function UploadFileManager({
             e.preventDefault();
             e.stopPropagation();
             dragCounter.current += 1;
-            if (e.dataTransfer && e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+            if (e.dataTransfer?.items?.length) {
                 setIsDraggingOverWindow(true);
             }
         };
@@ -134,29 +185,32 @@ export function UploadFileManager({
             e.stopPropagation();
         };
 
-        const handleDrop = (e: DragEvent) => {
+        const handleDrop = async (e: DragEvent) => {
             e.preventDefault();
             e.stopPropagation();
             setIsDraggingOverWindow(false);
             dragCounter.current = 0;
 
             const dt = e.dataTransfer;
-            if (!dt) return;
+            if (!dt || !dt.items) return;
 
             const droppedFiles: File[] = [];
+            const promises: Promise<File[]>[] = [];
 
-            if (dt.items) {
-                for (let i = 0; i < dt.items.length; i++) {
-                    const item = dt.items[i];
-                    if (item.kind === 'file') {
-                        const file = item.getAsFile();
-                        if (file) droppedFiles.push(file);
+            for (let i = 0; i < dt.items.length; i++) {
+                const item = dt.items[i];
+                if (item.kind === 'file') {
+                    const entry = item.webkitGetAsEntry() as FileSystemEntry | null;
+                    if (entry) {
+                        promises.push(scanFiles(entry));
                     }
                 }
-            } else {
-                for (let i = 0; i < dt.files.length; i++) {
-                    droppedFiles.push(dt.files[i]);
-                }
+            }
+
+            const results = await Promise.all(promises);
+
+            for (const res of results) {
+                droppedFiles.push(...res);
             }
 
             if (droppedFiles.length > 0) {
@@ -176,15 +230,14 @@ export function UploadFileManager({
             window.removeEventListener("dragover", handleDragOver);
             window.removeEventListener("drop", handleDrop);
         };
-    }, [enableGlobalDrop]);
+    }, [enableGlobalDrop, scanFiles]);
 
 
-    // --- Render ---
     return (
         <>
-            {/* 1. Global Drop Overlay (แสดงเมื่อลากไฟล์เข้ามาในหน้าเว็บ) */}
+            {/* Global Drop Overlay */}
             {isDraggingOverWindow && (
-                <div className=" absolute inset-0 z-9999 flex w-full min-h-screen items-center justify-center bg-background/80 backdrop-blur-sm border-2 border-dashed border-primary m-4 rounded-xl">
+                <div className="fixed inset-0 z-9999 min-h-screen flex items-center justify-center bg-background/80 backdrop-blur-sm border-2 border-dashed border-primary m-4 rounded-xl">
                     <div className="text-center pointer-events-none">
                         <Upload className="mx-auto h-12 w-12 text-primary animate-bounce" />
                         <h3 className="mt-2 text-xl font-bold">Drop files to upload</h3>
@@ -193,7 +246,7 @@ export function UploadFileManager({
                 </div>
             )}
 
-            {/* 2. Main Dialog Component */}
+            {/* Main Dialog */}
             <Dialog open={open} onOpenChange={(o) => {
                 if (isUploading && !o) {
                     toast("Upload is running in background");
@@ -214,16 +267,15 @@ export function UploadFileManager({
                     </Button>
                 </DialogTrigger>
 
-                <DialogContent className="sm:max-w-[500px]">
+                <DialogContent className="sm:max-w-[600px]">
                     <DialogHeader>
                         <DialogTitle>Upload Manager</DialogTitle>
                         <DialogDescription>
-                            Upload files to <span className="font-mono bg-muted px-1 rounded">{currentPath}</span>
+                            Upload to <span className="font-mono bg-muted px-1 rounded">{currentPath}</span>
                         </DialogDescription>
                     </DialogHeader>
 
                     <div className="grid gap-4 py-4">
-                        {/* Action Buttons */}
                         <div className="flex gap-2">
                             <input
                                 ref={fileInputRef}
@@ -233,7 +285,7 @@ export function UploadFileManager({
                             <input
                                 ref={dirInputRef}
                                 type="file" multiple className="hidden"
-                                // @ts-expect-error: webkitdirectory non-standard but supported
+                                // @ts-expect-error: standard webkit attribute
                                 webkitdirectory="" directory=""
                                 onChange={handleFileSelection}
                             />
@@ -246,7 +298,7 @@ export function UploadFileManager({
                             </Button>
                         </div>
 
-                        {/* File List Area */}
+                        {/* File List */}
                         <div className="border rounded-md">
                             <div className="bg-muted/50 p-2 text-xs font-medium text-muted-foreground border-b flex justify-between">
                                 <span>Queue ({files.length})</span>
@@ -254,49 +306,52 @@ export function UploadFileManager({
                                     <button onClick={clearFiles} className="text-red-500 hover:underline">Clear all</button>
                                 )}
                             </div>
-                            <ScrollArea className="h-[200px] p-2">
+                            <ScrollArea className="h-[250px] p-2">
                                 {files.length === 0 ? (
-                                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-sm opacity-50">
+                                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-sm opacity-50 min-h-[150px]">
                                         <Upload className="h-8 w-8 mb-2" />
                                         <p>No files selected</p>
-                                        <p className="text-xs">Drag & drop here</p>
                                     </div>
                                 ) : (
                                     <div className="space-y-2">
-                                        {files.map((file, idx) => (
-                                            <div key={idx} className="flex items-center justify-between text-sm bg-card p-2 rounded border group">
-                                                <div className="flex items-center gap-2 overflow-hidden">
-                                                    <FileIcon className="h-4 w-4 shrink-0 text-blue-500" />
-                                                    <div className="flex flex-col truncate">
-                                                        <span className="truncate font-medium">{file.name}</span>
-                                                        <span className="text-[10px] text-muted-foreground">
-                                                            {(file.size / 1024).toFixed(1)} KB
-                                                            {/* Check if this specific file is uploading (Simple Check) */}
-                                                            {isUploading && file.name === currentFileName && (
-                                                                <span className="text-blue-500 ml-2">Uploading...</span>
-                                                            )}
-                                                        </span>
+                                        {files.map((file, idx) => {
+                                            const relPath = file.webkitRelativePath || file.name;
+
+                                            return (
+                                                <div key={idx} className="flex items-center justify-between text-sm bg-card p-2 rounded border group">
+                                                    <div className="flex items-center gap-2 overflow-hidden w-full">
+                                                        {/* Icon เปลี่ยนตามว่าเป็นไฟล์ใน Folder หรือไฟล์เดี่ยว */}
+                                                        {relPath.includes('/') ? <Folder className="h-4 w-4 shrink-0 text-yellow-500" /> : <FileIcon className="h-4 w-4 shrink-0 text-blue-500" />}
+
+                                                        <div className="flex flex-col truncate w-full">
+                                                            <span className="truncate font-medium pr-2" title={relPath}>
+                                                                {relPath}
+                                                            </span>
+                                                            <span className="text-[10px] text-muted-foreground flex justify-between w-full pr-2">
+                                                                <span>{(file.size / 1024).toFixed(1)} KB</span>
+                                                                {isUploading && file.name === currentFileName && (
+                                                                    <span className="text-blue-500 font-bold">Uploading...</span>
+                                                                )}
+                                                            </span>
+                                                        </div>
                                                     </div>
+                                                    {!isUploading && (
+                                                        <Button
+                                                            variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                                                            onClick={() => removeFile(idx)}
+                                                        >
+                                                            <X className="h-3 w-3" />
+                                                        </Button>
+                                                    )}
                                                 </div>
-                                                {!isUploading && (
-                                                    <Button
-                                                        variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                        onClick={() => removeFile(idx)}
-                                                    >
-                                                        <X className="h-3 w-3" />
-                                                    </Button>
-                                                )}
-                                                {isUploading && file.name === currentFileName && (
-                                                    <Loader2 className="h-3 w-3 animate-spin text-primary" />
-                                                )}
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </ScrollArea>
                         </div>
 
-                        {/* Progress Bar (Overall) */}
+                        {/* Progress Bar */}
                         {isUploading && (
                             <div className="space-y-1 animate-in fade-in zoom-in slide-in-from-bottom-2">
                                 <div className="flex justify-between text-xs text-muted-foreground">
@@ -304,9 +359,6 @@ export function UploadFileManager({
                                     <span>{uploadProgress}%</span>
                                 </div>
                                 <Progress value={uploadProgress} className="h-2" />
-                                <p className="text-[10px] text-muted-foreground truncate">
-                                    Current: {currentFileName}
-                                </p>
                             </div>
                         )}
                     </div>

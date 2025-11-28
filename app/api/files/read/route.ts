@@ -3,11 +3,23 @@ import { NextResponse } from "next/server";
 import fs from "fs-extra";
 import path from "path";
 import { ENV } from "@/lib/ENV";
+import { xUserPayload } from "@/lib/api/user/x-user-payload";
+import { allowedExtensions } from "@/lib/utils/filesystem/allowedcExtensions";
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const reqFile = searchParams.get('file');
     const reqOption = searchParams.get('option')
+
+    const userPayload = await xUserPayload()
+    if (!userPayload) {
+        return NextResponse.json(
+            { error: "Unauthurization" },
+            { status: 401 }
+        )
+    }
+
+    const userId = userPayload.sub
 
     if (!reqFile) {
         return NextResponse.json(
@@ -16,9 +28,22 @@ export async function GET(request: Request) {
         );
     }
 
-    const physicalPath = path.join(ENV.STORAGE_ROOT, reqFile)
-    const resolveRootPath = path.resolve(ENV.STORAGE_ROOT)
-    const resolvePhysicalPath = path.resolve(physicalPath)
+    let physicalPath = path.join(ENV.STORAGE_ROOT, reqFile)
+    let resolveRootPath = path.resolve(ENV.STORAGE_ROOT)
+    let resolvePhysicalPath = path.resolve(physicalPath)
+
+    if (!fs.existsSync(physicalPath)) {
+        const selectedRoot = ENV.STORAGE_INTERNAL;
+        physicalPath = path.join(selectedRoot, userId, reqFile);
+        resolveRootPath = path.resolve(ENV.STORAGE_INTERNAL)
+        resolvePhysicalPath = path.resolve(physicalPath)
+    }
+
+    if (allowedExtensions.some(ext => reqFile.includes(ext)) && reqOption === "preview") {
+        return NextResponse.json(
+            { error: "Path is a Media File, not a simple file" }
+        );
+    }
 
     try {
 
@@ -47,6 +72,7 @@ export async function GET(request: Request) {
         }
 
         const content = await fs.readFile(physicalPath, "utf-8");
+
         if (reqOption == "preview") {
             const lines = content.split('\n').slice(0, 16);
             const limitedContent = lines.join('\n');
@@ -63,7 +89,6 @@ export async function GET(request: Request) {
             size: stat.size,
             content: content
         });
-
     } catch (err: unknown) {
         logerror("[Read File Failed] : " + err);
         return NextResponse.json(

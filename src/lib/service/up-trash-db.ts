@@ -6,7 +6,7 @@ export async function upTrashDB( userId: string,item: string, returnPath: string
     const date = new Date()
     date.setDate(date.getDate() + setting.expireTrash)
     try {
-        const {id} = await prisma.trashShedule.create({
+        const result = await prisma.trashShedule.create({
             data : {
                 userId : userId,
                 item: item,
@@ -15,7 +15,7 @@ export async function upTrashDB( userId: string,item: string, returnPath: string
             }
         })
 
-        return {id}
+        return {id : result.id}
     } catch (err : unknown) {
         logerror("[up trash failed] :", err)
         return {}

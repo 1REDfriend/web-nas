@@ -1,6 +1,4 @@
-import { UserJwtPayload } from "@/interfaces/userJwtpayload";
 import { logerror } from "@/lib/logger";
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { xUserPayload } from "@/lib/api/user/x-user-payload";
@@ -124,7 +122,6 @@ export async function GET() {
             select: {
                 id: true,
                 rootPath: true,
-                pathMapCategory: true
             }
         })
 

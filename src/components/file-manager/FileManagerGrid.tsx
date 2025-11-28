@@ -65,6 +65,7 @@ export function FileManagerGrid({
                                         onClick={() => {
                                             onSelectFile(file.path);
                                         }}
+                                        draggable={"true"}
                                         onDoubleClick={(e) => {
                                             e.stopPropagation();
                                             if (isDirectory) {
@@ -73,7 +74,7 @@ export function FileManagerGrid({
                                         }}
                                     >
                                         <CardHeader className="pb-2 flex flex-row items-start justify-between gap-2">
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-2 select-none">
                                                 <div className="w-8 h-8 rounded-md bg-red-500/20 flex items-center justify-center">
                                                     {isDirectory ? (
                                                         <Folder className="w-4 h-4 text-red-400" />
@@ -104,7 +105,7 @@ export function FileManagerGrid({
                                                 />
                                             </button>
                                         </CardHeader>
-                                        <CardContent className="pt-0 text-xs text-slate-400 space-y-1">
+                                        <CardContent className="pt-0 text-xs text-slate-400 space-y-1 select-none">
                                             {file.size && <p>Size: {ptb(Number(file.size))}</p>}
                                             {file.updatedAt && <p>Updated: {file.updatedAt}</p>}
                                         </CardContent>

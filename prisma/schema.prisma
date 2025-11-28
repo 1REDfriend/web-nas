@@ -83,6 +83,7 @@ model StarPath {
 model TrashShedule {
   id          String       @id @default(cuid())
   item        String       @map("item")
+  returnPath  String       @map("return_path")
 
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId      String       @map("user_id")
@@ -91,7 +92,6 @@ model TrashShedule {
   expireDate DateTime
 
   @@index([userId], name: "idx_trash_schedule_user_id")
-  @@unique([userId, item], name: "idx_user_item_unique")
   @@map("trash_schedule")
 }
 

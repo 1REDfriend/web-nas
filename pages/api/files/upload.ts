@@ -72,7 +72,7 @@ export default async function handler(
         const originalFilename = uploadedFile.originalFilename || 'unknown_file';
 
         const newPath = path.join(destinationDir, originalFilename);
-        await fs.promises.rename(tempPath, newPath);
+        await fs.move(tempPath, newPath);
 
         log("[TEMP_PATH] : " + tempPath)
         log("[PATH] : " + newPath)

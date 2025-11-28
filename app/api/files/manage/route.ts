@@ -7,6 +7,7 @@ import { copyAction } from "@/lib/utils/filesystem/actions/copy";
 import { placeAction } from "@/lib/utils/filesystem/actions/place";
 import { deleteAction } from "@/lib/utils/filesystem/actions/delete";
 import { xUserPayload } from "@/lib/api/user/x-user-payload";
+import { verifyUserPath } from "@/lib/utils/user/verifyUserPath";
 
 interface FileActionBody {
     newName?: string;
@@ -32,7 +33,17 @@ export async function POST(request: Request) {
 
     try {
         if (!reqFile) {
-            return NextResponse.json({ error: "No File Select" }, { status: 400 });
+            return NextResponse.json(
+                { error: "No File Select" }, 
+                { status: 400 }
+            );
+        }
+
+        if (!await verifyUserPath(userId, reqFile)) {
+            return NextResponse.json(
+                { error: "File path not allowed" }, 
+                { status: 400 }
+            );
         }
 
         const safeFilePath = getSafePath(reqFile);

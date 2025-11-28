@@ -78,6 +78,11 @@ export default function FileManagerPage() {
             <FileManagerSidebarNav
               selectedFolder={selectedFolder}
               onSelectFolder={(folderId) => {
+                const params = new URLSearchParams(searchParams ?? "");
+                if (params.has("path")) {
+                  params.delete("path");
+                  router.push(`${pathname}?${params.toString()}`);
+                }
                 setSelectedFolder(folderId);
                 setPage(1);
               }}
@@ -155,7 +160,7 @@ export default function FileManagerPage() {
             currentPath={urlPath ?? ""}
             onUploaded={refetchFiles}
           />
-          
+
           <VncPage />
         </div>
       )}

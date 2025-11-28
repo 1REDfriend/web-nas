@@ -9,6 +9,7 @@ import { normalizeFsPath } from '@/lib/utils/fs-helper';
 import { getDirectoryFiles } from '@/lib/service/file-brower-service';
 import { xUserPayload } from '@/lib/api/user/x-user-payload';
 import { createInternalFolder } from '@/lib/folder/createInternalFolder';
+import { cleanTrashItemsByUserId } from '@/lib/utils/trash/trash-clean';
 
 export async function GET(request: Request) {
     try {
@@ -64,6 +65,7 @@ export async function GET(request: Request) {
 
         if (reqPath === "/trash") {
             createInternalFolder(userId, "/trash")
+            await cleanTrashItemsByUserId(userId)
         }
 
         const { data, totalFiles } = await getDirectoryFiles({
