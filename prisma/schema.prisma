@@ -28,7 +28,6 @@ model User {
   pathMaps PathMap[]
   activeSession ActiveSession[]
   starPaths StarPath[]
-  categoryPaths CategoryPath[]
   trashShedule TrashShedule[]
   shareLink ShareLink[]
 
@@ -58,14 +57,6 @@ model PathMap {
 
   @@index([userId], name: "idx_path_maps_user_id")
   @@map("path_maps")
-}
-
-model CategoryPath {
-  id String @id @default(cuid())
-  rootPath String @map("root_path")
-
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId String @map("user_id")
 }
 
 model StarPath {

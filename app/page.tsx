@@ -5,7 +5,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { FileManagerTopBar } from "@/components/file-manager/FileManagerTopBar";
 import { FileManagerSidebarNav } from "@/components/file-manager/FileManagerSidebarNav";
-import { FileManagerFolderTree } from "@/components/file-manager/FileManagerFolderTree";
 import { FileManagerToolbar } from "@/components/file-manager/FileManagerToolbar";
 import { FileManagerGrid } from "@/components/file-manager/FileManagerGrid";
 import { FileManagerPreviewPanel } from "@/components/file-manager/FileManagerPreviewPanel";
@@ -111,18 +110,6 @@ export default function FileManagerPage() {
             />
 
             <section className="flex flex-1 overflow-hidden">
-              <FileManagerFolderTree
-                selectedFolder={selectedFolder}
-                onSelectFolder={(folderId) => {
-                  const params = new URLSearchParams(searchParams ?? "");
-                  if (params.has("path")) {
-                    params.delete("path");
-                    router.push(`${pathname}?${params.toString()}`);
-                  }
-                  setSelectedFolder(folderId);
-                  setPage(1);
-                }}
-              />
 
               <div className="flex-1 flex flex-col">
                 <FileManagerToolbar

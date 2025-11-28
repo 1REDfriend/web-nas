@@ -28,16 +28,9 @@ export async function GET(request: Request) {
         );
     }
 
-    let physicalPath = path.join(ENV.STORAGE_ROOT, reqFile)
-    let resolveRootPath = path.resolve(ENV.STORAGE_ROOT)
-    let resolvePhysicalPath = path.resolve(physicalPath)
-
-    if (!fs.existsSync(physicalPath)) {
-        const selectedRoot = ENV.STORAGE_INTERNAL;
-        physicalPath = path.join(selectedRoot, userId, reqFile);
-        resolveRootPath = path.resolve(ENV.STORAGE_INTERNAL)
-        resolvePhysicalPath = path.resolve(physicalPath)
-    }
+    const physicalPath = path.join(ENV.STORAGE_ROOT, reqFile)
+    const resolveRootPath = path.resolve(ENV.STORAGE_ROOT)
+    const resolvePhysicalPath = path.resolve(physicalPath)
 
     if (allowedExtensions.some(ext => reqFile.includes(ext)) && reqOption === "preview") {
         return NextResponse.json(

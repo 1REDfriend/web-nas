@@ -23,11 +23,8 @@ export async function getDirectoryFiles({
     sortBy,
     order
 }: BrowseOptions) {
-
-    // 1. อ่านไฟล์ทั้งหมด
     let files = await readdir(physicalPath);
 
-    // 2. Filter ตาม Search
     if (search) {
         files = files.filter(file =>
             file.toLowerCase().includes(search.toLowerCase())
@@ -37,8 +34,6 @@ export async function getDirectoryFiles({
     const totalFiles = files.length;
     let resultFiles = [];
 
-    // 3. Sorting & Pagination Logic
-    // กรณี Sort by Name: ทำ Pagination ก่อน แล้วค่อยดึง Stats (ประหยัด resource)
     if (sortBy === 'name') {
         files.sort((a, b) => {
             return order === 'asc'
@@ -54,9 +49,7 @@ export async function getDirectoryFiles({
                 return await getFileStats(physicalPath, file, reqPath);
             })
         );
-    }
-    // กรณี Sort by Size/Date: ต้องดึง Stats ทั้งหมดก่อนถึงจะเรียงได้
-    else {
+    } else {
         const allFilesWithStats = await Promise.all(
             files.map(async (file) => await getFileStats(physicalPath, file, reqPath))
         );

@@ -3,7 +3,6 @@ export const ENV = ({
     JWT_SECRET: process.env.JWT_SECRET || "",
     TOKEN_COOKIE: process.env.TOKEN_COOKIE || "",
     STORAGE_ROOT: process.env.STORAGE_ROOT || "",
-    STORAGE_INTERNAL: process.env.STORAGE_INTERNAL || "storage"
 })
 
 // default setting

@@ -55,13 +55,8 @@ export async function GET(request: Request) {
         const validation = await validateUserPaths(userId, reqPath);
         if (validation instanceof NextResponse) return validation;
 
-        let selectedRoot = ENV.STORAGE_ROOT;
-        let physicalPath = path.join(selectedRoot, reqPath);
-
-        if (!fs.existsSync(physicalPath)) {
-            selectedRoot = ENV.STORAGE_INTERNAL;
-            physicalPath = path.join(selectedRoot, userId, reqPath);
-        }
+        const selectedRoot = ENV.STORAGE_ROOT;
+        const physicalPath = path.join(selectedRoot, reqPath);
 
         if (reqPath === "/trash") {
             createInternalFolder(userId, "/trash")

@@ -26,26 +26,8 @@ export async function resolveUserPath(userId: string, rawPath: string): Promise<
         }
     }
 
-    let selectedRoot = ENV.STORAGE_ROOT;
-    let physicalPath = path.join(selectedRoot, reqPath);
-
-    if (fs.existsSync(physicalPath)) {
-        return physicalPath;
-    }
-
-    const userPrefix = `/${userId}`;
-    let relativePath = reqPath;
-
-    if (relativePath.startsWith(userPrefix)) {
-        if (relativePath === userPrefix || relativePath === `${userPrefix}/`) {
-            relativePath = "";
-        } else {
-            relativePath = relativePath.substring(userPrefix.length);
-        }
-    }
-
-    selectedRoot = ENV.STORAGE_INTERNAL;
-    physicalPath = path.join(selectedRoot, userId, relativePath);
+    const selectedRoot = ENV.STORAGE_ROOT;
+    const physicalPath = path.join(selectedRoot, reqPath);
 
     if (fs.existsSync(physicalPath)) {
         return physicalPath;

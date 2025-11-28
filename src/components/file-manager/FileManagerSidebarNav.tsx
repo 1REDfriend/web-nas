@@ -1,12 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Settings } from "lucide-react";
-import { FOLDERS, FolderId } from "./config";
+import { FOLDERS } from "./config";
 import { RootPathSettingsDialog } from "./RootPathSettingsDialog";
 
 type FileManagerSidebarNavProps = {
-    selectedFolder: FolderId;
-    onSelectFolder: (folderId: FolderId) => void;
+    selectedFolder: string;
+    onSelectFolder: (folderId: string) => void;
 };
 
 export function FileManagerSidebarNav({
