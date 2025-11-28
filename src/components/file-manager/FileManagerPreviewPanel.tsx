@@ -4,6 +4,9 @@ import { Separator } from "@/components/ui/separator";
 import { DownloadCloud, File as FileIcon, Star, Trash2 } from "lucide-react";
 import { FileItem } from "./config";
 import ptb from 'pretty-bytes'
+import { useState } from "react";
+import { toast } from "sonner";
+import { logerror } from "@/lib/logger";
 
 type FileManagerPreviewPanelProps = {
     activeFile: FileItem | null;
@@ -26,6 +29,16 @@ export function FileManagerPreviewPanel({
     onToggleStar,
     onDelete,
 }: FileManagerPreviewPanelProps) {
+    const isTrashFile = activeFile?.path?.startsWith('/trash') || activeFile?.path?.startsWith('trash');
+
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [fileToDelete, setFileToDelete] = useState<FileItem | null>(null);
+
+    const handleDeleteClick = (file: FileItem) => {
+        setFileToDelete(file);
+        setDeleteDialogOpen(true);
+    };
+
     return (
         <aside className="hidden xl:flex w-80 border-l border-white/10 flex-col bg-slate-950/60">
             <div className="px-4 py-3 border-b border-white/10">
@@ -104,11 +117,11 @@ export function FileManagerPreviewPanel({
                                 <Button
                                     size="sm"
                                     variant="outline"
-                                    className="text-xs"
+                                    className={`text-xs ${isTrashFile ? "text-red-400 hover:text-red-300 border-red-900/50 hover:bg-red-950/30" : ""}`}
                                     onClick={() => onDelete(activeFile)}
                                 >
                                     <Trash2 className="w-3 h-3 mr-1" />
-                                    Move to trash
+                                    {isTrashFile ? "Delete permanently" : "Move to trash"}
                                 </Button>
                             </div>
                         </div>

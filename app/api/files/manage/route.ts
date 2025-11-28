@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { logerror } from "@/lib/logger";
+import { logerror, logwarn } from "@/lib/logger";
 import { getSafePath } from "@/lib/utils/filesystem/utils";
 import { renameAction } from "@/lib/utils/filesystem/actions/rename";
 import { moveAction } from "@/lib/utils/filesystem/actions/move";
@@ -20,6 +20,8 @@ export async function POST(request: Request) {
     const { searchParams } = new URL(request.url);
     const reqFile = searchParams.get('file');
     const reqOption = searchParams.get('option');
+    const reqConfirm = searchParams.get('confirm') === 'true';
+
     const userPayload = await xUserPayload();
 
     if (!userPayload) {
@@ -40,6 +42,7 @@ export async function POST(request: Request) {
         }
 
         if (!await verifyUserPath(userId, reqFile)) {
+            logwarn("[Manage file Failed] : file not allowed")
             return NextResponse.json(
                 { error: "File path not allowed" }, 
                 { status: 400 }
@@ -72,7 +75,7 @@ export async function POST(request: Request) {
                 break;
 
             case "delete":
-                result = await deleteAction( userId ,safeFilePath);
+                result = await deleteAction( userId ,safeFilePath, reqFile, reqConfirm);
                 break;
 
             default:

@@ -86,7 +86,7 @@ export function FileManagerGrid({
                                                     <CardTitle className="text-sm truncate max-w-32">
                                                         {file.name}
                                                     </CardTitle>
-                                                    <span className="text-[11px] text-slate-500">
+                                                    <span className="text-[11px] text-slate-500 max-w-32">
                                                         {file.type || "File"}
                                                     </span>
                                                 </div>

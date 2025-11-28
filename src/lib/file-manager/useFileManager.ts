@@ -12,6 +12,7 @@ import {
     FileItem,
     FileListMeta,
 } from "@/components/file-manager/config";
+import { toast } from "sonner";
 
 export function useFileManager() {
     const [selectedFolder, setSelectedFolder] = useState("all");
@@ -31,6 +32,9 @@ export function useFileManager() {
     const [previewLoading, setPreviewLoading] = useState(false);
     const [previewError, setPreviewError] = useState<string | null>(null);
     const [refetchTrigger, setRefetchTrigger] = useState(0);
+
+    const [fileToDelete, setFileToDelete] = useState<FileItem | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -265,16 +269,49 @@ export function useFileManager() {
         }
     }
 
-    async function handleDelete(file: FileItem) {
-        if (!confirm(`Move "${file.name}" Go to the trash can or not?`)) return;
+    function handleDelete(file: FileItem) {
+        setFileToDelete(file);
+    }
+
+    async function handleConfirmDelete() {
+        if (!fileToDelete) return;
+
+        setIsDeleting(true);
+        const toastId = toast.loading("Processing...");
 
         try {
-            await fileService.deleteFile(file.path);
-            setFiles((prev) => prev.filter((f) => f.path !== file.path));
-        } catch (err) {
-            logerror(err + "");
-            alert(err instanceof Error ? err.message : "Failed to delete file");
+            let res = await fileService.deleteFile(fileToDelete.path);
+
+            if (!res.success && res.error === "Require Confirm") {
+                res = await fileService.deleteFile(fileToDelete.path, "true");
+            }
+
+            if (res.success) {
+                setFiles((prev) => prev.filter((f) => f.path !== fileToDelete.path));
+
+                if (activeFilePath === fileToDelete.path) {
+                    setActiveFilePath(null);
+                }
+
+                const isTrash = fileToDelete.path.startsWith('/trash') || fileToDelete.path.startsWith('trash');
+                toast.success(isTrash ? "Deleted permanently" : "Moved to trash", { id: toastId });
+
+                setFileToDelete(null);
+            } else {
+                throw new Error(res.message || res.error || "Failed to delete");
+            }
+
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : "Failed to delete file";
+            logerror(msg);
+            toast.error(msg, { id: toastId });
+        } finally {
+            setIsDeleting(false);
         }
+    }
+
+    function handleCancelDelete() {
+        setFileToDelete(null);
     }
 
     async function handleRename(file: FileItem) {
@@ -358,11 +395,14 @@ export function useFileManager() {
         totalPages,
         currentFolderLabel,
         urlPath,
-
+        fileToDelete,
+        isDeleting,
         // actions
         handleDownload,
         handleToggleStar,
         handleDelete,
+        handleConfirmDelete,
+        handleCancelDelete,
         handleRename,
         handleOpenDirectory,
         refetchFiles,

@@ -16,16 +16,32 @@ export async function verifyUserPath(
             return true
         }
 
+        if (validatedPath.startsWith("/trash")) return true
+
         const pathDefine = await prisma.pathMap.findMany({
             where: { userId: userId }
         })
-
-        if (!pathDefine.length) return false
 
         for (const map of pathDefine) {
             const validatedRootPath = await pathReplaceValidate(map.rootPath)
 
             if (rawPath.startsWith(ENV.STORAGE_ROOT + validatedRootPath)) {
+                return true
+            }
+
+            if (validatedPath.startsWith(validatedRootPath)) {
+                return true
+            }
+        }
+
+        const categoryPath = await prisma.categoryPath.findMany({
+            where: {userId}
+        })
+
+        for (const map of categoryPath) {
+            const validatedRootPath = await pathReplaceValidate(map.rootPath)
+
+            if (rawPath.startsWith(internalPathCheck)) {
                 return true
             }
 

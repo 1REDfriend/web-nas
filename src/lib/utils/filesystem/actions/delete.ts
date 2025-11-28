@@ -5,12 +5,45 @@ import { upTrashDB } from '@/lib/service/up-trash-db';
 import { prisma } from '@/lib/db';
 import path from 'path';
 import { cleanTrashItemsByUserId } from '../../trash/trash-clean';
+import { pathReplaceValidate } from '@/lib/reosolvePath';
 
-export async function deleteAction(userId: string, safeFilePath: string) {
+export async function deleteAction(userId: string, safeFilePath: string, rawPath: string, confirm: boolean = false) {
     log("LOG : " + safeFilePath);
 
     const name = path.basename(safeFilePath);
     if (!name) return { success: false, message: "Invalid filename" };
+
+    const isTrashFile = rawPath.startsWith('/trash') || rawPath.startsWith('trash');
+
+    if (isTrashFile) {
+        if (!confirm) {
+            return { success: false, error: "Require Confirm" };
+        }
+
+        try {
+            await fs.remove(await getInternalUserFolder(userId) + await pathReplaceValidate(rawPath));
+
+            const parts = name.split('_id');
+            const trashRecordId = parts.length > 1 ? parts.pop() : null;
+
+            if (trashRecordId) {
+                try {
+                    await prisma.trashShedule.delete({
+                        where: { id: trashRecordId }
+                    });
+                    log("Permanently deleted trash record id: " + trashRecordId);
+                } catch (dbError) {
+                    logerror("Warning: DB record deletion failed or not found for id " + trashRecordId, dbError);
+                }
+            }
+
+            return { success: true, message: "File permanently deleted" };
+
+        } catch (error) {
+            logerror("[Permanent Delete Failed]:", error);
+            return { success: false, message: "Failed to permanently delete file" };
+        }
+    }
 
     let trashRecordId: string | undefined | null = null;
     await cleanTrashItemsByUserId(userId)

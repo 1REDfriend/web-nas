@@ -21,6 +21,13 @@ type FileListMeta = {
     order?: "asc" | "desc";
 };
 
+interface DeleteResponse {
+    success: boolean;
+    message?: string;
+    error?: string;
+    deletedPath?: string;
+}
+
 async function handleApiError(res: Response) {
     if (!res.ok) {
         let errorMessage = `API Error: ${res.status} ${res.statusText}`;
@@ -136,20 +143,30 @@ export async function toggleFileStar(
     return json as { isStarred: boolean };
 }
 
-export async function deleteFile(filePath: string): Promise<{ success: boolean }> {
+export async function deleteFile(filePath: string, confirm?: string): Promise<{
+    message: string;
+    error: string; success: boolean
+}> {
     const params = new URLSearchParams();
     params.set("file", filePath);
     params.set("option", "delete");
+    if (confirm) params.set("confirm", confirm);
 
     const res = await fetch(`${API_BASE}/manage?${params.toString()}`, {
         method: "POST",
     });
 
-    await handleApiError(res);
-    const json = await res.json();
-    if (!json.success) {
-        throw new Error(json.message || "ลบไฟล์ไม่สำเร็จ");
+    const json = await res.json() as DeleteResponse;
+
+    // กรณีที่ Error จริงๆ และไม่ใช่การขอ Confirm
+    if (!res.ok) {
+        if (json.error !== "Require Confirm") {
+            const errorMessage = json.message || json.error || `API Error: ${res.status}`;
+            logerror(errorMessage);
+            throw new Error(errorMessage);
+        }
     }
+
     return json;
 }
 
@@ -172,7 +189,7 @@ export async function renameFile(
     await handleApiError(res);
     const json = await res.json();
     if (!json.success) {
-        throw new Error(json.message || "เปลี่ยนชื่อไฟล์ไม่สำเร็จ");
+        throw new Error(json.message || "Failed to rename the file.");
     }
     return json;
 }

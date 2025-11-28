@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
+// --- Components ---
 import { FileManagerTopBar } from "@/components/file-manager/FileManagerTopBar";
 import { FileManagerSidebarNav } from "@/components/file-manager/FileManagerSidebarNav";
 import { FileManagerFolderTree } from "@/components/file-manager/FileManagerFolderTree";
@@ -12,8 +14,19 @@ import LoginCheck from "@/components/auth/loginCheck";
 import { ContextMenuBar } from "@/components/ContextMenuBar";
 import VncPage from "@/components/vnc/vncScreen";
 
+// --- Alert Dialog (Shadcn UI) ---
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
 import { useFileManager } from "@/lib/file-manager/useFileManager";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 export default function FileManagerPage() {
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
@@ -50,11 +63,18 @@ export default function FileManagerPage() {
     handleRename,
     handleOpenDirectory,
     refetchFiles,
+
+    fileToDelete,
+    handleConfirmDelete,
+    handleCancelDelete,
+    isDeleting,
   } = useFileManager();
 
   const handleOpenTerminal = () => {
     setIsTerminalOpen(!isTerminalOpen);
   };
+
+  const isTrashTarget = fileToDelete?.path.startsWith('/trash') || fileToDelete?.path.startsWith('trash');
 
   return (
     <ContextMenuBar>
@@ -144,6 +164,39 @@ export default function FileManagerPage() {
               />
             </section>
           </main>
+
+          {/* --- ALERT DIALOG START --- */}
+          <AlertDialog open={!!fileToDelete} onOpenChange={(open) => !open && handleCancelDelete()}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {isTrashTarget ? "Delete Permanently?" : "Move to Trash?"}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {isTrashTarget
+                    ? `Are you sure you want to permanently delete "${fileToDelete?.name}"? This action cannot be undone.`
+                    : `Are you sure you want to move "${fileToDelete?.name}" to the trash?`}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={handleCancelDelete} disabled={isDeleting}>
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleConfirmDelete();
+                  }}
+                  disabled={isDeleting}
+                  className={isTrashTarget ? "bg-red-600 hover:bg-red-700 text-white" : ""}
+                >
+                  {isDeleting ? "Processing..." : (isTrashTarget ? "Delete Forever" : "Move to Trash")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          {/* --- ALERT DIALOG END --- */}
+
         </div>
       )}
 
