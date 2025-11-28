@@ -61,13 +61,7 @@ export async function validateUserPaths(
 
             const isPathValid = allowedRootPaths.some(async (root) => {
                 const r = root;
-                const isExitsPathCategory = await prisma.categoryPath.findFirst({
-                    where: {
-                        userId,
-                        rootPath: path
-                    }
-                })
-                return path === r || path.startsWith(r.endsWith('/') ? r : r + '/') || isExitsPathCategory;
+                return path === r || path.startsWith(r.endsWith('/') ? r : r + '/');
             });
 
             if (!isPathValid) {

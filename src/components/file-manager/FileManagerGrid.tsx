@@ -133,7 +133,6 @@ export function FileManagerGrid({
                                     >
                                         <Copy className="h-3.5 w-3.5 text-slate-400" />
                                         <span>Copy</span>
-                                        <ContextMenuShortcut className="ml-auto text-xs text-slate-500">Ctrl+C</ContextMenuShortcut>
                                     </ContextMenuItem>
 
                                     <ContextMenuItem
@@ -143,7 +142,6 @@ export function FileManagerGrid({
                                     >
                                         <Scissors className="h-3.5 w-3.5 text-slate-400" />
                                         <span>Cut</span>
-                                        <ContextMenuShortcut className="ml-auto text-xs text-slate-500">Ctrl+X</ContextMenuShortcut>
                                     </ContextMenuItem>
 
                                     <ContextMenuItem
@@ -164,7 +162,6 @@ export function FileManagerGrid({
                                     >
                                         <Trash2 className="h-3.5 w-3.5" />
                                         <span>Delete</span>
-                                        <ContextMenuShortcut className="ml-auto text-xs text-slate-500">Del</ContextMenuShortcut>
                                     </ContextMenuItem>
                                 </ContextMenuContent>
                             </ContextMenu>

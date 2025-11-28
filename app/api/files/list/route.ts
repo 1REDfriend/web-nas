@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import path from 'path';
-import fs from 'fs-extra'
 import { logerror } from '@/lib/logger';
 import { ENV } from '@/lib/ENV';
 import { validateUserPaths } from '@/middlewares/pathValidator';
@@ -55,12 +54,14 @@ export async function GET(request: Request) {
         const validation = await validateUserPaths(userId, reqPath);
         if (validation instanceof NextResponse) return validation;
 
-        const selectedRoot = ENV.STORAGE_ROOT;
-        const physicalPath = path.join(selectedRoot, reqPath);
+        let selectedRoot = ENV.STORAGE_ROOT;
+        let physicalPath = path.join(selectedRoot, reqPath);
 
         if (reqPath === "/trash") {
             createInternalFolder(userId, "/trash")
             await cleanTrashItemsByUserId(userId)
+            selectedRoot = ENV.STORAGE_INTERNAL;
+            physicalPath = path.join(selectedRoot, userId, reqPath);
         }
 
         const { data, totalFiles } = await getDirectoryFiles({
