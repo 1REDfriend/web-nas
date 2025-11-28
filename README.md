@@ -18,10 +18,15 @@ feature : Drang and Drop, formiddle, noVCN, Nexjs, Manage User, Manager Root Fol
 > **NOTE** if error xterm your should install `sudo apt install build-essetions` for complie "C" lang to type script.
 
 ### ENV
+
 DATABASE_URL="your-database_url"
+
 TOKEN_COOKIE="your-token_cookie"
+
 JWT_SECRET="your-jwt_secret"
+
 STORAGE_ROOT="your-storage_root"
+
 STORAGE_INTERNAL="your-storage_internal" => default use `storage` 
 
 ## Screen Shot
