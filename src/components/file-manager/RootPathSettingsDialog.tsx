@@ -85,89 +85,93 @@ export function RootPathSettingsDialog() {
                 </Button>
             </DialogTrigger>
 
-            <DialogContent className="bg-slate-950 border-white/10 text-slate-50">
-                <DialogHeader>
-                    <DialogTitle className="text-rose-500">Settings</DialogTitle>
-                    <DialogDescription className="text-slate-400">
-                        Set up <span className="font-mono text-xs">rootPath</span> for
-                        File management system
-                    </DialogDescription>
-                </DialogHeader>
+            <DialogContent className="bg-slate-950 border-white/10 text-slate-50 sm:max-w-[1200px]">
+                <section className="flex space-x-7 max-h-screen">
+                    <section>
+                        <DialogHeader>
+                            <DialogTitle className="text-rose-500">Settings</DialogTitle>
+                            <DialogDescription className="text-slate-400">
+                                Set up <span className="font-mono text-xs">rootPath</span> for
+                                File management system
+                            </DialogDescription>
+                        </DialogHeader>
 
-                <Button
-                    onClick={() => {
-                        route.push("/auth/pass-change")
-                    }}
-                >
-                    <LogIn /> Change Password!
-                </Button>
-
-                <Button
-                    onClick={() => {
-                        route.push("/admin/user/create")
-                    }}
-                >
-                    <UserPlus /> Add User
-                </Button>
-
-                <form className="space-y-4 mt-2" onSubmit={handleSubmit}>
-                    <div className="space-y-2">
-                        <Label htmlFor="rootPath">Add Root Path</Label>
-                        <Input
-                            id="rootPath"
-                            placeholder="For example, D:\\Projects or /home/user/files"
-                            value={rootPath}
-                            onChange={(e) => setRootPath(e.target.value)}
-                        />
-                        <p className="text-[11px] text-slate-500">
-                            body sent:{" "}
-                            <code className="font-mono">{`{ rootPath: "..." }`}</code>
-                        </p>
-                    </div>
-
-                    <div>
-                        {errorMsg && (
-                            <p className="text-xs text-red-400">{errorMsg}</p>
-                        )}
-                    </div>
-
-                    {successMsg && (
-                        <div className="text-xs text-emerald-400 space-y-1">
-                            <p>{successMsg}</p>
-                            {currentRootPath && (
-                                <p className="text-slate-300">
-                                    Use the current rootPath:{" "}
-                                    <span className="font-mono text-[11px]">
-                                        {currentRootPath}
-                                    </span>
-                                </p>
-                            )}
-                        </div>
-                    )}
-
-                    <div className="flex justify-end">
-                        <Button type="submit" disabled={loading}>
-                            {loading ? "Recording..." : "Add rootPath"}
+                        <Button
+                            onClick={() => {
+                                route.push("/auth/pass-change")
+                            }}
+                        >
+                            <LogIn /> Change Password!
                         </Button>
-                    </div>
-                </form>
 
-                <Separator className="bg-white/5" />
+                        <Button
+                            onClick={() => {
+                                route.push("/admin/user/create")
+                            }}
+                        >
+                            <UserPlus /> Add User
+                        </Button>
 
-                <section className="space-y-4">
-                    <p className="font-bold text-lg text-rose-500">User Management</p>
-                    <div className="bg-slate-900/30 p-2 rounded-lg border border-white/5">
-                        <UserManageSetting />
-                    </div>
-                </section>
+                        <form className="space-y-4 mt-2" onSubmit={handleSubmit}>
+                            <div className="space-y-2">
+                                <Label htmlFor="rootPath">Add Root Path</Label>
+                                <Input
+                                    id="rootPath"
+                                    placeholder="For example, D:\\Projects or /home/user/files"
+                                    value={rootPath}
+                                    onChange={(e) => setRootPath(e.target.value)}
+                                />
+                                <p className="text-[11px] text-slate-500">
+                                    body sent:{" "}
+                                    <code className="font-mono">{`{ rootPath: "..." }`}</code>
+                                </p>
+                            </div>
 
-                <Separator className="bg-white/5" />
+                            <div>
+                                {errorMsg && (
+                                    <p className="text-xs text-red-400">{errorMsg}</p>
+                                )}
+                            </div>
 
-                <section className="space-y-4">
-                    <p className="font-bold text-lg text-rose-500">Import Management</p>
-                    <div className="bg-slate-900/30 p-2 rounded-lg border border-white/5">
-                        <PathMapSetting />
-                    </div>
+                            {successMsg && (
+                                <div className="text-xs text-emerald-400 space-y-1">
+                                    <p>{successMsg}</p>
+                                    {currentRootPath && (
+                                        <p className="text-slate-300">
+                                            Use the current rootPath:{" "}
+                                            <span className="font-mono text-[11px]">
+                                                {currentRootPath}
+                                            </span>
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="flex justify-end">
+                                <Button type="submit" disabled={loading}>
+                                    {loading ? "Recording..." : "Add rootPath"}
+                                </Button>
+                            </div>
+                        </form>
+                    </section>
+
+                    {/* <Separator className="bg-white/5" /> */}
+
+                    <section className="space-y-4">
+                        <p className="font-bold text-lg text-rose-500">User Management</p>
+                        <div className="bg-slate-900/30 p-2 rounded-lg border border-white/5">
+                            <UserManageSetting />
+                        </div>
+                    </section>
+
+                    {/* <Separator className="bg-white/5" /> */}
+
+                    <section className="space-y-4">
+                        <p className="font-bold text-lg text-rose-500">Import Management</p>
+                        <div className="bg-slate-900/30 p-2 rounded-lg border border-white/5">
+                            <PathMapSetting />
+                        </div>
+                    </section>
                 </section>
             </DialogContent>
         </Dialog>

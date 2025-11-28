@@ -82,7 +82,7 @@ export function FileManagerGrid({
                                                     )}
                                                 </div>
                                                 <div className="flex flex-col">
-                                                    <CardTitle className="text-sm truncate max-w-[160px]">
+                                                    <CardTitle className="text-sm truncate max-w-32">
                                                         {file.name}
                                                     </CardTitle>
                                                     <span className="text-[11px] text-slate-500">

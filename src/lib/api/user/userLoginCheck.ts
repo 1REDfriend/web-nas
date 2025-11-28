@@ -13,6 +13,6 @@ export async function userLoginCheck() {
         else return false
     } catch {
         logerror("[Failed to fetch user login check]")
-        return {}
+        return false
     }
 }

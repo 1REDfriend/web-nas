@@ -30,6 +30,7 @@ model User {
   starPaths StarPath[]
   categoryPaths CategoryPath[]
   trashShedule TrashShedule[]
+  shareLink ShareLink[]
 
   @@map("users")
 }
@@ -59,25 +60,12 @@ model PathMap {
   @@map("path_maps")
 }
 
-model PathMapCategory {
-  id String @id @default(cuid())
-  rootPath String @map("root_path")
-
-  categoryPath CategoryPath @relation(fields: [categoryPathId], references: [id], onDelete: Cascade)
-  categoryPathId String @map("path_map_id")
-
-  @@index([categoryPathId], name: "idx_path_maps_category_category_path")
-  @@map("path_maps_cetagory")
-}
-
 model CategoryPath {
   id String @id @default(cuid())
   rootPath String @map("root_path")
 
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String @map("user_id")
-
-  pathMapCategory PathMapCategory[]
 }
 
 model StarPath {
@@ -105,4 +93,20 @@ model TrashShedule {
   @@index([userId], name: "idx_trash_schedule_user_id")
   @@unique([userId, item], name: "idx_user_item_unique")
   @@map("trash_schedule")
+}
+
+model ShareLink {
+  id          String        @id @default(cuid())
+  rootPath    String        @map("root_path")
+
+  recursive   Boolean       @default(false)       // for folder share
+
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String        @map("user_id")
+
+  createAt    DateTime      @default(now())
+  expireAt    DateTime
+  @@index([userId], name: "idx_share_link_user_id")
+  @@unique([userId, rootPath], name: "idx_user_root_path_unique")
+  @@map("share_link")
 }

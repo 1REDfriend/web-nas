@@ -8,7 +8,6 @@ import { FileManagerFolderTree } from "@/components/file-manager/FileManagerFold
 import { FileManagerToolbar } from "@/components/file-manager/FileManagerToolbar";
 import { FileManagerGrid } from "@/components/file-manager/FileManagerGrid";
 import { FileManagerPreviewPanel } from "@/components/file-manager/FileManagerPreviewPanel";
-import { UploadDialog } from "@/components/file-manager/FileUploadDialog";
 import LoginCheck from "@/components/auth/loginCheck";
 import { ContextMenuBar } from "@/components/ContextMenuBar";
 import VncPage from "@/components/vnc/vncScreen";
@@ -71,13 +70,8 @@ export default function FileManagerPage() {
               setQuery(value);
             }}
             onOpenTerminal={handleOpenTerminal}
-          />
-
-          <UploadDialog
             currentPath={urlPath ?? ""}
             onUploaded={refetchFiles}
-            triggerEnable={false}
-            enableGlobalDrop={true}
           />
 
           <main className="flex flex-1 overflow-hidden">
@@ -158,7 +152,10 @@ export default function FileManagerPage() {
               setQuery(value);
             }}
             onOpenTerminal={handleOpenTerminal}
+            currentPath={urlPath ?? ""}
+            onUploaded={refetchFiles}
           />
+          
           <VncPage />
         </div>
       )}
