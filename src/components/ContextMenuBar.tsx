@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useState } from "react";
+import { ReactNode } from "react";
 
 import {
     ContextMenu,
@@ -8,28 +8,28 @@ import {
     ContextMenuItem,
     ContextMenuTrigger,
     ContextMenuSeparator,
-    ContextMenuShortcut,
 } from "@/components/ui/context-menu";
 import {
     ArrowLeft,
     RefreshCcw,
-    Share2,
-    Scissors,
-    Copy,
     ClipboardPaste,
 } from "lucide-react";
 
 type ComtextMenuBarProps = {
     children: ReactNode;
+    onBack: () => void,
+    onForward: () => void,
+    onReload: () => void,
+    onPaste: () => void,
 };
 
-export function ContextMenuBar({ children }: ComtextMenuBarProps) {
-    const [shareOpen, setShareOpen] = useState(false);
-
-    const handleAction = (action: string) => {
-        console.log("[ContextMenu action]:", action);
-    };
-
+export function ContextMenuBar({
+    children, 
+    onBack,
+    onForward,
+    onReload,
+    onPaste,
+}: ComtextMenuBarProps ) {
     return (
         <>
             <ContextMenu>
@@ -45,7 +45,7 @@ export function ContextMenuBar({ children }: ComtextMenuBarProps) {
                     {/* Navigation group */}
                     <ContextMenuItem
                         inset
-                        onClick={() => handleAction("back")}
+                        onClick={onBack}
                         className="flex items-center gap-2 text-slate-100 focus:bg-slate-800/80"
                     >
                         <ArrowLeft className="h-3.5 w-3.5 text-slate-400" />
@@ -54,17 +54,16 @@ export function ContextMenuBar({ children }: ComtextMenuBarProps) {
 
                     <ContextMenuItem
                         inset
-                        disabled
-                        onClick={() => handleAction("forward")}
-                        className="flex items-center gap-2 text-slate-500 focus:bg-slate-800/80"
+                        onClick={onForward}
+                        className="flex items-center gap-2 text-slate-100 focus:bg-slate-800/80"
                     >
-                        <ArrowLeft className="h-3.5 w-3.5 rotate-180 text-slate-500" />
+                        <ArrowLeft className="h-3.5 w-3.5 rotate-180 text-slate-400" />
                         <span>Forward</span>
                     </ContextMenuItem>
 
                     <ContextMenuItem
                         inset
-                        onClick={() => handleAction("reload")}
+                        onClick={onReload}
                         className="flex items-center gap-2 text-slate-100 focus:bg-slate-800/80"
                     >
                         <RefreshCcw className="h-3.5 w-3.5 text-slate-400" />
@@ -75,7 +74,7 @@ export function ContextMenuBar({ children }: ComtextMenuBarProps) {
 
                     <ContextMenuItem
                         inset
-                        onClick={() => handleAction("paste")}
+                        onClick={onPaste}
                         className="flex items-center gap-2 text-slate-100 focus:bg-slate-800/80"
                     >
                         <ClipboardPaste className="h-3.5 w-3.5 text-slate-400" />

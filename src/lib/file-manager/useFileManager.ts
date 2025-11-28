@@ -22,6 +22,9 @@ export function useFileManager() {
     const [query, setQuery] = useState("");
     const [page, setPage] = useState(1);
 
+    const [fileToRename, setFileToRename] = useState<FileItem | null>(null);
+    const [isRenaming, setIsRenaming] = useState(false);
+
     const [refetchTrigger, setRefetchTrigger] = useState(0);
 
     const [fileToDelete, setFileToDelete] = useState<FileItem | null>(null);
@@ -177,23 +180,45 @@ export function useFileManager() {
         setFileToDelete(null);
     }
 
-    async function handleRename(file: FileItem) {
-        const newName = prompt("Rename the file", file.name);
-        if (!newName || newName === file.name) return;
+    function handleRename(file: FileItem) {
+        setFileToRename(file);
+    }
+
+    async function handleConfirmRename(newName: string) {
+        if (!fileToRename) return;
+
+        if (newName === fileToRename.name) {
+            setFileToRename(null);
+            return;
+        }
+
+        setIsRenaming(true);
+        const toastId = toast.loading("Renaming...");
 
         try {
-            const { newPath } = await fileService.renameFile(file.path, newName);
+            const { newPath } = await fileService.renameFile(fileToRename.path, newName);
+
             setFiles((prev) =>
                 prev.map((f) =>
-                    f.path === file.path
-                        ? { ...f, name: newName, path: newPath || file.path }
+                    f.path === fileToRename.path
+                        ? { ...f, name: newName, path: newPath || fileToRename.path }
                         : f
                 )
             );
+
+            toast.success(`Renamed to ${newName}`, { id: toastId });
+            setFileToRename(null);
         } catch (err) {
-            logerror(String(err));
-            alert(err instanceof Error ? err.message : "Failed to rename the file.");
+            const msg = err instanceof Error ? err.message : "Failed to rename file";
+            logerror(msg);
+            toast.error(msg, { id: toastId });
+        } finally {
+            setIsRenaming(false);
         }
+    }
+
+    function handleCancelRename() {
+        setFileToRename(null);
     }
 
     function handleOpenDirectory(path: string) {
@@ -262,7 +287,13 @@ export function useFileManager() {
         handleDelete,
         handleConfirmDelete,
         handleCancelDelete,
+
         handleRename,
+        fileToRename,
+        isRenaming,
+        handleConfirmRename,
+        handleCancelRename,
+
         handleOpenDirectory,
         refetchFiles,
 

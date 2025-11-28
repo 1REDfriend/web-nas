@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { FileManagerTopBar } from "@/components/file-manager/FileManagerTopBar";
@@ -24,6 +24,10 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import { useFileManager } from "@/lib/file-manager/useFileManager";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { FileItem } from "@/components/file-manager/config";
 
 export default function FileManagerPage() {
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
@@ -58,7 +62,13 @@ export default function FileManagerPage() {
     handleDownload,
     handleToggleStar,
     handleDelete,
+
     handleRename,
+    fileToRename,
+    isRenaming,
+    handleConfirmRename,
+    handleCancelRename,
+
     handleOpenDirectory,
     refetchFiles,
 
@@ -67,6 +77,7 @@ export default function FileManagerPage() {
     handleCancelDelete,
     isDeleting,
 
+    handlePaste,
     handleCut,
     handleCopy,
   } = useFileManager();
@@ -77,9 +88,52 @@ export default function FileManagerPage() {
 
   const isTrashTarget = fileToDelete?.path.startsWith('/trash') || fileToDelete?.path.startsWith('trash');
 
+  const [tempName, setTempName] = useState("");
+
+  const onRenameClick = (file: FileItem) => {
+    handleRename(file);
+    setTempName(file.name);
+  };
+
   return (
-    <ContextMenuBar>
+    <ContextMenuBar
+      onBack={() => {
+        router.back()
+      }}
+      onForward={() => {
+        router.forward()
+      }}
+      onReload={refetchFiles}
+      onPaste={handlePaste}
+    >
       <LoginCheck />
+
+      <Dialog open={!!fileToRename} onOpenChange={(open) => !open && handleCancelRename()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename File</DialogTitle>
+          </DialogHeader>
+
+          <div className="py-4">
+            <Input
+              value={tempName}
+              onChange={(e) => setTempName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleConfirmRename(tempName);
+              }}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancelRename} disabled={isRenaming}>
+              Cancel
+            </Button>
+            <Button onClick={() => handleConfirmRename(tempName)} disabled={isRenaming}>
+              {isRenaming ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {!isTerminalOpen && (
         <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-50 max-h-screen">
@@ -134,14 +188,14 @@ export default function FileManagerPage() {
                   listLoading={listLoading}
                   onSelectFile={setActiveFilePath}
                   onDownload={handleDownload}
-                  onRename={handleRename}
+                  onRename={onRenameClick}
                   onDelete={handleDelete}
                   onToggleStar={handleToggleStar}
                   onOpenDirectory={handleOpenDirectory}
 
                   onMove={handleCut}
-                  onCut={handleCut} 
-                  onCopy={handleCopy} 
+                  onCut={handleCut}
+                  onCopy={handleCopy}
                 />
               </div>
 

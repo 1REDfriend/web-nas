@@ -267,7 +267,7 @@ export function UploadFileManager({
                     </Button>
                 </DialogTrigger>
 
-                <DialogContent className="sm:max-w-[600px]">
+                <DialogContent className="sm:max-w-2xl">
                     <DialogHeader>
                         <DialogTitle>Upload Manager</DialogTitle>
                         <DialogDescription>
@@ -275,8 +275,8 @@ export function UploadFileManager({
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="grid gap-4 py-4">
-                        <div className="flex gap-2">
+                    <div className="grid gap-4 py-4 max-w-[22rem]">
+                        <div className="flex max-sm:flex-col gap-2 max-sm:max-w-[22rem]">
                             <input
                                 ref={fileInputRef}
                                 type="file" multiple className="hidden"
@@ -299,7 +299,7 @@ export function UploadFileManager({
                         </div>
 
                         {/* File List */}
-                        <div className="border rounded-md">
+                        <div className="border rounded-md sm:max-w-xl max-w-[22rem]">
                             <div className="bg-muted/50 p-2 text-xs font-medium text-muted-foreground border-b flex justify-between">
                                 <span>Queue ({files.length})</span>
                                 {files.length > 0 && !isUploading && (

@@ -8,6 +8,7 @@ import { Search, TerminalSquare } from "lucide-react";
 import { CreateFolderDialog } from "./CreateFolderDialog";
 import Link from "next/link";
 import { UploadFileManager } from "./UploadFileManager";
+import Image from "next/image";
 
 type FileManagerTopBarProps = {
     query: string;
@@ -31,12 +32,11 @@ export function FileManagerTopBar({
             {/* Logo */}
             <Link href={"/"}>
                 < div className="flex items-center gap-3" >
-                    <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center" >
-                        <span className="font-bold text-red-500 text-2xl" > F </span>
+                    <div className="w-12 h-12 bg-white/10 rounded-sm flex items-center justify-center" >
+                        <Image className="rounded-sm" src={"/icon.png"} width={40} height={40} alt={""}/>
                     </div>
                     < div className="hidden sm:flex flex-col leading-tight" >
-                        <span className="text-sm text-slate-300" > File Manager </span>
-                        <span className="text-xs text-slate-500" > Account Name </span>
+                        <span className="text-sm text-slate-300 font-bold" > File Manager </span>
                     </div>
                 </div>
             </Link>

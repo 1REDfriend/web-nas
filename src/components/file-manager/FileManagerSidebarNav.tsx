@@ -2,6 +2,9 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { FOLDERS } from "./config";
 import { RootPathSettingsDialog } from "./RootPathSettingsDialog";
+import { useEffect, useState } from "react";
+import { fetchStorage } from "@/lib/api/system/storage.service";
+import prettyBytes from "pretty-bytes";
 
 type FileManagerSidebarNavProps = {
     selectedFolder: string;
@@ -12,6 +15,35 @@ export function FileManagerSidebarNav({
     selectedFolder,
     onSelectFolder,
 }: FileManagerSidebarNavProps) {
+    const [total, setTotal] = useState(0);
+    const [free, setFree] = useState(0);
+    const [used, setUsed] = useState(0);
+    const [loading, setLoading] = useState(true);
+
+    const usagePercent = total > 0 ? (used / total) * 100 : 0;
+
+    let progressColor = "bg-emerald-500/80";
+    if (usagePercent > 75) progressColor = "bg-yellow-500/80";
+    if (usagePercent > 90) progressColor = "bg-red-500/80";
+
+    useEffect(() => {
+        const storage = async () => {
+            try {
+                const data = await fetchStorage();
+                if (data) {
+                    setTotal(data.total);
+                    setFree(data.free);
+                    setUsed(data.used);
+                }
+            } catch (error) {
+                console.error(error);
+            } finally {
+                setLoading(false);
+            }
+        }
+        storage()
+    }, [])
+
     return (
         <aside className="hidden md:flex flex-col w-60 border-r border-white/10 bg-slate-950/60">
             <div className="p-4">
@@ -57,11 +89,16 @@ export function FileManagerSidebarNav({
                 </p>
                 <div className="space-y-2">
                     <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
-                        <div className="h-full bg-red-500/80" style={{ width: "42%" }} />
+                        <div
+                            className={`h-full transition-all duration-500 ${progressColor}`}
+                            style={{ width: `${usagePercent}%` }}
+                        />
                     </div>
                     <p className="text-xs text-slate-400">
-                        <span className="font-semibold text-slate-200">42 GB</span> of 100
-                        GB used
+                        <span className="font-semibold text-slate-200">
+                            {prettyBytes(used)}
+                        </span>{" "}
+                        of {prettyBytes(total)} used
                     </p>
                 </div>
             </div>
