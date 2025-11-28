@@ -19,7 +19,7 @@ feature : Drang and Drop, formiddle, noVCN, Nexjs, Manage User, Manager Root Fol
 
 ### ENV
 
-DATABASE_URL="your-database_url"
+DATABASE_URL="file:./main.sqlite"
 
 TOKEN_COOKIE="your-token_cookie"
 
