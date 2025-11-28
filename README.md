@@ -5,7 +5,7 @@ this tools will make easy to upload, download file and it has a terminal to use 
 
 ## Introduction
 The File Manager Easy to use, It is opensource u can optimzie, customize your theme and you can pull request for your best edit to me.
-feature : Drang and Drop, formiddle, xterm, Nexjs, Manage User, Manager Root Folder. 
+feature : Drang and Drop, formiddle, noVCN, Nexjs, Manage User, Manager Root Folder. 
 
 ## Installation
 
