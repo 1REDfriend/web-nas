@@ -256,3 +256,37 @@ export async function addFolderFavorite(
     }
     return data;
 }
+
+export async function pasteFiles(
+    files: { path: string; name: string }[],
+    destination: string,
+    action: "move" | "copy"
+) {
+    const results = [];
+    const errors = [];
+
+    for (const file of files) {
+        const params = new URLSearchParams();
+        params.set("file", file.path);
+        params.set("option", action === "move" ? "cut" : "copy");
+
+        try {
+            const res = await fetch(`${API_BASE}/manage?${params.toString()}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ destination }),
+            });
+
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                errors.push(`${file.name}: ${data.error || "Failed"}`);
+            } else {
+                results.push(data);
+            }
+        } catch (e: unknown) {
+            errors.push(`${file.name}: ${e}`);
+        }
+    }
+
+    return { results, errors };
+}

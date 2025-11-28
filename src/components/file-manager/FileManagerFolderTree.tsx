@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChevronRight, Folder as FolderIcon, PlusIcon, Trash2, Pencil, Plus } from "lucide-react";
+import { ChevronRight, Folder as FolderIcon, Trash2, Pencil, Plus, FolderInput } from "lucide-react";
 import { FOLDERS } from "./config";
 import { useEffect, useState } from "react";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "../ui/input-group";
@@ -14,7 +14,7 @@ import {
     ContextMenuTrigger,
     ContextMenuSeparator,
 } from "@/components/ui/context-menu";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 type FileManagerFolderTreeProps = {
     selectedFolder: string;
@@ -152,7 +152,7 @@ export function FileManagerFolderTree({
                                 }`}
                         >
                             <ChevronRight className="w-3 h-3 text-slate-500 group-hover:text-slate-300" />
-                            <FolderIcon className="w-4 h-4 text-slate-400" />
+                            <FolderInput className="w-4 h-4 text-slate-400" />
                             <span className="flex-1 text-slate-100">{folder.label}</span>
                         </button>
                     ))}

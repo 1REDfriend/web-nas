@@ -1,36 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import * as fileService from "@/lib/api/file.service";
-import { categoryPath as CategoryPath } from "@/interfaces/path";
 import { logerror } from "@/lib/logger";
 import {
     FOLDERS,
     FOLDER_PATHS,
     FileItem,
-    FileListMeta,
 } from "@/components/file-manager/config";
 import { toast } from "sonner";
 
+import { useFileCategories } from "./useFileCategories";
+import { useFileList } from "./useFileList";
+import { useFilePreview } from "./useFilePreview";
+import { useFileClipboard } from "./useFileClipboard";
+
 export function useFileManager() {
     const [selectedFolder, setSelectedFolder] = useState("all");
-    const [files, setFiles] = useState<FileItem[]>([]);
-    const [meta, setMeta] = useState<FileListMeta | null>(null);
-    const [activeFilePath, setActiveFilePath] = useState<string | null>(null);
-    const [categoryPaths, setCategoryPaths] = useState<CategoryPath[]>([]);
-
     const [query, setQuery] = useState("");
     const [page, setPage] = useState(1);
 
-    const [listLoading, setListLoading] = useState(false);
-    const [listError, setListError] = useState<string | null>(null);
-
-    const [previewContent, setPreviewContent] = useState<string | null>(null);
-    const [previewSize, setPreviewSize] = useState<number | null>(null);
-    const [previewLoading, setPreviewLoading] = useState(false);
-    const [previewError, setPreviewError] = useState<string | null>(null);
     const [refetchTrigger, setRefetchTrigger] = useState(0);
 
     const [fileToDelete, setFileToDelete] = useState<FileItem | null>(null);
@@ -40,6 +31,39 @@ export function useFileManager() {
     const router = useRouter();
 
     const urlPath = (searchParams?.get("path") as string | null) ?? null;
+
+    // --- categories ---
+    const { categoryPaths } = useFileCategories();
+
+    // --- list & derived state ---
+    const {
+        files,
+        setFiles,
+        meta,
+        listLoading,
+        listError,
+        activeFilePath,
+        setActiveFilePath,
+        visibleFiles,
+        activeFile,
+        searchCount,
+        totalPages,
+    } = useFileList({
+        selectedFolder,
+        page,
+        query,
+        urlPath,
+        categoryPaths,
+        refetchTrigger,
+    });
+
+    // --- preview state ---
+    const {
+        previewContent,
+        previewSize,
+        previewLoading,
+        previewError,
+    } = useFilePreview({ activeFile });
 
     const handlePathChange = useCallback(
         (newPath: string) => {
@@ -56,199 +80,34 @@ export function useFileManager() {
             router.push(`?${params.toString()}`, { scroll: false });
             setActiveFilePath(null);
         },
-        [searchParams, router, urlPath]
+        [searchParams, router, setActiveFilePath]
     );
 
-    useEffect(() => {
-        const fetchCategoryPaths = async () => {
-            try {
-                const result = await fileService.addFolderFavorite();
+    function refetchFiles() {
+        setRefetchTrigger((count) => count + 1);
+    }
 
-                let paths: CategoryPath[] = [];
+    // --- clipboard hook (uses refetchFiles & urlPath) ---
+    const { handleCut, handleCopy, handlePaste } = useFileClipboard({
+        urlPath,
+        refetchFiles,
+    });
 
-                if (result && typeof result === "object" && "categoryPath" in result) {
-                    const cp = (result as { categoryPath: unknown }).categoryPath;
-
-                    if (Array.isArray(cp)) {
-                        paths = cp as CategoryPath[];
-                    }
-                }
-
-                setCategoryPaths(paths);
-            } catch (err: unknown) {
-                logerror(
-                    err instanceof Error
-                        ? `Error fetching categoryPath: ${err.message}`
-                        : "Error fetching categoryPath"
-                );
-                setCategoryPaths([]);
-            }
-        };
-
-        fetchCategoryPaths();
-    }, []);
-
-    useEffect(() => {
-        const controller = new AbortController();
-
-        async function loadFiles() {
-            try {
-                setListLoading(true);
-                setListError(null);
-
-                let baseFolderPath: string | null =
-                    categoryPaths.find((c) => c.id === selectedFolder)?.rootPath ??
-                    (FOLDER_PATHS as Record<string, string | null>)[selectedFolder];
-
-                if (baseFolderPath && !baseFolderPath.startsWith("/")) {
-                    baseFolderPath = `/${baseFolderPath}`;
-                }
-
-                let folderPath: string | null = urlPath || baseFolderPath || null;
-
-                if (folderPath && !folderPath.startsWith("/")) {
-                    folderPath = `/${folderPath}`;
-                }
-
-                if (folderPath === "/") {
-                    folderPath = null;
-                }
-
-                const { data, meta } = await fileService.fetchFiles(
-                    {
-                        folderPath,
-                        page,
-                        query: query.trim(),
-                        sortBy: "name",
-                        order: "asc",
-                    },
-                    controller.signal
-                );
-
-                setFiles(data);
-                setMeta(meta);
-
-                setActiveFilePath((prev) => {
-                    if (!data.length) return null;
-                    if (prev && data.some((f) => f.path === prev)) return prev;
-                    return data[0].path || data[0].name;
-                });
-            } catch (err: unknown) {
-                if (err instanceof Error && err.name === "AbortError") {
-                    return;
-                }
-                logerror(err instanceof Error ? err.message : String(err));
-                setListError(
-                    err instanceof Error
-                        ? err.message
-                        : "An error occurred while loading the file."
-                );
-                setFiles([]);
-                setMeta(null);
-            } finally {
-                setListLoading(false);
-            }
-        }
-
-        loadFiles();
-
-        return () => controller.abort();
-    }, [selectedFolder, page, query, urlPath, refetchTrigger, categoryPaths]);
-
-    const visibleFiles = useMemo(() => {
-        let data = [...files];
-
-        if (selectedFolder === "starred") {
-            data = data.filter((f) => f.isStarred);
-        } else if (selectedFolder === "recent") {
-            data = data
-                .slice()
-                .sort((a, b) => {
-                    const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-                    const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-                    return bTime - aTime;
-                });
-        }
-
-        return data;
-    }, [files, selectedFolder]);
-
-    const activeFile = useMemo(() => {
-        if (!visibleFiles.length) return null;
-        if (activeFilePath) {
-            const found = visibleFiles.find((f) => f.path === activeFilePath);
-            if (found) return found;
-        }
-        return visibleFiles[0];
-    }, [visibleFiles, activeFilePath]);
-
-    const activePath = activeFile?.path || "";
-
-    useEffect(() => {
-        if (!activePath || activeFile?.type === "directory") {
-            setPreviewContent(null);
-            setPreviewSize(null);
-            return;
-        }
-
-        const controller = new AbortController();
-
-        async function loadPreview() {
-            try {
-                setPreviewLoading(true);
-                setPreviewError(null);
-
-                const { content, size } = await fileService.fetchFilePreview(
-                    activePath,
-                    controller.signal
-                );
-
-                setPreviewContent(content);
-                setPreviewSize(size);
-            } catch (err: unknown) {
-                if (err instanceof Error && err.name === "AbortError") {
-                    return;
-                }
-                logerror(err instanceof Error ? err.message : String(err));
-                setPreviewError(
-                    err instanceof Error
-                        ? err.message
-                        : "An error occurred while loading the file."
-                );
-                setPreviewContent(null);
-                setPreviewSize(null);
-            } finally {
-                setPreviewLoading(false);
-            }
-        }
-
-        loadPreview();
-
-        return () => controller.abort();
-    }, [activePath, activeFile?.type]);
-
-    const searchCount = meta?.totalFiles ?? visibleFiles.length;
-
-    const totalPages = meta
-        ? Math.max(1, Math.ceil(meta.totalFiles / meta.itemsPerPage))
-        : 1;
+    // --- actions ---
 
     async function handleDownload(file: FileItem) {
         try {
             const blob = await fileService.downloadFile(file.path);
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
-
             a.href = url;
             a.download = file.name;
-
             document.body.appendChild(a);
             a.click();
             a.remove();
-
             URL.revokeObjectURL(url);
         } catch (err) {
-            logerror(err + "");
+            logerror(String(err));
             alert(err instanceof Error ? err.message : "File download failed");
         }
     }
@@ -262,10 +121,8 @@ export function useFileManager() {
                 )
             );
         } catch (err) {
-            logerror(err + "");
-            alert(
-                err instanceof Error ? err.message : "Unable to update star status"
-            );
+            logerror(String(err));
+            alert(err instanceof Error ? err.message : "Unable to update star status");
         }
     }
 
@@ -287,20 +144,26 @@ export function useFileManager() {
             }
 
             if (res.success) {
-                setFiles((prev) => prev.filter((f) => f.path !== fileToDelete.path));
+                setFiles((prev) =>
+                    prev.filter((f) => f.path !== fileToDelete.path)
+                );
 
                 if (activeFilePath === fileToDelete.path) {
                     setActiveFilePath(null);
                 }
 
-                const isTrash = fileToDelete.path.startsWith('/trash') || fileToDelete.path.startsWith('trash');
-                toast.success(isTrash ? "Deleted permanently" : "Moved to trash", { id: toastId });
+                const isTrash =
+                    fileToDelete.path.startsWith("/trash") ||
+                    fileToDelete.path.startsWith("trash");
 
+                toast.success(
+                    isTrash ? "Deleted permanently" : "Moved to trash",
+                    { id: toastId }
+                );
                 setFileToDelete(null);
             } else {
                 throw new Error(res.message || res.error || "Failed to delete");
             }
-
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : "Failed to delete file";
             logerror(msg);
@@ -320,7 +183,6 @@ export function useFileManager() {
 
         try {
             const { newPath } = await fileService.renameFile(file.path, newName);
-
             setFiles((prev) =>
                 prev.map((f) =>
                     f.path === file.path
@@ -329,7 +191,7 @@ export function useFileManager() {
                 )
             );
         } catch (err) {
-            logerror(err + "");
+            logerror(String(err));
             alert(err instanceof Error ? err.message : "Failed to rename the file.");
         }
     }
@@ -359,10 +221,6 @@ export function useFileManager() {
         handlePathChange(relative);
         setPage(1);
         setActiveFilePath(null);
-    }
-
-    function refetchFiles() {
-        setRefetchTrigger((count) => count + 1);
     }
 
     const currentFolderLabel =
@@ -397,6 +255,7 @@ export function useFileManager() {
         urlPath,
         fileToDelete,
         isDeleting,
+
         // actions
         handleDownload,
         handleToggleStar,
@@ -406,5 +265,10 @@ export function useFileManager() {
         handleRename,
         handleOpenDirectory,
         refetchFiles,
+
+        // clipboard actions
+        handleCut,
+        handleCopy,
+        handlePaste,
     };
 }

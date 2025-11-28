@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
-import { logerror, logwarn } from "@/lib/logger";
-import { getSafePath } from "@/lib/utils/filesystem/utils";
-import { renameAction } from "@/lib/utils/filesystem/actions/rename";
-import { moveAction } from "@/lib/utils/filesystem/actions/move";
-import { copyAction } from "@/lib/utils/filesystem/actions/copy";
-import { placeAction } from "@/lib/utils/filesystem/actions/place";
-import { deleteAction } from "@/lib/utils/filesystem/actions/delete";
+import { log, logerror, logwarn } from "@/lib/logger";
+import { getSafePath } from "@/lib/filesystem/utils";
+import { renameAction } from "@/lib/filesystem/actions/rename";
+import { moveAction } from "@/lib/filesystem/actions/move";
+import { copyAction } from "@/lib/filesystem/actions/copy";
+import { placeAction } from "@/lib/filesystem/actions/place";
+import { deleteAction } from "@/lib/filesystem/actions/delete";
 import { xUserPayload } from "@/lib/api/user/x-user-payload";
 import { verifyUserPath } from "@/lib/utils/user/verifyUserPath";
+import { pathReplaceValidate } from "@/lib/reosolvePath";
 
 interface FileActionBody {
     newName?: string;
@@ -25,31 +26,20 @@ export async function POST(request: Request) {
     const userPayload = await xUserPayload();
 
     if (!userPayload) {
-        return NextResponse.json(
-            {error : "No user Found"},
-            { status: 401}
-        )
+        return NextResponse.json({ error: "No user Found" }, { status: 401 });
     }
 
-    const userId = userPayload.sub
+    const userId = userPayload.sub;
 
     try {
         if (!reqFile) {
-            return NextResponse.json(
-                { error: "No File Select" }, 
-                { status: 400 }
-            );
+            return NextResponse.json({ error: "No File Select" }, { status: 400 });
         }
 
         if (!await verifyUserPath(userId, reqFile)) {
-            logwarn("[Manage file Failed] : file not allowed")
-            return NextResponse.json(
-                { error: "File path not allowed" }, 
-                { status: 400 }
-            );
+            logwarn("[Manage file Failed] : file not allowed");
+            return NextResponse.json({ error: "File path not allowed" }, { status: 400 });
         }
-
-        const safeFilePath = getSafePath(reqFile);
 
         let body: FileActionBody = {};
         try { body = await request.json() as FileActionBody; } catch { }
@@ -58,28 +48,43 @@ export async function POST(request: Request) {
 
         switch (reqOption) {
             case "rename":
-                result = await renameAction(safeFilePath, body.newName || "");
+                result = await renameAction(getSafePath(reqFile), body.newName || "");
                 break;
 
             case "moveTo":
             case "cut":
-                result = await moveAction(safeFilePath, body.destination || "");
+                const cutSrcPath = await pathReplaceValidate(reqFile);
+                const cutDestPath = await pathReplaceValidate(body.destination || "");
+
+                if (cutSrcPath === cutDestPath) {
+                    return NextResponse.json({ error: "Source and destination are the same" }, { status: 400 });
+                }
+
+                log(`[Manage Debug] Cut: ${cutSrcPath} -> ${cutDestPath}`);
+                result = await moveAction(userId, cutSrcPath, cutDestPath);
                 break;
 
             case "copy":
-                result = await copyAction(safeFilePath, body.destination || "");
+                const srcPath = await pathReplaceValidate(reqFile);
+                const destPath = await pathReplaceValidate(body.destination || "");
+                log(`[Manage Debug] Copy: ${srcPath} -> ${destPath}`);
+                result = await copyAction(getSafePath(srcPath), destPath);
                 break;
 
             case "place":
-                result = await placeAction(safeFilePath, body.type || "", body.content || "");
+                result = await placeAction(getSafePath(reqFile), body.type || "", body.content || "");
                 break;
 
             case "delete":
-                result = await deleteAction( userId ,safeFilePath, reqFile, reqConfirm);
+                result = await deleteAction(userId, getSafePath(reqFile), reqFile, reqConfirm);
                 break;
 
             default:
                 return NextResponse.json({ error: "Invalid operation specified" }, { status: 400 });
+        }
+
+        if (!result.success && result.error) {
+            throw new Error(result.error);
         }
 
         return NextResponse.json({ success: true, ...result });
@@ -88,11 +93,9 @@ export async function POST(request: Request) {
         const errorMessage = err instanceof Error ? err.message : String(err);
         logerror("[Manage File Failed] : " + errorMessage);
 
-        const isUserError = errorMessage.includes("Invalid") || errorMessage.includes("No destination") || errorMessage.includes("Access denied");
-
         return NextResponse.json(
-            { error: errorMessage || "Internal Error" },
-            { status: isUserError ? 400 : 500 }
+            { error: errorMessage || "Internal Error", success: false },
+            { status: 500 }
         );
     }
 }

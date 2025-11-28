@@ -4,7 +4,7 @@ import fs from "fs-extra";
 import path from "path";
 import { ENV } from "@/lib/ENV";
 import { xUserPayload } from "@/lib/api/user/x-user-payload";
-import { allowedExtensions } from "@/lib/utils/filesystem/allowedcExtensions";
+import { allowedExtensions } from "@/lib/filesystem/allowedcExtensions";
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);

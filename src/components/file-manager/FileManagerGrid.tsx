@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import ptb from 'pretty-bytes'
-import { File as FileIcon, Folder, Star, Copy, Scissors, Trash2, Pencil } from "lucide-react";
+import { File as FileIcon, Folder, Star, Copy, Scissors, Trash2, Pencil, MoveIcon } from "lucide-react";
 import { FileItem } from "./config";
 
 // Import Shadcn Context Menu
@@ -24,7 +24,8 @@ type FileManagerGridProps = {
     onDelete: (file: FileItem) => void;
     onToggleStar: (file: FileItem) => void;
     onOpenDirectory: (path: string) => void;
-    // Props สำหรับ Action เสริม
+    
+    onMove?: (file: FileItem) => void;
     onCopy?: (file: FileItem) => void;
     onCut?: (file: FileItem) => void;
 };
@@ -37,6 +38,7 @@ export function FileManagerGrid({
     onDownload,
     onRename,
     onDelete,
+    onMove,
     onToggleStar,
     onOpenDirectory,
     onCopy,
@@ -114,6 +116,16 @@ export function FileManagerGrid({
 
                                 {/* เมนูคลิกขวาของ File Item (ใช้ Theme เดียวกัน) */}
                                 <ContextMenuContent className="min-w-[220px] rounded-xl border border-slate-800/80 bg-slate-900/95 backdrop-blur-md shadow-xl shadow-black/40 py-1">
+                                    <ContextMenuItem
+                                        inset
+                                        onClick={() => onMove?.(file)}
+                                        className="flex items-center gap-2 text-slate-100 focus:bg-slate-800/80"
+                                    >
+                                        <MoveIcon className="h-3.5 w-3.5 text-slate-400" />
+                                        <span>Move</span>
+                                        <ContextMenuShortcut className="ml-auto text-xs text-slate-500"></ContextMenuShortcut>
+                                    </ContextMenuItem>
+                                    
                                     <ContextMenuItem
                                         inset
                                         onClick={() => onCopy?.(file)}

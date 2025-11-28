@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-// --- Components ---
 import { FileManagerTopBar } from "@/components/file-manager/FileManagerTopBar";
 import { FileManagerSidebarNav } from "@/components/file-manager/FileManagerSidebarNav";
 import { FileManagerFolderTree } from "@/components/file-manager/FileManagerFolderTree";
@@ -14,7 +13,6 @@ import LoginCheck from "@/components/auth/loginCheck";
 import { ContextMenuBar } from "@/components/ContextMenuBar";
 import VncPage from "@/components/vnc/vncScreen";
 
-// --- Alert Dialog (Shadcn UI) ---
 import {
   AlertDialog,
   AlertDialogAction,
@@ -57,6 +55,7 @@ export default function FileManagerPage() {
     totalPages,
     currentFolderLabel,
     urlPath,
+
     handleDownload,
     handleToggleStar,
     handleDelete,
@@ -68,6 +67,9 @@ export default function FileManagerPage() {
     handleConfirmDelete,
     handleCancelDelete,
     isDeleting,
+
+    handleCut,
+    handleCopy,
   } = useFileManager();
 
   const handleOpenTerminal = () => {
@@ -149,6 +151,10 @@ export default function FileManagerPage() {
                   onDelete={handleDelete}
                   onToggleStar={handleToggleStar}
                   onOpenDirectory={handleOpenDirectory}
+
+                  onMove={handleCut}
+                  onCut={handleCut} 
+                  onCopy={handleCopy} 
                 />
               </div>
 
@@ -165,7 +171,6 @@ export default function FileManagerPage() {
             </section>
           </main>
 
-          {/* --- ALERT DIALOG START --- */}
           <AlertDialog open={!!fileToDelete} onOpenChange={(open) => !open && handleCancelDelete()}>
             <AlertDialogContent>
               <AlertDialogHeader>
@@ -195,7 +200,6 @@ export default function FileManagerPage() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-          {/* --- ALERT DIALOG END --- */}
 
         </div>
       )}
