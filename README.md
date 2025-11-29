@@ -20,7 +20,7 @@ feature : Drang and Drop, formiddle, noVCN, Nexjs, Manage User, Manager Root Fol
 - step 5 : `npm run dev`
 - step 6 : Configuration of `noVNC` install and run
 
-> **NOTE** if error xterm your should install `sudo apt install build-essetions` for complie "C" lang to type script.
+> **NOTE** if error xterm your should install `sudo apt install build-essential -y` for complie "C" lang to type script.
 
 ### ENV
 
