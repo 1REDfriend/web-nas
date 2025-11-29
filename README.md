@@ -9,7 +9,7 @@ feature : Drang and Drop, formiddle, noVCN, Nexjs, Manage User, Manager Root Fol
 
 ## Quick Install
 
-`curl -fsSL https://raw.githubusercontent.com/1REDfriend/web-nas/edit/main/script.sh | bash`
+`curl -fsSL https://raw.githubusercontent.com/1REDfriend/web-nas/main/script.sh | bash`
 
 ## Installation
 
