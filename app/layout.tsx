@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Kanit } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 import { Toaster } from "sonner";
+import { Suspense } from "react";
 
 const kanit = Kanit({
   variable: "--font-kanit-sans",
@@ -35,14 +36,17 @@ export default function RootLayout({
       <body
         className={`${kanit.variable} ${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ThemeProvider
-          attribute="class"
-          forcedTheme="dark"
-          disableTransitionOnChange
-        >
-          <Toaster />
-          {children}
-        </ThemeProvider>
+        <Suspense fallback={<div>Loading entire page...</div>}>
+          <ThemeProvider
+            attribute="class"
+            forcedTheme="dark"
+            disableTransitionOnChange
+          >
+            <Toaster />
+            {children}
+          </ThemeProvider>
+        </Suspense>
+
       </body>
     </html>
   );

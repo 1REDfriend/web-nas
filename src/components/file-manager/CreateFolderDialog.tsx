@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { FolderPlus } from "lucide-react"
 import { toast } from "sonner"
@@ -73,49 +73,51 @@ export function CreateFolderDialog({ onSuccess }: CreateFolderDialogProps) {
     }
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button variant="outline" className="gap-2">
-                    <FolderPlus size={16} />
-                    New Folder
-                </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-                <form onSubmit={handleSubmit}>
-                    <DialogHeader>
-                        <DialogTitle>Create New Folder</DialogTitle>
-                        <DialogDescription>
-                            Create a new folder in the location: <code className="bg-muted px-1 rounded">{currentPath || "/"}</code>
-                        </DialogDescription>
-                    </DialogHeader>
+        <Suspense>
+            <Dialog open={open} onOpenChange={setOpen}>
+                <DialogTrigger asChild>
+                    <Button variant="outline" className="gap-2">
+                        <FolderPlus size={16} />
+                        New Folder
+                    </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                    <form onSubmit={handleSubmit}>
+                        <DialogHeader>
+                            <DialogTitle>Create New Folder</DialogTitle>
+                            <DialogDescription>
+                                Create a new folder in the location: <code className="bg-muted px-1 rounded">{currentPath || "/"}</code>
+                            </DialogDescription>
+                        </DialogHeader>
 
-                    <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="name" className="text-right">
-                                Name
-                            </Label>
-                            <Input
-                                id="name"
-                                value={folderName}
-                                onChange={(e) => setFolderName(e.target.value)}
-                                placeholder="New Folder Name"
-                                className="col-span-3"
-                                autoFocus
-                                disabled={isLoading}
-                            />
+                        <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="name" className="text-right">
+                                    Name
+                                </Label>
+                                <Input
+                                    id="name"
+                                    value={folderName}
+                                    onChange={(e) => setFolderName(e.target.value)}
+                                    placeholder="New Folder Name"
+                                    className="col-span-3"
+                                    autoFocus
+                                    disabled={isLoading}
+                                />
+                            </div>
                         </div>
-                    </div>
 
-                    <DialogFooter>
-                        <Button type="button" variant="secondary" onClick={() => setOpen(false)} disabled={isLoading}>
-                            Cancel
-                        </Button>
-                        <Button type="submit" disabled={isLoading}>
-                            {isLoading ? "Creating..." : "Create"}
-                        </Button>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog>
+                        <DialogFooter>
+                            <Button type="button" variant="secondary" onClick={() => setOpen(false)} disabled={isLoading}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={isLoading}>
+                                {isLoading ? "Creating..." : "Create"}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+        </Suspense>
     )
 }

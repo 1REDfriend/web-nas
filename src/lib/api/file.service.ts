@@ -143,10 +143,7 @@ export async function toggleFileStar(
     return json as { isStarred: boolean };
 }
 
-export async function deleteFile(filePath: string, confirm?: string): Promise<{
-    message: string;
-    error: string; success: boolean
-}> {
+export async function deleteFile(filePath: string, confirm?: string): Promise<DeleteResponse> {
     const params = new URLSearchParams();
     params.set("file", filePath);
     params.set("option", "delete");
@@ -158,7 +155,6 @@ export async function deleteFile(filePath: string, confirm?: string): Promise<{
 
     const json = await res.json() as DeleteResponse;
 
-    // กรณีที่ Error จริงๆ และไม่ใช่การขอ Confirm
     if (!res.ok) {
         if (json.error !== "Require Confirm") {
             const errorMessage = json.message || json.error || `API Error: ${res.status}`;

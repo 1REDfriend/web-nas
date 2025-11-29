@@ -1,6 +1,8 @@
+'use client'
+
 import { userLoginCheck } from "@/lib/api/user/userLoginCheck";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 
 export default function LoginCheck() {
     const router = useRouter()
@@ -25,5 +27,8 @@ export default function LoginCheck() {
     }, [router, searcharams])
 
     if (loading) return <p>Loading...</p>;
+
     if (!isAuthenticated) return null;
+
+    return null;
 }
