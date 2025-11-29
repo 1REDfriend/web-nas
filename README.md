@@ -7,6 +7,10 @@ this tools will make easy to upload, download file and it has a terminal to use 
 The File Manager Easy to use, It is opensource u can optimzie, customize your theme and you can pull request for your best edit to me.
 feature : Drang and Drop, formiddle, noVCN, Nexjs, Manage User, Manager Root Folder. 
 
+## Quick Install
+
+`curl -fsSL https://raw.githubusercontent.com/1REDfriend/web-nas/edit/main/script.sh | bash`
+
 ## Installation
 
 - step 1 : install `Node js, npm`
