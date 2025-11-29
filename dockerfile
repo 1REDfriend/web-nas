@@ -4,6 +4,8 @@ WORKDIR /app
 
 COPY package.json package-lock.json* ./
 
+RUN apk add --no-cache python3 make g++ build-base openssl
+
 RUN npm install
 
 COPY . .
