@@ -1,6 +1,4 @@
-name : web-nas
-
-service:
+services:
   nextjs:
     container_name: web-nas
     build:
@@ -22,6 +20,8 @@ service:
 
   novnc:
     image: theasp/novnc:latest
+    env_file:
+    - ./noVNC.env
     environment:
       - DISPLAY_WIDTH=1920
       - DISPLAY_HEIGHT=1080
