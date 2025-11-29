@@ -84,7 +84,7 @@ export function PathMapSetting() {
 
     useEffect(() => {
         void fetchData();
-    }, []);
+    }, [fetchData]);
 
     const handleDelete = useCallback(
         async (userId: string, reqPath: string) => {

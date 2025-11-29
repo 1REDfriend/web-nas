@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import bcrypt from 'bcrypt';
 import { prisma } from '@/lib/db';
 import { log, logerror } from "@/lib/logger";

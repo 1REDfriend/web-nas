@@ -35,10 +35,10 @@ export async function middleware(request: NextRequest) {
             return forbiddenResponse('Invalid user session.');
         }
 
-        const { searchParams } = request.nextUrl;
-        const pathFromQuery = searchParams.get('path');
+        // const { searchParams } = request.nextUrl;
+        // const pathFromQuery = searchParams.get('path');
 
-        let pathFromDestination: string | null = null;
+        // const pathFromDestination: string | null = null;
         const contentType = request.headers.get('content-type');
 
     if (contentType && contentType.includes('application/json') && request.method != "GET") {
@@ -46,7 +46,7 @@ export async function middleware(request: NextRequest) {
                 const clonedRequest = request.clone();
                 const body = await clonedRequest.json();
                 if (body.destination && typeof body.destination === 'string') {
-                    pathFromDestination = body.destination;
+                    // pathFromDestination = body.destination;
                 }
             } catch (e) {
                 logerror('[Middleware] Failed to parse body: ' + e);

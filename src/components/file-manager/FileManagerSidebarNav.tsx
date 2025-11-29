@@ -16,9 +16,9 @@ export function FileManagerSidebarNav({
     onSelectFolder,
 }: FileManagerSidebarNavProps) {
     const [total, setTotal] = useState(0);
-    const [free, setFree] = useState(0);
+    // const [free, setFree] = useState(0);
     const [used, setUsed] = useState(0);
-    const [loading, setLoading] = useState(true);
+    // const [loading, setLoading] = useState(true);
 
     const usagePercent = total > 0 ? (used / total) * 100 : 0;
 
@@ -32,13 +32,13 @@ export function FileManagerSidebarNav({
                 const data = await fetchStorage();
                 if (data) {
                     setTotal(data.total);
-                    setFree(data.free);
+                    // setFree(data.free);
                     setUsed(data.used);
                 }
             } catch (error) {
                 console.error(error);
             } finally {
-                setLoading(false);
+                // setLoading(false);
             }
         }
         storage()

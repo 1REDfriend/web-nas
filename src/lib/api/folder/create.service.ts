@@ -1,4 +1,4 @@
-import { log, logerror } from "@/lib/logger";
+import { logerror } from "@/lib/logger";
 
 export interface CreateFolderResponse {
     success: boolean;

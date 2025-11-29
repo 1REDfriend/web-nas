@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/dialog";
 import { LogIn, Settings, UserPlus } from "lucide-react";
 import { logerror } from "@/lib/logger";
-import { Separator } from "../ui/separator";
 import { PathMapSetting } from "./PathMapSetting";
 import { useRouter } from "next/navigation";
 import { UserManageSetting } from "./UserManageSetting";

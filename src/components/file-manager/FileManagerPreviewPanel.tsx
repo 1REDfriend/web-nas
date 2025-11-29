@@ -4,9 +4,6 @@ import { Separator } from "@/components/ui/separator";
 import { DownloadCloud, File as FileIcon, Star, Trash2 } from "lucide-react";
 import { FileItem } from "./config";
 import ptb from 'pretty-bytes'
-import { useState } from "react";
-import { toast } from "sonner";
-import { logerror } from "@/lib/logger";
 
 type FileManagerPreviewPanelProps = {
     activeFile: FileItem | null;
@@ -30,14 +27,6 @@ export function FileManagerPreviewPanel({
     onDelete,
 }: FileManagerPreviewPanelProps) {
     const isTrashFile = activeFile?.path?.startsWith('/trash') || activeFile?.path?.startsWith('trash');
-
-    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    const [fileToDelete, setFileToDelete] = useState<FileItem | null>(null);
-
-    const handleDeleteClick = (file: FileItem) => {
-        setFileToDelete(file);
-        setDeleteDialogOpen(true);
-    };
 
     return (
         <aside className="hidden xl:flex w-80 border-l border-white/10 flex-col bg-slate-950/60">

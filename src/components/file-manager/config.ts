@@ -1,6 +1,5 @@
 import {
     HomeIcon,
-    Folder,
     Star,
     Trash2,
     Clock,

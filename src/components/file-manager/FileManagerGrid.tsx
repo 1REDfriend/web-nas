@@ -35,7 +35,6 @@ export function FileManagerGrid({
     activeFilePath,
     listLoading,
     onSelectFile,
-    onDownload,
     onRename,
     onDelete,
     onMove,

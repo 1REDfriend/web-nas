@@ -19,8 +19,6 @@ export async function GET(request: Request) {
         )
     }
 
-    const userId = userPayload.sub
-
     if (!reqFile) {
         return NextResponse.json(
             { error: "File path is required" },

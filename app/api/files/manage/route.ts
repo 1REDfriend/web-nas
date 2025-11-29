@@ -44,7 +44,8 @@ export async function POST(request: Request) {
         let body: FileActionBody = {};
         try { body = await request.json() as FileActionBody; } catch { }
 
-        let result;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let result: any;
 
         switch (reqOption) {
             case "rename":
