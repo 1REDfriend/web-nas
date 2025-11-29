@@ -17,7 +17,7 @@ export async function getUserRootPaths(userId: string) {
         select: { rootPath: true }
     });
 
-    const starredSet = new Set(starPaths.map((sp) => sp.rootPath));
+    const starredSet = new Set(starPaths.map((sp: { rootPath: string }) => sp.rootPath));
 
     const userPathSet = new Set<string>();
     const duplicateIds: typeof pathMaps[number]['id'][] = [];

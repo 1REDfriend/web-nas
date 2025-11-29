@@ -2,7 +2,7 @@
 
 import { userLoginCheck } from "@/lib/api/user/userLoginCheck";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function LoginCheck() {
     const router = useRouter()
