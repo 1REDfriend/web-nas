@@ -8,4 +8,6 @@ git clone https://github.com/1REDfriend/web-nas.git $INSTALL_DIR
 
 cd $INSTALL_DIR
 
+sudo apt install build-essential -y
+
 npm install && npx prisma generate
