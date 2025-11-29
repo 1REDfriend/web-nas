@@ -1,0 +1,37 @@
+name : web-nas
+
+service:
+  nextjs:
+    container_name: web-nas
+    build:
+      context: ./web-nas
+      dockerfile: Dockerfile
+    ports:
+      - "5491:5491"
+    volumes:
+      - ./web-nas:/app
+      - /app/node_modules
+    env_file:
+      - ./.env
+    environment:
+      - NODE_ENV=development
+    networks:
+      - nas-network
+    depends_on:
+      - novnc
+
+  novnc:
+    image: theasp/novnc:latest
+    environment:
+      - DISPLAY_WIDTH=1920
+      - DISPLAY_HEIGHT=1080
+      - RUN_XTERM=yes
+      - RUN_FLUXBOX=no
+    ports:
+      - "6081:8080"
+    networks:
+      - nas-network
+
+networks:
+  nas-network:
+    driver: bridge
