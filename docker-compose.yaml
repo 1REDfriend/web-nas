@@ -2,12 +2,12 @@ services:
   nextjs:
     container_name: web-nas
     build:
-      context: ./web-nas
+      context: ./
       dockerfile: Dockerfile
     ports:
       - "5491:5491"
     volumes:
-      - ./web-nas:/app
+      - ./:/app
       - /app/node_modules
     env_file:
       - ./.env
