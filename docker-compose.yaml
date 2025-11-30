@@ -4,8 +4,6 @@ services:
     build:
       context: ./
       dockerfile: Dockerfile
-    ports:
-      - "5491:3000"
     volumes:
       - ./:/app
       - /app/node_modules
@@ -18,10 +16,25 @@ services:
     depends_on:
       - novnc
 
+  caddy:
+    image: caddy:alpine
+    container_name: caddy-proxy
+    restart: unless-stopped
+    ports:
+      - "5491:5491"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - nas-network
+    depends_on:
+      - nextjs
+
   novnc:
     image: theasp/novnc:latest
     env_file:
-    - ./noVNC.env
+      - ./noVNC.env
     environment:
       - DISPLAY_WIDTH=1920
       - DISPLAY_HEIGHT=1080
