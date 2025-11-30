@@ -18,6 +18,7 @@ feature : Drang and Drop, formiddle, noVCN, Nexjs, Manage User, Manager Root Fol
 ## Quick Install
 
 `curl -fsSL https://raw.githubusercontent.com/1REDfriend/web-nas/main/script.sh | bash`
+and setup your envorument , `npm install && npx prisma generate` , etc...
 
 ## Installation
 
@@ -31,7 +32,11 @@ feature : Drang and Drop, formiddle, noVCN, Nexjs, Manage User, Manager Root Fol
 
 > **NOTE** if error xterm your should install `sudo apt install build-essential -y` for complie "C" lang to type script.
 
-### ENV
+## Cloudflare Tunnel ....
+
+If you use cloudflare. You should `Disable TLS` on cloudflare zero trush
+
+## ENV
 
 DATABASE_URL="file:./main.sqlite"
 
