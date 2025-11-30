@@ -8,6 +8,8 @@ RUN apk add --no-cache python3 make g++ build-base openssl
 
 RUN npm install
 
+RUN chown -R $USER:$USER .
+
 COPY . .
 
 RUN npm run build
