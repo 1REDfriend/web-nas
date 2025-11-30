@@ -10,4 +10,6 @@ cd $INSTALL_DIR
 
 sudo apt install build-essential -y
 
+sudo chown -R $USER:$USER .
+
 npm install && npx prisma generate
