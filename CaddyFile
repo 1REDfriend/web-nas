@@ -1,4 +1,4 @@
-https://:5491 {
+https:// {
     tls internal
     reverse_proxy web-nas:3000
 }
