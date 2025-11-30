@@ -1,0 +1,22 @@
+[org/gnome/desktop/sound]
+event-sounds=false
+input-feedback-sounds=false
+theme-name='default'
+
+[org/gnome/desktop/peripherals/mouse]
+double-click=400
+drag-threshold=8
+
+[org/gnome/desktop/wm/preferences]
+button-layout='icon,menu:minimize,maximize,close'
+action-middle-click-titlebar='lower'
+
+[org/gnome/desktop/interface]
+gtk-theme='adw-gtk3-dark'
+icon-theme='adwaita-xfce'
+gtk-key-theme=''
+cursor-blink=true
+cursor-blink-time=1200
+cursor-size=32
+cursor-theme='Adwaita'
+font-name='Sans 10'

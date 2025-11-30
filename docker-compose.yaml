@@ -7,6 +7,7 @@ services:
     volumes:
       - ./:/app
       - /app/node_modules
+      - /:/host_root
     env_file:
       - ./.env
     environment:
@@ -62,10 +63,15 @@ services:
       - TITLE=MyNAS-Desktop
     volumes:
       - ./webtop_data:/config
+<<<<<<< Updated upstream
     devices:
       - /dev/dri:/dev/dri
     # ports:
     #   - "6081:3000"
+=======
+    ports:
+      - "6081:3000"
+>>>>>>> Stashed changes
     shm_size: "1gb"
     restart: unless-stopped
     networks:
