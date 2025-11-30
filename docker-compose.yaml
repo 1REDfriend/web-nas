@@ -50,7 +50,7 @@ services:
 
   # ARM
   novnc:
-    image: lscr.io/linuxserver/webtop:openbox
+    image: lscr.io/linuxserver/webtop:alpine-i3
     container_name: novnc-kasm
     security_opt:
       - seccomp:unconfined
