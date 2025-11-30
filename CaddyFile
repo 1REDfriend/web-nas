@@ -1,4 +1,6 @@
-https:// {
-    tls internal
+:5491 {
+    tls internal {
+        on_demand
+    }
     reverse_proxy web-nas:3000
 }
