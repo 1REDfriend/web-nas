@@ -50,10 +50,11 @@ services:
 
   # ARM
   novnc:
-    image: lscr.io/linuxserver/webtop:latest
+    image: lscr.io/linuxserver/webtop:openbox
     container_name: novnc-kasm
     security_opt:
       - seccomp:unconfined
+    pid: host
     env_file:
     - ./noVNC.env
     environment:
@@ -65,6 +66,7 @@ services:
       # - PASSWORD=secretpassword
     volumes:
       - ./webtop_data:/config
+      - /:/host_root
     devices:
       - /dev/dri:/dev/dri
     # ports:
