@@ -29,17 +29,37 @@ services:
     depends_on:
       - nextjs
 
+  # 86x_64x/AMD
+  # novnc:
+  #   image: theasp/novnc:latest
+  #   env_file:
+  #     - ./noVNC.env
+  #   environment:
+  #     - DISPLAY_WIDTH=1920
+  #     - DISPLAY_HEIGHT=1080
+  #     - RUN_XTERM=yes
+  #     - RUN_FLUXBOX=no
+  #   ports:
+  #     - "6081:8080"
+  #   networks:
+  #     - nas-network
+
+  # ARM
   novnc:
-    image: theasp/novnc:latest
-    env_file:
-      - ./noVNC.env
+    image: lscr.io/linuxserver/webtop:latest
+    container_name: novnc-kasm
+    security_opt:
+      - seccomp:unconfined
     environment:
-      - DISPLAY_WIDTH=1920
-      - DISPLAY_HEIGHT=1080
-      - RUN_XTERM=yes
-      - RUN_FLUXBOX=no
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Bangkok
+      - TITLE=MyNAS-Desktop
+    volumes:
+      - ./webtop_data:/config
     ports:
-      - "6081:8080"
+      - "3001:3000"
+    shm_size: "1gb"
     networks:
       - nas-network
 
