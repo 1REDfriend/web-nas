@@ -56,8 +56,8 @@ services:
     env_file:
     - ./noVNC.env
     environment:
-      - DISPLAY_WIDTH=1024
-      - DISPLAY_HEIGHT=768
+      - DISPLAY_WIDTH=1080
+      - DISPLAY_HEIGHT=720
       - TZ=Asia/Bangkok
       - TITLE=MyNAS-Desktop
       # - CUSTOM_USER=admin
