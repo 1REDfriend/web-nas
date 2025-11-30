@@ -50,16 +50,14 @@ services:
 
   # ARM
   novnc:
-    image: lscr.io/linuxserver/webtop:alpine-i3
+    image: 11notes/novnc:stable
     container_name: novnc-kasm
-    security_opt:
-      - seccomp:unconfined
     privileged: true
     env_file:
     - ./noVNC.env
     environment:
-      - PUID=1000             #PID YOUR LINUX USER
-      - PGID=1000
+      - DISPLAY_WIDTH=1024
+      - DISPLAY_HEIGHT=768
       - TZ=Asia/Bangkok
       - TITLE=MyNAS-Desktop
       # - CUSTOM_USER=admin
