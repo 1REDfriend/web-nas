@@ -65,11 +65,11 @@ services:
     volumes:
       - ./webtop_data:/config
       - /:/host_root
-    devices:
-      - /dev/dri:/dev/dri
+    # devices:
+    #   - /dev/dri:/dev/dri
     # ports:
     #   - "6081:3000"
-    shm_size: "1gb"
+    # shm_size: "1gb"
     restart: unless-stopped
     networks:
       - nas-network
