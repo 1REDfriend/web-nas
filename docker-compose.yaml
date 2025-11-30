@@ -67,7 +67,6 @@ services:
     volumes:
       - ./webtop_data:/config
       - /:/host_root
-      - /var/run/docker.sock:/var/run/docker.sock
     devices:
       - /dev/dri:/dev/dri
     # ports:
