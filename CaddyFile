@@ -1,5 +1,5 @@
 :6081 {
-    reverse_proxy http://novnc:8080/vnc.html
+    reverse_proxy novnc:8080
 }
 
 :5491 {
