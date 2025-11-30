@@ -51,6 +51,8 @@ STORAGE_ROOT="your-storage_root"
 
 STORAGE_INTERNAL="your-storage_internal" => default use `storage` 
 
+> **NOTE** if you will use external disk without docker, you should Edit `volume - /:/host_root` and change `.env STORAGE_ROOT` to `/host_root` 
+
 ## Screen Shot
 
 <img width="1880" height="920" alt="image" src="https://github.com/user-attachments/assets/797f01c5-d3c1-4f13-a213-181c97d222a7" />
