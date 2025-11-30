@@ -15,7 +15,9 @@ export default function LoginCheck() {
         async function checker() {
             const token = await userLoginCheck()
 
-            if (!token) {
+            if (token.registor) {
+                router.push('/auth/registor');
+            } else if (!token || !token.login) {
                 router.push('/auth/login');
             } else {
                 setIsAuthenticated(true);

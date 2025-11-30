@@ -1,4 +1,5 @@
 import { logerror } from "@/lib/logger";
+import { firstLogin } from "../auth/first-login";
 
 export async function userLoginCheck() {
     try {
@@ -9,10 +10,14 @@ export async function userLoginCheck() {
             }
         })
 
-        if (res.ok) return true
-        else return false
+        if (await firstLogin()) {
+            return {login: false, registor: true}
+        } 
+
+        if (res.ok) return {login: true, registor: false}
+        else return {login: false, registor: false}
     } catch {
         logerror("[Failed to fetch user login check]")
-        return false
+        return {login: false, registor: false}
     }
 }
