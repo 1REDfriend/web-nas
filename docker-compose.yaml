@@ -24,8 +24,6 @@ services:
       - "5491:5491"
     volumes:
       - ./CaddyFile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-      - caddy_config:/config
     networks:
       - nas-network
     depends_on:
