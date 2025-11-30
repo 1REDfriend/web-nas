@@ -61,6 +61,8 @@ services:
       - PGID=1000
       - TZ=Asia/Bangkok
       - TITLE=MyNAS-Desktop
+      # - CUSTOM_USER=admin
+      # - PASSWORD=secretpassword
     volumes:
       - ./webtop_data:/config
     devices:
