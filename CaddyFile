@@ -1,12 +1,5 @@
 :6081 {
-    tls internal {
-        on_demand
-    }
-    reverse_proxy https://novnc:8080 {
-        transport http {
-            tls_insecure_skip_verify
-        }
-    }
+    reverse_proxy http://novnc:8080
 }
 
 :5491 {
