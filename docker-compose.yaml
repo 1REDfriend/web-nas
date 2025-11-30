@@ -23,7 +23,7 @@ services:
     ports:
       - "5491:5491"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./CaddyFile:/etc/caddy/Caddyfile
       - caddy_data:/data
       - caddy_config:/config
     networks:
