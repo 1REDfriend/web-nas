@@ -3,10 +3,11 @@
 wellcome to my File Manager web application.
 this tools will make easy to upload, download file and it has a terminal to use control your linux
 
-## Hot Fix `4d5f3a9324d8e851a2660ffc46414fb7f699524c`
+## Hot Fix `Commits on Nov 30, 2025`
 
 - next lint
 - suspense tags
+- prisma permission
 
 ## Introduction
 The File Manager Easy to use, It is opensource u can optimzie, customize your theme and you can pull request for your best edit to me.
