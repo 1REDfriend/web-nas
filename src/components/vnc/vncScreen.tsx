@@ -1,5 +1,6 @@
 'use client';
 
+import { ENV } from '@/lib/ENV';
 import { useMemo } from 'react';
 
 export default function VncPage() {
@@ -16,7 +17,7 @@ export default function VncPage() {
             resize: 'scale',
         });
 
-        return `http://${vncHost}:${vncPort}/vnc.html?${params.toString()}`;
+        return `https://${ENV.NOVNC_HOST}/vnc.html?${params.toString()}`;
     }, []);
 
     return (
