@@ -51,6 +51,8 @@ STORAGE_ROOT="your-storage_root"
 
 STORAGE_INTERNAL="your-storage_internal" => default use `storage` 
 
+NOVNC_HOST="your-novnc_host"
+
 > **NOTE** if you will use external disk without docker, you should Edit `volume - /:/host_root` and change `.env STORAGE_ROOT` to `/host_root` 
 
 ## Screen Shot
