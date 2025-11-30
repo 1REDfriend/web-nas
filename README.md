@@ -24,9 +24,10 @@ feature : Drang and Drop, formiddle, noVCN, Nexjs, Manage User, Manager Root Fol
 - step 1 : install `Node js, npm`
 - step 2 : download this Web-nas to your favorite directory.
 - step 3 : cd into, `npm install && npx prisma generate`
-- step 4 : Edit your `.env` File
-- step 5 : `npm run dev`
-- step 6 : Configuration of `noVNC` install and run
+- step 4 : `sudo apt install libnss3-tools`
+- step 5 : Edit your `.env` File
+- step 6 : `npm run dev`
+- step 7 : Configuration of `noVNC` install and run
 
 > **NOTE** if error xterm your should install `sudo apt install build-essential -y` for complie "C" lang to type script.
 
