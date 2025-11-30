@@ -58,8 +58,8 @@ services:
     env_file:
     - ./noVNC.env
     environment:
-      - PUID=1000
-      - PGID=1000
+      - PUID=1
+      - PGID=1
       - TZ=Asia/Bangkok
       - TITLE=MyNAS-Desktop
       # - CUSTOM_USER=admin
