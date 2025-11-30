@@ -18,6 +18,7 @@ feature : Drang and Drop, formiddle, noVCN, Nexjs, Manage User, Manager Root Fol
 ## Quick Install
 
 `curl -fsSL https://raw.githubusercontent.com/1REDfriend/web-nas/main/script.sh | bash`
+
 and setup your envorument , `npm install && npx prisma generate` , etc...
 
 ## Installation
@@ -31,6 +32,8 @@ and setup your envorument , `npm install && npx prisma generate` , etc...
 - step 7 : Configuration of `noVNC` install and run
 
 > **NOTE** if error xterm your should install `sudo apt install build-essential -y` for complie "C" lang to type script.
+
+> **NOTE** if use x64 or AMD please config a docker compose file.
 
 ## Cloudflare Tunnel ....
 
