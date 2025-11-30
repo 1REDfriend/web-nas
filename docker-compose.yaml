@@ -13,6 +13,7 @@ services:
       - NODE_ENV=development
     networks:
       - nas-network
+    restart: unless-stopped
     depends_on:
       - novnc
 
@@ -21,6 +22,7 @@ services:
     container_name: caddy-proxy
     restart: unless-stopped
     ports:
+      - "6081:6081"
       - "5491:5491"
     volumes:
       - ./CaddyFile:/etc/caddy/Caddyfile
@@ -41,6 +43,7 @@ services:
   #     - RUN_FLUXBOX=no
   #   ports:
   #     - "6081:8080"
+  #   restart: unless-stopped
   #   networks:
   #     - nas-network
 
@@ -50,6 +53,8 @@ services:
     container_name: novnc-kasm
     security_opt:
       - seccomp:unconfined
+    env_file:
+    - ./noVNC.env
     environment:
       - PUID=1000
       - PGID=1000
@@ -57,9 +62,12 @@ services:
       - TITLE=MyNAS-Desktop
     volumes:
       - ./webtop_data:/config
-    ports:
-      - "6081:3000"
+    devices:
+      - /dev/dri:/dev/dri
+    # ports:
+    #   - "6081:3000"
     shm_size: "1gb"
+    restart: unless-stopped
     networks:
       - nas-network
 

@@ -1,3 +1,10 @@
+:6081 {
+    tls internal {
+        on_demand
+    }
+    reverse_proxy novnc:3000
+}
+
 :5491 {
     tls internal {
         on_demand
