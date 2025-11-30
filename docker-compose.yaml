@@ -58,7 +58,7 @@ services:
     volumes:
       - ./webtop_data:/config
     ports:
-      - "3001:3000"
+      - "6081:3000"
     shm_size: "1gb"
     networks:
       - nas-network
