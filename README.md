@@ -5,9 +5,11 @@ this tools will make easy to upload, download file and it has a terminal to use 
 
 ## Hot Fix `Commits on Nov 30, 2025`
 
-- next lint
-- suspense tags
-- prisma permission
+- Fix next lint
+- Fix suspense tags
+- Fix prisma permission
+- Fix owner
+- Fix cookie secure with caddy (look like a nginx)
 
 ## Introduction
 The File Manager Easy to use, It is opensource u can optimzie, customize your theme and you can pull request for your best edit to me.
