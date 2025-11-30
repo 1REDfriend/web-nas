@@ -58,6 +58,8 @@ services:
     environment:
       - DISPLAY_WIDTH=1024
       - DISPLAY_HEIGHT=768
+      - RUN_XTERM=yes
+      - RUN_FLUXBOX=no
       - TZ=Asia/Bangkok
       - TITLE=MyNAS-Desktop
       # - CUSTOM_USER=admin
