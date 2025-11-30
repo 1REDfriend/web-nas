@@ -54,12 +54,12 @@ services:
     container_name: novnc-kasm
     security_opt:
       - seccomp:unconfined
-    pid: host
+    privileged: true
     env_file:
     - ./noVNC.env
     environment:
-      - PUID=1
-      - PGID=1
+      - PUID=1000             #PID YOUR LINUX USER
+      - PGID=1000
       - TZ=Asia/Bangkok
       - TITLE=MyNAS-Desktop
       # - CUSTOM_USER=admin
@@ -67,6 +67,7 @@ services:
     volumes:
       - ./webtop_data:/config
       - /:/host_root
+      - /var/run/docker.sock:/var/run/docker.sock
     devices:
       - /dev/dri:/dev/dri
     # ports:
