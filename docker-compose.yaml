@@ -49,19 +49,6 @@ services:
   #     - nas-network
 
   # ARM
-  firefox:
-    image: "11notes/firefox:stable"
-    container_name: "firefox"
-    environment:
-      TZ: "Asia/Bangkok"
-      DISPLAY: "novnc:0.0"
-    depends_on:
-      novnc:
-        condition: service_healthy
-        restart: true
-    restart: unless-stopped
-    networks:
-      - nas-network
   novnc:
     image: 11notes/novnc:stable
     container_name: novnc
