@@ -32,48 +32,6 @@ services:
     depends_on:
       - nextjs
 
-  # 86x_64x/AMD
-  # novnc:
-  #   image: theasp/novnc:latest
-  #   env_file:
-  #     - ./noVNC.env
-  #   environment:
-  #     - DISPLAY_WIDTH=1920
-  #     - DISPLAY_HEIGHT=1080
-  #     - RUN_XTERM=yes
-  #     - RUN_FLUXBOX=yes
-  #   ports:
-  #     - "6081:8080"
-  #   restart: unless-stopped
-  #   networks:
-  #     - nas-network
-
-  # ARM
-  novnc:
-    image: 11notes/novnc:stable
-    container_name: novnc
-    privileged: true
-    env_file:
-      - ./noVNC.env
-    environment:
-      - DISPLAY_WIDTH=1080
-      - DISPLAY_HEIGHT=720
-      - TZ=Asia/Bangkok
-      - TITLE=MyNAS-Desktop
-      # - CUSTOM_USER=admin
-      # - PASSWORD=secretpassword
-    volumes:
-      - ./webtop_data:/config
-      - /:/host_root
-    # devices:
-    #   - /dev/dri:/dev/dri
-    # ports:
-    #   - "6081:3000"
-    # shm_size: "1gb"
-    restart: unless-stopped
-    networks:
-      - nas-network
-
 networks:
   nas-network:
     driver: bridge
