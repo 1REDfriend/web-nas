@@ -15,8 +15,6 @@ services:
     networks:
       - nas-network
     restart: unless-stopped
-    depends_on:
-      - novnc
 
   caddy:
     image: caddy:alpine
