@@ -1,6 +1,10 @@
+:5492 {
+    reverse_proxy webssh:8888
+}
+
 :5491 {
     tls internal {
         on_demand
     }
-    reverse_proxy web-nas:3000
+    reverse_proxy webnas:3000
 }

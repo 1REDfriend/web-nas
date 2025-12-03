@@ -4,7 +4,7 @@ export const ENV = ({
     TOKEN_COOKIE: process.env.TOKEN_COOKIE || "",
     STORAGE_ROOT: process.env.STORAGE_ROOT || "",
     STORAGE_INTERNAL: process.env.STORAGE_INTERNAL || "storage",
-    NOVNC_HOST: process.env.NOVNC_HOST || "localhost"
+    TERMINAL_HOST: process.env.NEXT_PUBLIC_TERMINAL_HOST || "localhost"
 })
 
 // default setting
