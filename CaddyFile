@@ -1,4 +1,4 @@
-:5492 {
+:7255 {
     reverse_proxy webssh:8888
 }
 
