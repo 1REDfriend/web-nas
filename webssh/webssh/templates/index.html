@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title> WebSSH </title>
+  <link href="static/img/favicon.png" rel="icon" type="image/png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="static/css/xterm.min.css" rel="stylesheet" type="text/css" />
+  <link href="static/css/fullscreen.min.css" rel="stylesheet" type="text/css" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            glass: "rgba(255, 255, 255, 0.05)",
+            glassBorder: "rgba(255, 255, 255, 0.1)",
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: oklch(0.141 0.005 285.823);
+      color: #e5e7eb;
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #4b5563;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #6b7280;
+    }
+
+    @font-face {
+      font-family: '{{ font.family }}';
+      src: url('{{ font.url }}');
+    }
+
+    body {
+      font-family: '{{ font.family }}';
+    }
+
+      {
+      % end %
+    }
+  </style>
+</head>
+
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+
+  <div id="waiter" style="display: none" class="flex flex-col items-center justify-center space-y-4">
+    <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+    <div class="text-xl font-medium text-gray-300 animate-pulse">Connecting to server...</div>
+  </div>
+
+  <div class="container form-container max-w-2xl w-full" style="display: none">
+    <div class="bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl rounded-2xl p-8 relative overflow-hidden">
+
+      <div
+        class="absolute -top-10 -right-10 w-40 h-40 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob">
+      </div>
+      <div
+        class="absolute -bottom-10 -left-10 w-40 h-40 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000">
+      </div>
+
+      <div class="relative z-10">
+        <h2
+          class="text-3xl font-bold mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-cyan-400">
+          WebSSH Login
+        </h2>
+
+        <form id="connect" action="" method="post" enctype="multipart/form-data" {% if debug %} novalidate{% end %}>
+
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-4 mb-5">
+            <div class="md:col-span-9">
+              <label class="block text-gray-400 text-xs font-bold mb-1 uppercase tracking-wide"
+                for="hostname">Hostname</label>
+              <input
+                class="w-full bg-black/20 border border-gray-700 text-gray-200 rounded-lg py-2.5 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200"
+                type="text" id="hostname" name="hostname" value="" placeholder="example.com" required>
+            </div>
+            <div class="md:col-span-3">
+              <label class="block text-gray-400 text-xs font-bold mb-1 uppercase tracking-wide" for="port">Port</label>
+              <input
+                class="w-full bg-black/20 border border-gray-700 text-gray-200 rounded-lg py-2.5 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200 text-center"
+                type="number" id="port" name="port" placeholder="22" value="" min=1 max=65535>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+            <div>
+              <label class="block text-gray-400 text-xs font-bold mb-1 uppercase tracking-wide"
+                for="username">Username</label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+                      clip-rule="evenodd" />
+                  </svg>
+                </span>
+                <input
+                  class="w-full bg-black/20 border border-gray-700 text-gray-200 rounded-lg py-2.5 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200"
+                  type="text" id="username" name="username" value="" required>
+              </div>
+            </div>
+            <div>
+              <label class="block text-gray-400 text-xs font-bold mb-1 uppercase tracking-wide"
+                for="password">Password</label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd"
+                      d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                      clip-rule="evenodd" />
+                  </svg>
+                </span>
+                <input
+                  class="w-full bg-black/20 border border-gray-700 text-gray-200 rounded-lg py-2.5 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200"
+                  type="password" id="password" name="password" value="">
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+            <div>
+              <label class="block text-gray-400 text-xs font-bold mb-1 uppercase tracking-wide" for="privatekey">Private
+                Key</label>
+              <input class="block w-full text-sm text-gray-400
+                          file:mr-4 file:py-2 file:px-4
+                          file:rounded-lg file:border-0
+                          file:text-sm file:font-semibold
+                          file:bg-indigo-600 file:text-white
+                          file:cursor-pointer hover:file:bg-indigo-700
+                          bg-black/20 border border-gray-700 rounded-lg cursor-pointer
+                        " type="file" id="privatekey" name="privatekey">
+            </div>
+            <div>
+              <label class="block text-gray-400 text-xs font-bold mb-1 uppercase tracking-wide"
+                for="passphrase">Passphrase</label>
+              <input
+                class="w-full bg-black/20 border border-gray-700 text-gray-200 rounded-lg py-2.5 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200"
+                type="password" id="passphrase" name="passphrase" value="">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            <div>
+              <label class="block text-gray-400 text-xs font-bold mb-1 uppercase tracking-wide" for="totp">Totp
+                (2FA)</label>
+              <input
+                class="w-full bg-black/20 border border-gray-700 text-gray-200 rounded-lg py-2.5 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200"
+                type="password" id="totp" name="totp" value="">
+            </div>
+          </div>
+
+          <input type="hidden" id="term" name="term" value="xterm-256color">
+          {% module xsrf_form_html() %}
+
+          <div class="flex items-center justify-end space-x-4">
+            <button type="reset"
+              class="px-6 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-all duration-200 font-medium">
+              Reset
+            </button>
+            <button type="submit"
+              class="px-8 py-2.5 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold shadow-lg shadow-indigo-500/30 transform hover:scale-[1.02] transition-all duration-200">
+              Connect Server
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+
+    <div class="text-center mt-6 text-gray-500 text-sm">
+      Secure Web SSH Client
+    </div>
+  </div>
+
+  <div class="container w-full max-w-full px-4 mt-4">
+    <div id="status"
+      class="text-red-400 whitespace-pre-line mb-2 font-mono text-center bg-red-900/20 py-2 rounded-lg hidden"></div>
+    <div id="terminal" class="shadow-2xl rounded-lg overflow-hidden border border-gray-800"></div>
+  </div>
+
+  <script src="static/js/jquery.min.js"></script>
+  <script src="static/js/xterm.min.js"></script>
+  <script src="static/js/xterm-addon-fit.min.js"></script>
+  <script src="static/js/main.js"></script>
+
+  <script>
+    const targetNode = document.getElementById('status');
+    const config = { childList: true, characterData: true, subtree: true };
+    const callback = function (mutationsList, observer) {
+      for (const mutation of mutationsList) {
+        if (targetNode.innerHTML.trim() !== "") {
+          targetNode.classList.remove('hidden');
+        } else {
+          targetNode.classList.add('hidden');
+        }
+      }
+    };
+    const observer = new MutationObserver(callback);
+    observer.observe(targetNode, config);
+  </script>
+</body>
+
+</html>
