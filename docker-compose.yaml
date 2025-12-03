@@ -31,6 +31,9 @@ services:
       - ./CaddyFile:/etc/caddy/Caddyfile
     networks:
       - nas-network
+    depends_on:
+      - webnas
+      - webssh
 
 networks:
   nas-network:
