@@ -32,7 +32,8 @@ services:
     networks:
       - nas-network
     depends_on:
-      - nextjs
+      - webnas
+      - webssh
 
 networks:
   nas-network:
