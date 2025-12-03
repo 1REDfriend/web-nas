@@ -25,7 +25,7 @@ services:
     image: caddy:alpine
     restart: unless-stopped
     ports:
-      - "5492:8888"
+      - "5492:5492"
       - "5491:5491"
     volumes:
       - ./CaddyFile:/etc/caddy/Caddyfile
