@@ -12,8 +12,11 @@ this tools will make easy to upload, download file and it has a terminal to use 
 - Fix cookie secure with caddy (look like a nginx)
 
 ## Introduction
+
 The File Manager Easy to use, It is opensource u can optimzie, customize your theme and you can pull request for your best edit to me.
-feature : Drang and Drop, formiddle, noVCN, Nexjs, Manage User, Manager Root Folder. 
+feature : Drang and Drop, formiddle, xterm, webssh, Nexjs, Manage User, Manager Root Folder.
+
+webssh be create by `huashengdun` [GahubLink](https://github.com/huashengdun/webssh) and Me Modify style to Boostrap -> tailwindcss
 
 ## Quick Install
 
@@ -29,11 +32,10 @@ and setup your envorument , `npm install && npx prisma generate` , etc...
 - step 4 : `sudo apt install libnss3-tools`
 - step 5 : Edit your `.env` File
 - step 6 : `npm run dev`
-- step 7 : Configuration of `noVNC` install and run
 
 > **NOTE** if error xterm your should install `sudo apt install build-essential -y` for complie "C" lang to type script.
 
-> **NOTE** if use x64 or AMD please config a docker compose file.
+> **noVNC NOTE** if use x64 or AMD please config a docker compose file.
 
 ## Cloudflare Tunnel ....
 
@@ -50,6 +52,8 @@ JWT_SECRET="your-jwt_secret"
 STORAGE_ROOT="your-storage_root"
 
 STORAGE_INTERNAL="your-storage_internal" => default use `storage` 
+
+NEXT_PUBLIC_TERMINAL_HOST="your-next_public_terminal_host"
 
 > **NOTE** if you will use external disk without docker, you should Edit `volume - /:/host_root` and change `.env STORAGE_ROOT` to `/host_root` 
 
