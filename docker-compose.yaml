@@ -21,7 +21,6 @@ services:
     container_name: caddy-proxy
     restart: unless-stopped
     ports:
-      - "6081:6081"
       - "5491:5491"
     volumes:
       - ./CaddyFile:/etc/caddy/Caddyfile
