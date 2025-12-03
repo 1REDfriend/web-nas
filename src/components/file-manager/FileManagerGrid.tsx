@@ -13,6 +13,7 @@ import {
     ContextMenuSeparator,
     ContextMenuShortcut,
 } from "@/components/ui/context-menu";
+import { useRef } from "react";
 
 type FileManagerGridProps = {
     files: FileItem[];
@@ -24,7 +25,7 @@ type FileManagerGridProps = {
     onDelete: (file: FileItem) => void;
     onToggleStar: (file: FileItem) => void;
     onOpenDirectory: (path: string) => void;
-    
+
     onMove?: (file: FileItem) => void;
     onCopy?: (file: FileItem) => void;
     onCut?: (file: FileItem) => void;
@@ -43,6 +44,8 @@ export function FileManagerGrid({
     onCopy,
     onCut,
 }: FileManagerGridProps) {
+    const lastTapRef = useRef(0);
+
     return (
         <ScrollArea className="flex-1 overflow-y-scroll">
             <div className="p-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
@@ -71,6 +74,22 @@ export function FileManagerGrid({
                                             e.stopPropagation();
                                             if (isDirectory) {
                                                 onOpenDirectory(file.path);
+                                            }
+                                        }}
+
+                                        onTouchEnd={(e) => {
+                                            const now = Date.now();
+                                            const DOUBLE_TAP_DELAY = 300;
+
+                                            if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+
+                                                if (isDirectory) {
+                                                    onOpenDirectory(file.path);
+                                                }
+                                            } else {
+                                                lastTapRef.current = now;
                                             }
                                         }}
                                     >
@@ -124,7 +143,7 @@ export function FileManagerGrid({
                                         <span>Move</span>
                                         <ContextMenuShortcut className="ml-auto text-xs text-slate-500"></ContextMenuShortcut>
                                     </ContextMenuItem>
-                                    
+
                                     <ContextMenuItem
                                         inset
                                         onClick={() => onCopy?.(file)}
