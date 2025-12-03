@@ -1,6 +1,5 @@
 services:
-  nextjs:
-    container_name: web-nas
+  webnas:
     build:
       context: ./
       dockerfile: Dockerfile
@@ -16,9 +15,16 @@ services:
       - nas-network
     restart: unless-stopped
 
+  webssh:
+    build: ./webssh
+    ports:
+    - "8888:8888"
+    networks:
+      - nas-network
+    restart: unless-stopped
+
   caddy:
     image: caddy:alpine
-    container_name: caddy-proxy
     restart: unless-stopped
     ports:
       - "5491:5491"
