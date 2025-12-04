@@ -17,7 +17,7 @@ export default function VncPage() {
         //     resize: 'scale',
         // });
 
-        return `https://${ENV.TERMINAL_HOST}`;
+        return `http://${ENV.TERMINAL_HOST}`;
     }, []);
 
     return (
