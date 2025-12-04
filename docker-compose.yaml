@@ -1,12 +1,12 @@
 services:
-  nextjs:
-    container_name: web-nas
+  webnas:
     build:
       context: ./
       dockerfile: Dockerfile
     volumes:
       - ./:/app
       - /app/node_modules
+      - /:/host_root
     env_file:
       - ./.env
     environment:
@@ -14,62 +14,26 @@ services:
     networks:
       - nas-network
     restart: unless-stopped
-    depends_on:
-      - novnc
+
+  webssh:
+    build: ./webssh
+    networks:
+      - nas-network
+    restart: unless-stopped
 
   caddy:
     image: caddy:alpine
-    container_name: caddy-proxy
     restart: unless-stopped
     ports:
-      - "6081:6081"
+      - "7255:7255"
       - "5491:5491"
     volumes:
       - ./CaddyFile:/etc/caddy/Caddyfile
     networks:
       - nas-network
     depends_on:
-      - nextjs
-
-  # 86x_64x/AMD
-  # novnc:
-  #   image: theasp/novnc:latest
-  #   env_file:
-  #     - ./noVNC.env
-  #   environment:
-  #     - DISPLAY_WIDTH=1920
-  #     - DISPLAY_HEIGHT=1080
-  #     - RUN_XTERM=yes
-  #     - RUN_FLUXBOX=no
-  #   ports:
-  #     - "6081:8080"
-  #   restart: unless-stopped
-  #   networks:
-  #     - nas-network
-
-  # ARM
-  novnc:
-    image: lscr.io/linuxserver/webtop:latest
-    container_name: novnc-kasm
-    security_opt:
-      - seccomp:unconfined
-    env_file:
-    - ./noVNC.env
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Asia/Bangkok
-      - TITLE=MyNAS-Desktop
-    volumes:
-      - ./webtop_data:/config
-    devices:
-      - /dev/dri:/dev/dri
-    # ports:
-    #   - "6081:3000"
-    shm_size: "1gb"
-    restart: unless-stopped
-    networks:
-      - nas-network
+      - webnas
+      - webssh
 
 networks:
   nas-network:

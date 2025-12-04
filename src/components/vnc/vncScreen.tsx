@@ -1,22 +1,23 @@
 'use client';
 
+import { ENV } from '@/lib/ENV';
 import { useMemo } from 'react';
 
 export default function VncPage() {
     const src = useMemo(() => {
-        const vncHost = 'localhost';
-        const vncPort = '6081';
+        // const vncHost = 'localhost';
+        // const vncPort = '6081';
 
-        const params = new URLSearchParams({
-            host: vncHost,
-            port: vncPort,
-            path: 'websockify',
-            encrypt: '0',
-            autoconnect: '1',
-            resize: 'scale',
-        });
+        // const params = new URLSearchParams({
+        //     host: vncHost,
+        //     port: vncPort,
+        //     path: 'websockify',
+        //     encrypt: '0',
+        //     autoconnect: '1',
+        //     resize: 'scale',
+        // });
 
-        return `http://${vncHost}:${vncPort}/vnc.html?${params.toString()}`;
+        return `https://${ENV.TERMINAL_HOST}`;
     }, []);
 
     return (
