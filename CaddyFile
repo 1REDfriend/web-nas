@@ -1,4 +1,7 @@
 :7255 {
+    tls internal {
+        on_demand
+    }
     reverse_proxy webssh:8888
 }
 
