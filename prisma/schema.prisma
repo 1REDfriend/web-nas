@@ -83,6 +83,7 @@ model TrashShedule {
   expireDate DateTime
 
   @@index([userId], name: "idx_trash_schedule_user_id")
+  @@unique([userId, item], name: "idx_user_item_unique")
   @@map("trash_schedule")
 }
 
