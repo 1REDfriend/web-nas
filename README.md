@@ -60,5 +60,6 @@ NEXT_PUBLIC_TERMINAL_HOST="your-next_public_terminal_host"
 ## Screen Shot
 
 <img width="1880" height="920" alt="image" src="https://github.com/user-attachments/assets/797f01c5-d3c1-4f13-a213-181c97d222a7" />
+<img width="1161" height="731" alt="image" src="https://github.com/user-attachments/assets/08f42631-dbad-4a91-9410-1c0f4375e49e" />
 <img width="1192" height="281" alt="image" src="https://github.com/user-attachments/assets/724f51ac-4837-49f7-b0a9-8d2211960621" />
 <img width="676" height="532" alt="image" src="https://github.com/user-attachments/assets/fa158e30-ce1e-4c2a-8027-c952b49517c6" />
