@@ -31,7 +31,7 @@ and setup your envorument , `npm install && npx prisma generate` , etc...
 - step 3 : cd into, `npm install && npx prisma generate`
 - step 4 : `sudo apt install libnss3-tools`
 - step 5 : Edit your `.env` File
-- step 6 : `npm run dev`
+- step 6 : `npm run dev` or `npm run build` if you setup .env successful.
 
 > **NOTE** if error xterm your should install `sudo apt install build-essential -y` for complie "C" lang to type script.
 
