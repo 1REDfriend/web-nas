@@ -8,6 +8,9 @@ this tools will make easy to upload, download file and it has a terminal to use 
 The File Manager Easy to use, It is opensource u can optimzie, customize your theme and you can pull request for your best edit to me.
 feature : Drang and Drop, formiddle, xterm, webssh, Nexjs, Manage User, Manager Root Folder.
 
+<img width="1371" height="455" alt="image" src="https://github.com/user-attachments/assets/f5d715da-9cdf-4759-91cb-f11703ceb461" />
+
+
 webssh be create by `huashengdun` [GahubLink](https://github.com/huashengdun/webssh) and Me Modify style to Boostrap -> tailwindcss
 
 ## Quick Install
