@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db';
 import path from 'path';
 import fs from 'fs';
-import { getSafePath } from '../../filesystem/utils';
+import { getSafePath } from '@/lib/routes/filesystem/utils';
 import { pathReplaceValidate } from '@/lib/reosolvePath';
 import { ENV } from '@/lib/ENV';
 

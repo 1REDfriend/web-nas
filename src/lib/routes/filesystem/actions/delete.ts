@@ -1,6 +1,6 @@
 import fs from 'fs-extra';
 import { log, logerror } from "@/lib/logger";
-import { getInternalUserFolder } from '@/lib/folder/getInternalUserFolder';
+import { getInternalUserFolder } from '@/lib/routes/folder/getInternalUserFolder';
 import { upTrashDB } from '@/lib/service/up-trash-db';
 import { prisma } from '@/lib/db';
 import path from 'path';

@@ -1,6 +1,6 @@
-import { ENV } from "../ENV"
-import { logerror } from "../logger"
-import { pathReplaceValidate } from "../reosolvePath"
+import { ENV } from "../../ENV"
+import { logerror } from "../../logger"
+import { pathReplaceValidate } from "../../reosolvePath"
 import fs from 'fs-extra'
 
 export async function createInternalFolder(userId: string, path: string) {

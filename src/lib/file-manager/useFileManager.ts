@@ -16,6 +16,7 @@ import { useFileCategories } from "./useFileCategories";
 import { useFileList } from "./useFileList";
 import { useFilePreview } from "./useFilePreview";
 import { useFileClipboard } from "./useFileClipboard";
+import { createShareLink } from "../api/user/share";
 
 export function useFileManager() {
     const [selectedFolder, setSelectedFolder] = useState("all");
@@ -248,6 +249,26 @@ export function useFileManager() {
         setActiveFilePath(null);
     }
 
+    async function handleSumitShare(file: string, expire: Date | null, recursive: boolean) {
+        const data = await createShareLink(file, expire, recursive)
+
+        if (data.error) {
+            toast.error('Create Share Link Failed', {
+                description: data.error,
+                duration: 5000
+            })
+
+            return false
+        }
+
+        toast.success('Create Share Link Successful', {
+            description: data.url,
+            duration: 3000
+        })
+
+        return true
+    }
+
     const currentFolderLabel =
         categoryPaths.find((c) => c.id === selectedFolder)?.rootPath ??
         FOLDERS.find((f) => f.id === selectedFolder)?.label ??
@@ -296,6 +317,8 @@ export function useFileManager() {
 
         handleOpenDirectory,
         refetchFiles,
+
+        handleSumitShare,
 
         // clipboard actions
         handleCut,

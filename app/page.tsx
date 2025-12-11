@@ -28,6 +28,11 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FileItem } from "@/components/file-manager/config";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ChevronDownIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { toast } from "sonner";
 
 export default function FileManagerPage() {
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
@@ -77,6 +82,8 @@ export default function FileManagerPage() {
     handleCancelDelete,
     isDeleting,
 
+    handleSumitShare,
+
     handlePaste,
     handleCut,
     handleCopy,
@@ -94,6 +101,17 @@ export default function FileManagerPage() {
     handleRename(file);
     setTempName(file.name);
   };
+
+  const [shareOpen, setShareOpen] = useState(false)
+  const [shareFile, setShareFile] = useState<FileItem | null>(null)
+  const [recursive, setRecursive] = useState(false)
+  const [date, setDate] = useState<Date>()
+  const [shareDateOpen, setShareDateOpen] = useState(false)
+
+  async function handleShare(file: FileItem) {
+    setShareOpen(true)
+    setShareFile(file)
+  }
 
   return (
     <Suspense fallback={<p>Loading...</p>}>
@@ -131,6 +149,79 @@ export default function FileManagerPage() {
               </Button>
               <Button onClick={() => handleConfirmRename(tempName)} disabled={isRenaming}>
                 {isRenaming ? "Saving..." : "Save"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={shareOpen} onOpenChange={(open) => !open && setShareOpen(false)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Share File</DialogTitle>
+            </DialogHeader>
+
+            <div className="flex py-4 justify-center items-center space-x-5">
+              <span>File : <span className="bg-primary/80 px-2 py-1 rounded-sm">{shareFile?.path}</span></span>
+              <div className="flex flex-col gap-3">
+                <Label htmlFor="date-picker" className="px-1">
+                  Expired Date
+                </Label>
+                <Popover open={shareDateOpen} onOpenChange={setShareDateOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      id="date-picker"
+                      className="w-32 justify-between font-normal"
+                    >
+                      {date ? date.toLocaleDateString() : "Select date"}
+                      <ChevronDownIcon />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto overflow-hidden p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={date}
+                      showOutsideDays={false}
+                      captionLayout="dropdown"
+                      onSelect={(date) => {
+                        const now = new Date()
+                        if (date && now > date) {
+                          toast.warning('Your selected time is after the current time.', {
+                            duration: 3000
+                          })
+                        }
+
+                        setDate(date)
+                        setShareDateOpen(false)
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              {shareFile?.type === 'directory' && (
+                <div className=" space-y-2">
+                  <Label>
+                    Recursive?
+                  </Label>
+                  <Input
+                    type="checkbox"
+                    onChange={e => setRecursive(e.target?.checked)}
+                  />
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button onClick={() => {
+                setShareOpen(false)
+                if (shareFile) handleSumitShare(shareFile?.path, date ?? null, recursive)
+              }}
+                disabled={isRenaming}
+              >
+                Confirm
+              </Button>
+              <Button variant="outline" onClick={() => setShareOpen(false)} disabled={isRenaming}>
+                Cancel
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -197,6 +288,7 @@ export default function FileManagerPage() {
                     onMove={handleCut}
                     onCut={handleCut}
                     onCopy={handleCopy}
+                    onShare={handleShare}
                   />
                 </div>
 

@@ -7,7 +7,7 @@ import { getUserRootPaths, removeInvalidPathMap } from '@/lib/service/user-path-
 import { normalizeFsPath } from '@/lib/utils/fs-helper';
 import { getDirectoryFiles } from '@/lib/service/file-brower-service';
 import { xUserPayload } from '@/lib/api/user/x-user-payload';
-import { createInternalFolder } from '@/lib/folder/createInternalFolder';
+import { createInternalFolder } from '@/lib/routes/folder/createInternalFolder';
 import { cleanTrashItemsByUserId } from '@/lib/utils/trash/trash-clean';
 
 export async function GET(request: Request) {

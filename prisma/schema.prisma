@@ -91,13 +91,15 @@ model ShareLink {
   id          String        @id @default(cuid())
   rootPath    String        @map("root_path")
 
+  view        Int           @default(0)
+
   recursive   Boolean       @default(false)       // for folder share
 
   user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId      String        @map("user_id")
 
   createAt    DateTime      @default(now())
-  expireAt    DateTime
+  expireAt    DateTime?
   @@index([userId], name: "idx_share_link_user_id")
   @@map("share_link")
 }

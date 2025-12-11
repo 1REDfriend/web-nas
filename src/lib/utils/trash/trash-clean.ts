@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import fs from 'fs-extra'
-import { getInternalUserFolder } from "@/lib/folder/getInternalUserFolder";
+import { getInternalUserFolder } from "@/lib/routes/folder/getInternalUserFolder";
 import { pathReplaceValidate } from "@/lib/reosolvePath";
 import path from "path";
 import { logerror } from "@/lib/logger";

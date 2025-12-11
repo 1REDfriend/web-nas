@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import ptb from 'pretty-bytes'
-import { File as FileIcon, Folder, Star, Copy, Scissors, Trash2, Pencil, MoveIcon } from "lucide-react";
+import { File as FileIcon, Folder, Star, Copy, Scissors, Trash2, Pencil, MoveIcon, Share2Icon } from "lucide-react";
 import { FileItem } from "./config";
 
 // Import Shadcn Context Menu
@@ -29,6 +29,7 @@ type FileManagerGridProps = {
     onMove?: (file: FileItem) => void;
     onCopy?: (file: FileItem) => void;
     onCut?: (file: FileItem) => void;
+    onShare?: (file: FileItem) => void;
 };
 
 export function FileManagerGrid({
@@ -43,6 +44,7 @@ export function FileManagerGrid({
     onOpenDirectory,
     onCopy,
     onCut,
+    onShare,
 }: FileManagerGridProps) {
     const lastTapRef = useRef(0);
 
@@ -169,6 +171,17 @@ export function FileManagerGrid({
                                     >
                                         <Pencil className="h-3.5 w-3.5 text-slate-400" />
                                         <span>Rename</span>
+                                    </ContextMenuItem>
+
+                                    <ContextMenuSeparator className="my-1 bg-slate-800/80" />
+
+                                    <ContextMenuItem
+                                        inset
+                                        onClick={() => onShare?.(file)}
+                                        className="flex items-center gap-2 text-slate-100 focus:bg-slate-800/80"
+                                    >
+                                        <Share2Icon className="h-3.5 w-3.5 text-slate-400" />
+                                        <span>Share</span>
                                     </ContextMenuItem>
 
                                     <ContextMenuSeparator className="my-1 bg-slate-800/80" />

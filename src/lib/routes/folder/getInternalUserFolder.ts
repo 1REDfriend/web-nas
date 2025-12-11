@@ -1,5 +1,5 @@
-import { ENV } from "../ENV";
-import { pathReplaceValidate } from "../reosolvePath";
+import { ENV } from "../../ENV";
+import { pathReplaceValidate } from "../../reosolvePath";
 
 export async function getInternalUserFolder(
     userId: string

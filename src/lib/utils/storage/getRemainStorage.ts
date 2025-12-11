@@ -1,8 +1,9 @@
+import { ENV } from '@/lib/ENV';
 import checkDiskSpace from 'check-disk-space';
 
 export async function getRemainStorage() {
     try {
-        const path = process.platform === 'win32' ? 'C:/' : '/';
+        const path = ENV.STORAGE_ROOT;
 
         const space = await checkDiskSpace(path);
 
