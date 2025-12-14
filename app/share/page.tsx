@@ -210,7 +210,7 @@ export default function ShareManagementPage() {
                                                         <DropdownMenuContent align="end">
                                                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
 
-                                                            <DropdownMenuItem onClick={() => copyToClipboard(item.url)}>
+                                                            <DropdownMenuItem onClick={() => copyToClipboard(window.location.origin + item.url)}>
                                                                 <Copy className="mr-2 h-4 w-4" />
                                                                 Copy Link
                                                             </DropdownMenuItem>
