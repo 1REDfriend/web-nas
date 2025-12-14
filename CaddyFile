@@ -9,5 +9,10 @@
     tls internal {
         on_demand
     }
+
+    request_body {
+        max_size 100GB
+    }
+
     reverse_proxy webnas:3000
 }
