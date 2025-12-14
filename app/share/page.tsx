@@ -36,6 +36,7 @@ import LoginCheck from "@/components/auth/loginCheck"
 import { FileManagerTopBar } from "@/components/file-manager/FileManagerTopBar"
 import { deleteShareLink, getShareLink } from "@/lib/api/user/share"
 import { FileManagerSidebarNav } from "@/components/file-manager/FileManagerSidebarNav"
+import { useRouter } from "next/navigation"
 
 type ShareItem = {
     id: string
@@ -50,6 +51,8 @@ type ShareItem = {
 
 export default function ShareManagementPage() {
     const [shares, setShares] = useState<ShareItem[]>([])
+
+    const router = useRouter()
 
     const copyToClipboard = (url: string) => {
         navigator.clipboard.writeText(url)
@@ -114,9 +117,10 @@ export default function ShareManagementPage() {
                 <div className="flex flex-1 overflow-hidden">
                     <FileManagerSidebarNav
                         selectedFolder={""}
-                        onSelectFolder={function (folderId: string): void {
-                            throw new Error("Function not implemented.")
-                        }} />
+                        onSelectFolder={(folderId) => {
+                            router.push('/')
+                        }}
+                    />
                     <section className="relative p-10 z-10 sm:px-40 w-full">
                         <div className="flex justify-between items-center py-5">
                             <div>
@@ -211,7 +215,7 @@ export default function ShareManagementPage() {
                                                                 Copy Link
                                                             </DropdownMenuItem>
 
-                                                            <DropdownMenuItem onClick={() => window.open(item.url, '_blank')}>
+                                                            <DropdownMenuItem onClick={() => window.open(item.url, '_self')}>
                                                                 <ExternalLink className="mr-2 h-4 w-4" />
                                                                 View Page
                                                             </DropdownMenuItem>

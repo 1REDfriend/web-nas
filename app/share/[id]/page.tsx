@@ -1,12 +1,13 @@
 'use client'
 import LoginCheck from "@/components/auth/loginCheck"
-import { FileItem } from "@/components/file-manager/config"
+import { FileItem, FOLDERS } from "@/components/file-manager/config"
 import { FileManagerPreviewPanel } from "@/components/file-manager/FileManagerPreviewPanel"
 import { FileManagerSidebarNav } from "@/components/file-manager/FileManagerSidebarNav"
 import { FileManagerTopBar } from "@/components/file-manager/FileManagerTopBar"
 import { FileShareGrid } from "@/components/file-manager/FileShareGrid"
 import { fetchShareLinkId } from "@/lib/api/user/share"
-import { useParams } from "next/navigation"
+import { useFileCategories } from "@/lib/file-manager/useFileCategories"
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useState } from "react"
 
 export default function ShareFilePage() {
@@ -20,6 +21,10 @@ export default function ShareFilePage() {
 
     const [shareLinkID, setShareLinkID] = useState('')
 
+    const searchParams = useSearchParams();
+    const pathname = usePathname();
+    const router = useRouter();
+
     useEffect(() => {
         async function fetch() {
             if (params?.id) {
@@ -32,6 +37,13 @@ export default function ShareFilePage() {
 
         fetch()
     }, [params?.id])
+
+    const { categoryPaths } = useFileCategories();
+
+    const currentFolderLabel =
+        categoryPaths.find((c) => c.id === selectFolderBar)?.rootPath ??
+        FOLDERS.find((f) => f.id === selectFolderBar)?.label ??
+        "Files";
 
     return (
         <div>
@@ -56,6 +68,13 @@ export default function ShareFilePage() {
                             selectedFolder={selectFolderBar}
                             onSelectFolder={(folderId) => {
                                 setSelectFolderBar(folderId);
+                                const params = new URLSearchParams(searchParams ?? "");
+                                if (params.has("path")) {
+                                    params.delete("path");
+                                    router.push(`${pathname}?${params.toString()}`);
+                                }
+
+                                router.push('/')
                             }} />
 
                         <FileShareGrid
@@ -63,9 +82,9 @@ export default function ShareFilePage() {
                             activeFilePath={null}
                             ShareLinkID={shareLinkID}
                             listLoading={isLoading}
-                            onSelectFile={(path: string) => {
+                            onSelectFile={(path) => {
                                 setSelectFile(path)
-                            }} 
+                            }}
                             onOpenDirectory={function (path: string): void {
                                 throw new Error("Function not implemented.")
                             }}
