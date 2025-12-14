@@ -57,7 +57,6 @@ export default function ShareFilePage() {
                                 priority
                             />
                         </div> */}
-                <LoginCheck />
 
                 <section className="min-h-screen flex flex-col">
 
