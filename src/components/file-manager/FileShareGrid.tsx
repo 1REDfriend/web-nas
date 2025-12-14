@@ -138,7 +138,6 @@ export function FileShareGrid({
                                     </Card>
                                 </ContextMenuTrigger>
 
-                                {/* เมนูคลิกขวาของ File Item (ใช้ Theme เดียวกัน) */}
                                 <ContextMenuContent className="min-w-[220px] rounded-xl border border-slate-800/80 bg-slate-900/95 backdrop-blur-md shadow-xl shadow-black/40 py-1">
                                     <ContextMenuItem
                                         inset
@@ -180,7 +179,7 @@ export function FileShareGrid({
                     </DialogContent>
                 </Dialog>
 
-                {!listLoading && (
+                {!listLoading && files.length < 1 && (
                     <div className="col-span-full flex flex-col items-center justify-center py-16 text-center text-slate-500">
                         <Folder className="w-10 h-10 mb-3 text-slate-600" />
                         <p className="text-sm font-medium">No files found</p>

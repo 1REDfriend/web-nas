@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { FileManagerTopBar } from "@/components/file-manager/FileManagerTopBar";
@@ -92,6 +92,21 @@ export default function FileManagerPage() {
   const handleOpenTerminal = () => {
     setIsTerminalOpen(!isTerminalOpen);
   };
+
+  const terminalRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (terminalRef.current && !terminalRef.current.contains(event.target)) {
+        setIsTerminalOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [terminalRef]);
 
   const isTrashTarget = fileToDelete?.path.startsWith('/trash') || fileToDelete?.path.startsWith('trash');
 
@@ -232,6 +247,7 @@ export default function FileManagerPage() {
             <FileManagerTopBar
               query={query}
               searchCount={searchCount}
+              openTools={true}
               onQueryChange={(value) => {
                 setPage(1);
                 setQuery(value);
@@ -352,7 +368,9 @@ export default function FileManagerPage() {
               onUploaded={refetchFiles}
             />
 
-            <VncPage />
+            <div ref={terminalRef}>
+              <VncPage />
+            </div>
           </div>
         )}
       </ContextMenuBar>

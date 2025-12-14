@@ -13,6 +13,7 @@ import Image from "next/image";
 type FileManagerTopBarProps = {
     query?: string;
     searchCount?: number;
+    openTools?: boolean;
     onQueryChange?: (value: string) => void;
     onOpenTerminal?: () => void;
     currentPath?: string;
@@ -26,6 +27,7 @@ export function FileManagerTopBar({
     onUploaded,
     onQueryChange,
     onOpenTerminal,
+    openTools,
 }: FileManagerTopBarProps) {
     return (
         <header className="flex z-9999 items-center justify-between w-full min-h-16 bg-red-500/5 border-b border-white/10 px-6 md:px-10 backdrop-blur" >
@@ -41,7 +43,7 @@ export function FileManagerTopBar({
                 </div>
             </Link>
 
-            {(currentPath && onUploaded && onQueryChange && onOpenTerminal) && (
+            {((currentPath && onQueryChange) || (openTools && onQueryChange)) && (
                 <div className="flex w-full max-w-lg gap-3">
                     {/* Search */}
                     <InputGroup>

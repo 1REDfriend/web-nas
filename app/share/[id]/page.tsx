@@ -63,22 +63,10 @@ export default function ShareFilePage() {
                     <FileManagerTopBar />
 
                     <div className="flex flex-1 overflow-hidden">
-                        <FileManagerSidebarNav
-                            selectedFolder={selectFolderBar}
-                            onSelectFolder={(folderId) => {
-                                setSelectFolderBar(folderId);
-                                const params = new URLSearchParams(searchParams ?? "");
-                                if (params.has("path")) {
-                                    params.delete("path");
-                                    router.push(`${pathname}?${params.toString()}`);
-                                }
-
-                                router.push('/')
-                            }} />
 
                         <FileShareGrid
                             files={fileData}
-                            activeFilePath={null}
+                            activeFilePath={selectFile}
                             ShareLinkID={shareLinkID}
                             listLoading={isLoading}
                             onSelectFile={(path) => {
