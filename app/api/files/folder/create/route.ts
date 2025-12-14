@@ -1,7 +1,7 @@
 import { xUserPayload } from "@/lib/api/user/x-user-payload";
 import { log, logerror } from "@/lib/logger";
 import { pathReplaceValidate } from "@/lib/reosolvePath";
-import { getSafePath } from "@/lib/filesystem/utils";
+import { getSafePath } from "@/lib/routes/filesystem/utils";
 import { normalizeFsPath } from "@/lib/utils/fs-helper";
 import fs from "fs-extra";
 import { NextResponse } from "next/server";

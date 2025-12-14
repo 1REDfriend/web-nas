@@ -4,7 +4,7 @@ import { getInternalUserFolder } from '@/lib/routes/folder/getInternalUserFolder
 import { upTrashDB } from '@/lib/service/up-trash-db';
 import { prisma } from '@/lib/db';
 import path from 'path';
-import { cleanTrashItemsByUserId } from '../../utils/trash/trash-clean';
+import { cleanTrashItemsByUserId } from '@/lib/utils/trash/trash-clean';
 import { pathReplaceValidate } from '@/lib/reosolvePath';
 
 export async function deleteAction(userId: string, safeFilePath: string, rawPath: string, confirm: boolean = false) {

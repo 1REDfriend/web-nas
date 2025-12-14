@@ -93,11 +93,11 @@ export default function FileManagerPage() {
     setIsTerminalOpen(!isTerminalOpen);
   };
 
-  const terminalRef = useRef(null);
+  const terminalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    function handleClickOutside(event) {
-      if (terminalRef.current && !terminalRef.current.contains(event.target)) {
+    function handleClickOutside(event: MouseEvent) {
+      if (terminalRef.current && !terminalRef.current.contains(event.target as Node)) {
         setIsTerminalOpen(false);
       }
     }

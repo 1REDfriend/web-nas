@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import ptb from 'pretty-bytes'
-import { File as FileIcon, Folder, Star, DownloadCloudIcon, InfoIcon } from "lucide-react";
+import { File as FileIcon, Folder, DownloadCloudIcon, InfoIcon } from "lucide-react";
 import { FileItem } from "./config";
 import * as fileService from "@/lib/api/file.service";
 

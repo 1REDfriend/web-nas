@@ -1,4 +1,4 @@
-import { log, logerror } from "@/lib/logger";
+import { logerror } from "@/lib/logger";
 import { NextResponse } from "next/server";
 import fs from 'fs-extra';
 import path from 'path';

@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { log, logerror, logwarn } from "@/lib/logger";
-import { getSafePath } from "@/lib/filesystem/utils";
-import { renameAction } from "@/lib/filesystem/actions/rename";
-import { moveAction } from "@/lib/filesystem/actions/move";
-import { copyAction } from "@/lib/filesystem/actions/copy";
-import { placeAction } from "@/lib/filesystem/actions/place";
-import { deleteAction } from "@/lib/filesystem/actions/delete";
+import { getSafePath } from "@/lib/routes/filesystem/utils";
+import { renameAction } from "@/lib/routes/filesystem/actions/rename";
+import { moveAction } from "@/lib/routes/filesystem/actions/move";
+import { copyAction } from "@/lib/routes/filesystem/actions/copy";
+import { placeAction } from "@/lib/routes/filesystem/actions/place";
+import { deleteAction } from "@/lib/routes/filesystem/actions/delete";
 import { xUserPayload } from "@/lib/api/user/x-user-payload";
 import { verifyUserPath } from "@/lib/utils/user/verifyUserPath";
 import { pathReplaceValidate } from "@/lib/reosolvePath";

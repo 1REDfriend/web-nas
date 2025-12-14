@@ -117,7 +117,7 @@ export default function ShareManagementPage() {
                 <div className="flex flex-1 overflow-hidden">
                     <FileManagerSidebarNav
                         selectedFolder={""}
-                        onSelectFolder={(folderId) => {
+                        onSelectFolder={() => {
                             router.push('/')
                         }}
                     />
