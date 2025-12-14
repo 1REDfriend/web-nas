@@ -66,7 +66,7 @@ export async function GET(request: Request) {
 
         if (reqOption == "preview") {
             const lines = content.split('\n').slice(0, 16);
-            const limitedContent = lines.join('\n');
+            const limitedContent = lines.join('\n').slice(0, 1000);
 
             return NextResponse.json({
                 file: reqFile,

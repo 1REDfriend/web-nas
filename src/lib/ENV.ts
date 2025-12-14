@@ -10,5 +10,8 @@ export const ENV = ({
 // default setting
 export const setting = {
     expireTrash: 30, // day only
-    expireShareLink: 3 //day only
+    expireShareLink: 3, //day only
+    frontend : {
+        shareURL: '/share/'
+    }
 }

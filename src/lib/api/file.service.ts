@@ -128,6 +128,19 @@ export async function downloadFile(filePath: string): Promise<Blob> {
     return res.blob();
 }
 
+export async function downloadShareFile( id: string, filePath: string): Promise<Blob> {
+    const res = await fetch(`${API_BASE}/download?share=true`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id ,reqFile: filePath }),
+    });
+
+    await handleApiError(res);
+    return res.blob();
+}
+
 export async function toggleFileStar(
     filePath: string
 ): Promise<{ isStarred: boolean }> {

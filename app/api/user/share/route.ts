@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { fileExitsInDir, fileExitsUser } from "@/lib/routes/filesystem/fileExits";
 import { fileType } from "@/lib/routes/filesystem/fileType";
 import { getSafePath } from "@/lib/routes/filesystem/utils";
+import { setting } from "@/lib/ENV";
 
 export async function GET() {
     const userPayload = await xUserPayload();
@@ -45,7 +46,7 @@ export async function GET() {
             void userId
 
             const type = await fileType(getSafePath(shareLink.rootPath))
-            const url = `/api/user/share/id/${shareLink.id}`
+            const url = `${setting.frontend.shareURL}${shareLink.id}`
 
             return {
                 ...rest,
@@ -117,6 +118,48 @@ export async function POST(request: Request) {
 
     } catch (err: unknown) {
         logerror('[user share post failed] :', err)
+        return NextResponse.json(
+            { error: 'Internal Error' },
+            { status: 500 }
+        )
+    }
+}
+
+export async function DELETE(request: Request) {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+        return NextResponse.json(
+            { error: 'Invalid ShareLink' },
+            { status: 400 }
+        )
+    }
+
+    const userPayload = await xUserPayload();
+
+    if (!userPayload) {
+        return NextResponse.json(
+            { error: "Unable to verify identity" },
+            { status: 401 }
+        )
+    }
+
+    const userId = userPayload.sub;
+
+    try {
+        await prisma.shareLink.delete({
+            where: {
+                userId,
+                id
+            }
+        })
+
+        return NextResponse.json(
+            {success: true, message: 'Delete link Successful'}
+        )
+    } catch (err: unknown) {
+        logerror('[user delete share link failed] :', err)
         return NextResponse.json(
             { error: 'Internal Error' },
             { status: 500 }

@@ -5,6 +5,7 @@ import { RootPathSettingsDialog } from "./RootPathSettingsDialog";
 import { useEffect, useState } from "react";
 import { fetchStorage } from "@/lib/api/system/storage.service";
 import prettyBytes from "pretty-bytes";
+import { SharelinkRoute } from "./SharelinkRoute";
 
 type FileManagerSidebarNavProps = {
     selectedFolder: string;
@@ -78,6 +79,7 @@ export function FileManagerSidebarNav({
                 </p>
                 <div className="space-y-1">
                     {/* ใช้ component popup แทนปุ่มเดิม */}
+                    <SharelinkRoute/>
                     <RootPathSettingsDialog />
                 </div>
             </div>
