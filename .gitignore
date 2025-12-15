@@ -51,3 +51,4 @@ package-lock.json
 
 storage/*
 *.env
+webtop_data/*
