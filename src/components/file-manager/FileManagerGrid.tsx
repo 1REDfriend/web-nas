@@ -108,9 +108,15 @@ export function FileManagerGrid({
                                                     <CardTitle className="text-sm truncate max-w-32">
                                                         {file.name}
                                                     </CardTitle>
-                                                    <span className="text-[11px] text-slate-500 max-w-32">
-                                                        {file.type || "File"}
-                                                    </span>
+                                                    {file.available === false ? (
+                                                        <span className="text-[11px] text-amber-400 max-w-32">
+                                                            Offline (disk not found)
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-[11px] text-slate-500 max-w-32">
+                                                            {file.type || "File"}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
                                             <button

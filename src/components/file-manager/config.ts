@@ -14,6 +14,8 @@ export type FileItem = {
     updatedAt?: string;
     folder?: string;
     isStarred?: boolean;
+    // Only set on assigned root folders; false when the folder is missing on disk
+    available?: boolean;
 };
 
 export type FileListMeta = {

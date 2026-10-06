@@ -1,5 +1,7 @@
 import path from 'path';
 import { prisma } from '@/lib/db';
+import fs from 'fs-extra';
+import { ENV } from '@/lib/ENV';
 import { normalizeFsPath } from '../utils/fs-helper';
 
 export async function getUserRootPaths(userId: string) {
@@ -39,20 +41,19 @@ export async function getUserRootPaths(userId: string) {
         });
     }
 
-    return uniquePathMaps.map((p) => ({
-        id: p.id,
-        name: p.description ?? path.basename(p.rootPath),
-        path: normalizeFsPath(p.rootPath),
-        type: "directory",
-        size: undefined,
-        updatedAt: undefined,
-        folder: null,
-        isStarred: starredSet.has(p.rootPath),
+    return Promise.all(uniquePathMaps.map(async (p) => {
+        const virtualPath = normalizeFsPath(p.rootPath);
+        return {
+            id: p.id,
+            name: p.description ?? path.basename(p.rootPath),
+            path: virtualPath,
+            type: "directory",
+            size: undefined,
+            updatedAt: undefined,
+            folder: null,
+            isStarred: starredSet.has(virtualPath) || starredSet.has(p.rootPath),
+            // false when the folder is gone, e.g. its external disk is unplugged
+            available: await fs.pathExists(path.join(ENV.STORAGE_ROOT, virtualPath)),
+        };
     }));
-}
-
-export async function removeInvalidPathMap(reqPath: string) {
-    await prisma.pathMap.deleteMany({
-        where: { rootPath: reqPath }
-    });
 }

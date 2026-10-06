@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 import fs from 'fs-extra';
 import { logerror } from '@/lib/logger';
 import { ENV } from '@/lib/ENV';
-import { getUserRootPaths, removeInvalidPathMap } from '@/lib/service/user-path-service';
-import { normalizeFsPath } from '@/lib/utils/fs-helper';
+import { getUserRootPaths } from '@/lib/service/user-path-service';
 import { getDirectoryFiles } from '@/lib/service/file-brower-service';
 import { xUserPayload } from '@/lib/api/user/x-user-payload';
 import { cleanTrashItemsByUserId } from '@/lib/utils/trash/trash-clean';
@@ -100,31 +99,12 @@ export async function GET(request: Request) {
         const accessResponse = fileAccessErrorResponse(err);
         if (accessResponse) return accessResponse;
 
-        // --- Error Handling ---
-        const { searchParams } = new URL(request.url);
-        const rawReqPath = searchParams.get('path');
-
         logerror("[File List Failed] : " + err);
 
-        if (err instanceof Error) {
-            if ('code' in err && (err as { code: string }).code === 'ENOENT') {
-                const reqPath = rawReqPath ? normalizeFsPath(rawReqPath) : '';
-                logerror("[File List Failed] : Path not found. " + err.message);
-
-                if (rawReqPath) {
-                    await removeInvalidPathMap(rawReqPath);
-
-                    if (rawReqPath.startsWith('/')) {
-                        await removeInvalidPathMap(rawReqPath.substring(1));
-                    }
-                }
-
-                if (reqPath && reqPath !== rawReqPath) {
-                    await removeInvalidPathMap(reqPath);
-                }
-
-                return NextResponse.json({ error: 'Path not found' }, { status: 404 });
-            }
+        // A missing path is reported, never "repaired": an unplugged or not-yet-mounted
+        // disk must not wipe the folder assignments that point at it.
+        if (err instanceof Error && 'code' in err && (err as { code: string }).code === 'ENOENT') {
+            return NextResponse.json({ error: 'Path not found. If it is on an external disk, check that the disk is connected.' }, { status: 404 });
         }
 
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
