@@ -6,11 +6,12 @@ import { logerror } from "@/lib/logger";
 import { FileItem } from "@/components/file-manager/config";
 import { getFileStats } from "@/lib/utils/fs-helper";
 import { fileAccessErrorResponse } from "@/lib/security/path-guard";
-import { resolveShare, resolveSharedEntry } from "@/lib/security/share-access";
+import { assertShareRateLimit, resolveShare, resolveSharedEntry } from "@/lib/security/share-access";
 
 // Public (no login): lists what a share link exposes. `path` is relative to the shared root.
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
+        assertShareRateLimit(request, "list");
         const { id } = await params;
         const resolved = await resolveShare(id);
         const entry = await resolveSharedEntry(resolved, new URL(request.url).searchParams.get("path") ?? "/");

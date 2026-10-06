@@ -2,6 +2,7 @@ import fs from "fs-extra";
 import { randomBytes } from "crypto";
 import { ShareLink } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { getClientIp, recordAttempt, retryAfterSeconds } from "./rate-limit";
 import {
     AuthorizedPath,
     FileAccessError,
@@ -35,6 +36,20 @@ export function isShareExpired(share: Pick<ShareLink, "expireAt">, now = new Dat
 }
 
 const UNAVAILABLE = "This share link is no longer available";
+
+const RATE_WINDOW_MS = 5 * 60 * 1000;
+const RATE_LIMITS = { list: 300, download: 60 } as const;
+
+// Public endpoints have no login, so every request counts against the caller's IP
+export function assertShareRateLimit(request: Request, kind: keyof typeof RATE_LIMITS) {
+    const rules = [{ key: `share-${kind}:${getClientIp(request)}`, limit: RATE_LIMITS[kind], windowMs: RATE_WINDOW_MS }];
+
+    const wait = retryAfterSeconds(rules);
+    if (wait > 0) {
+        throw new FileAccessError(`Too many requests. Try again in ${Math.ceil(wait / 60)} minute(s).`, 429);
+    }
+    recordAttempt(rules);
+}
 
 export async function resolveShare(rawId: unknown): Promise<ResolvedShare> {
     if (typeof rawId !== "string" || !SHARE_ID_PATTERN.test(rawId)) {

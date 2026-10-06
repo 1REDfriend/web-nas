@@ -8,8 +8,16 @@ import { ENV } from "@/lib/ENV";
 // A login creates one ActiveSession row; its id travels in the JWT as "jti".
 // A token is only accepted while that row exists and has not expired, so
 // logout, password changes and user deletion take effect immediately.
+//
+// Two limits apply:
+//   - idle: the row's expiresAt, pushed forward while the session is in use
+//   - absolute: the JWT's own exp, after which the user must log in again
+// The token itself never changes, so parallel requests never race a rotation.
 
-export const SESSION_TTL_SECONDS = 60 * 60;
+export const SESSION_IDLE_SECONDS = 60 * 60;
+export const SESSION_MAX_SECONDS = 7 * 24 * 60 * 60;
+// Write the new idle deadline at most this often per session
+const IDLE_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 export type SessionUser = {
     sessionId: string;
@@ -30,14 +38,16 @@ function hashToken(token: string) {
 
 export async function createSession(user: { id: string; username: string }, userAgent: string) {
     const sessionId = randomBytes(18).toString("base64url");
-    const expiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000);
+    const now = Date.now();
+    const expiresAt = new Date(now + SESSION_IDLE_SECONDS * 1000);
+    const absoluteExpiry = Math.floor((now + SESSION_MAX_SECONDS * 1000) / 1000);
 
     const token = await new SignJWT({ username: user.username })
         .setProtectedHeader({ alg: "HS256" })
         .setSubject(user.id)
         .setJti(sessionId)
         .setIssuedAt()
-        .setExpirationTime(Math.floor(expiresAt.getTime() / 1000))
+        .setExpirationTime(absoluteExpiry)
         .sign(secretKey());
 
     await prisma.activeSession.deleteMany({
@@ -69,13 +79,22 @@ export async function verifySessionToken(token: string | undefined | null): Prom
             include: { user: { select: { id: true, username: true, role: true, mustChangePassword: true } } },
         });
 
+        const now = Date.now();
         if (
             !session ||
             session.userId !== payload.sub ||
             session.token !== hashToken(token) ||
-            session.expiresAt.getTime() <= Date.now()
+            session.expiresAt.getTime() <= now
         ) {
             return null;
+        }
+
+        const idleDeadline = now + SESSION_IDLE_SECONDS * 1000;
+        if (idleDeadline - session.expiresAt.getTime() >= IDLE_REFRESH_INTERVAL_MS) {
+            await prisma.activeSession.updateMany({
+                where: { id: session.id },
+                data: { expiresAt: new Date(idleDeadline) },
+            });
         }
 
         return {
@@ -112,7 +131,8 @@ function cookieOptions(value: string, maxAge: number) {
 }
 
 export function setSessionCookie(response: NextResponse, token: string) {
-    response.cookies.set(cookieOptions(token, SESSION_TTL_SECONDS));
+    // The browser keeps the cookie for the absolute lifetime; the idle limit is enforced server-side
+    response.cookies.set(cookieOptions(token, SESSION_MAX_SECONDS));
 }
 
 export function clearSessionCookie(response: NextResponse) {
