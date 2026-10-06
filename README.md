@@ -47,6 +47,18 @@ STORAGE_INTERNAL="your-storage_internal" => default use `storage`
 
 NEXT_PUBLIC_TERMINAL_HOST="your-next_public_terminal_host"
 
+PROTECTED_PATHS="/host_root/home/you/web-nas" => optional, comma-separated absolute paths that no role (not even ADMIN) can touch from the web UI
+
+## Protected Folders
+
+Admins can block actions (view, download, upload, rename, move, delete, share) on any folder per role from **Setting → Protected Folders**. Built-in rules protect OS folders (`/etc`, `/usr`, `/var`, ...) and make GUEST read-only; they can be edited, removed, or restored with **Restore defaults**.
+
+The app folder and `STORAGE_INTERNAL` are always locked. In Docker the host copy of the app (under `/host_root`) is a different path, so add it to `PROTECTED_PATHS`.
+
+After pulling this change, update the database once:
+
+`npx prisma db push` (existing install) or `npx prisma migrate deploy` (fresh database)
+
 > **NOTE** if you will use external disk without docker, you should Edit `volume - /:/host_root` and change `.env STORAGE_ROOT` to `/host_root` 
 
 ## Screen Shot

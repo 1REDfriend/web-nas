@@ -1,23 +1,12 @@
 import fs from 'fs-extra';
-import path from 'path';
-import { ENV } from "@/lib/ENV";
+import { AuthorizedPath } from '@/lib/security/path-guard';
 
-export async function renameAction(safeFilePath: string, newName: string) {
-    const rootWithSep = ENV.STORAGE_ROOT.endsWith(path.sep)
-        ? ENV.STORAGE_ROOT
-        : ENV.STORAGE_ROOT + path.sep;
-
-    if (!newName || typeof newName !== 'string' || newName.includes('/') || newName.includes('..')) {
-        throw new Error("Invalid new name");
+export async function renameAction(source: AuthorizedPath, target: AuthorizedPath) {
+    // fs.rename silently replaces an existing file on POSIX
+    if (await fs.pathExists(target.physicalPath)) {
+        throw new Error("An item with that name already exists");
     }
 
-    const newSafePath = path.resolve(path.dirname(safeFilePath), newName);
-
-    // ตรวจสอบว่า Path ปลายทางยังปลอดภัยอยู่
-    if (!(newSafePath === ENV.STORAGE_ROOT || newSafePath.startsWith(rootWithSep))) {
-        throw new Error("Invalid new path");
-    }
-
-    await fs.rename(safeFilePath, newSafePath);
-    return { message: "File renamed", newPath: newSafePath };
+    await fs.rename(source.physicalPath, target.physicalPath);
+    return { message: "File renamed", newPath: target.virtualPath };
 }

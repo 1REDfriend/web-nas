@@ -1,9 +1,7 @@
 import { logerror } from "@/lib/logger";
 import { NextResponse } from "next/server";
 import fs from "fs-extra";
-import path from "path";
-import { ENV } from "@/lib/ENV";
-import { xUserPayload } from "@/lib/api/user/x-user-payload";
+import { authorizePath, fileAccessErrorResponse, getRequestUser } from "@/lib/security/path-guard";
 import { allowedExtensions } from "@/lib/routes/filesystem/allowedcExtensions";
 
 export async function GET(request: Request) {
@@ -11,8 +9,8 @@ export async function GET(request: Request) {
     const reqFile = searchParams.get('file');
     const reqOption = searchParams.get('option')
 
-    const userPayload = await xUserPayload()
-    if (!userPayload) {
+    const user = await getRequestUser()
+    if (!user) {
         return NextResponse.json(
             { error: "Unauthurization" },
             { status: 401 }
@@ -26,10 +24,6 @@ export async function GET(request: Request) {
         );
     }
 
-    const physicalPath = path.join(ENV.STORAGE_ROOT, reqFile)
-    const resolveRootPath = path.resolve(ENV.STORAGE_ROOT)
-    const resolvePhysicalPath = path.resolve(physicalPath)
-
     if (allowedExtensions.some(ext => reqFile.includes(ext)) && reqOption === "preview") {
         return NextResponse.json(
             { error: "Path is a Media File, not a simple file" }
@@ -37,14 +31,7 @@ export async function GET(request: Request) {
     }
 
     try {
-
-        if (!resolvePhysicalPath.startsWith(resolveRootPath)) {
-            logerror(`[Access Denied] Attempt to access: ${physicalPath}`);
-            return NextResponse.json(
-                { error: "Access Denied" },
-                { status: 403 }
-            );
-        }
+        const { physicalPath } = await authorizePath(user, reqFile, reqOption === "preview" ? "VIEW" : "DOWNLOAD");
 
         const exists = await fs.pathExists(physicalPath);
         if (!exists) {
@@ -81,6 +68,9 @@ export async function GET(request: Request) {
             content: content
         });
     } catch (err: unknown) {
+        const accessResponse = fileAccessErrorResponse(err);
+        if (accessResponse) return accessResponse;
+
         logerror("[Read File Failed] : " + err);
         return NextResponse.json(
             { error: "Internal Error" },

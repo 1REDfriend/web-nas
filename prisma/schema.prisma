@@ -103,3 +103,27 @@ model ShareLink {
   @@index([userId], name: "idx_share_link_user_id")
   @@map("share_link")
 }
+
+// Admin-managed folder protection: blocks the listed actions on a path for one role
+model PathRule {
+  id          String        @id @default(cuid())
+  path        String        @map("path")                // virtual path under STORAGE_ROOT
+  role        Role
+  actions     String        @map("actions")             // comma-separated FileAction list (blocked actions)
+  recursive   Boolean       @default(true)              // also applies to everything inside the folder
+  note        String?
+  isDefault   Boolean       @default(false) @map("is_default")
+
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  @@unique([path, role], name: "idx_path_role_unique")
+  @@map("path_rules")
+}
+
+model AppSetting {
+  key         String        @id
+  value       String
+
+  @@map("app_settings")
+}

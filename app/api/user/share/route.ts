@@ -6,6 +6,7 @@ import { fileExitsInDir, fileExitsUser } from "@/lib/routes/filesystem/fileExits
 import { fileType } from "@/lib/routes/filesystem/fileType";
 import { getSafePath } from "@/lib/routes/filesystem/utils";
 import { setting } from "@/lib/ENV";
+import { authorizePath, fileAccessErrorResponse, getAccessUser } from "@/lib/security/path-guard";
 
 export async function GET() {
     const userPayload = await xUserPayload();
@@ -92,19 +93,22 @@ export async function POST(request: Request) {
     const userId = userPayload.sub;
 
     try {
-        if (!await fileExitsUser(userId, reqPath)) {
+        const user = await getAccessUser(userId);
+        if (!user) {
             return NextResponse.json(
-                { error: 'Invalid Path not allowed' },
-                { status: 400 }
+                { error: "Unable to verify identity" },
+                { status: 401 }
             )
         }
+
+        const { virtualPath } = await authorizePath(user, reqPath, "SHARE", { includeSubtree: true });
 
         const share = await prisma.shareLink.create({
             data : {
                 user: {
                     connect: { id: userId }
                 },
-                rootPath: reqPath,
+                rootPath: virtualPath,
                 recursive: recursive ?? null,
                 expireAt: expireAt ?? null
             }
@@ -117,6 +121,9 @@ export async function POST(request: Request) {
         )
 
     } catch (err: unknown) {
+        const accessResponse = fileAccessErrorResponse(err);
+        if (accessResponse) return accessResponse;
+
         logerror('[user share post failed] :', err)
         return NextResponse.json(
             { error: 'Internal Error' },

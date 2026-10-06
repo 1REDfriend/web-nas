@@ -150,7 +150,7 @@ export function UploadFileManager({
             console.error(err);
             toast.error("Upload Failed", {
                 id: toastId,
-                description: "Something went wrong. Please try again."
+                description: err instanceof Error ? err.message : "Something went wrong. Please try again."
             });
         } finally {
             setIsUploading(false);

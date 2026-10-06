@@ -1,17 +1,17 @@
-import { xUserPayload } from "@/lib/api/user/x-user-payload";
+import { getRequestUser } from "@/lib/security/path-guard";
 import { NextResponse } from "next/server";
 
 export async function GET() {
-    const userPayload = await xUserPayload()
+    const user = await getRequestUser()
 
-    if (!userPayload) {
+    if (!user) {
         return NextResponse.json(
             { error: 'Unauthorized' },
             { status: 401 }
         );
     } else {
         return NextResponse.json(
-            { message: 'User is Login'}
+            { message: 'User is Login', role: user.role }
         );
     }
 }

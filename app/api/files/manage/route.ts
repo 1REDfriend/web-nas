@@ -1,14 +1,22 @@
 import { NextResponse } from "next/server";
-import { log, logerror, logwarn } from "@/lib/logger";
-import { getSafePath } from "@/lib/routes/filesystem/utils";
+import path from "path";
+import { log, logerror } from "@/lib/logger";
 import { renameAction } from "@/lib/routes/filesystem/actions/rename";
 import { moveAction } from "@/lib/routes/filesystem/actions/move";
 import { copyAction } from "@/lib/routes/filesystem/actions/copy";
 import { placeAction } from "@/lib/routes/filesystem/actions/place";
-import { deleteAction } from "@/lib/routes/filesystem/actions/delete";
-import { xUserPayload } from "@/lib/api/user/x-user-payload";
-import { verifyUserPath } from "@/lib/utils/user/verifyUserPath";
-import { pathReplaceValidate } from "@/lib/reosolvePath";
+import { deleteFromTrashAction, moveToTrashAction } from "@/lib/routes/filesystem/actions/delete";
+import {
+    authorizeNewEntry,
+    authorizePath,
+    fileAccessErrorResponse,
+    getRequestUser,
+    isTrashPath,
+    joinVirtual,
+    normalizeVirtualPath,
+    resolveTrashPath,
+    validateEntryName,
+} from "@/lib/security/path-guard";
 
 interface FileActionBody {
     newName?: string;
@@ -23,22 +31,15 @@ export async function POST(request: Request) {
     const reqOption = searchParams.get('option');
     const reqConfirm = searchParams.get('confirm') === 'true';
 
-    const userPayload = await xUserPayload();
+    const user = await getRequestUser();
 
-    if (!userPayload) {
+    if (!user) {
         return NextResponse.json({ error: "No user Found" }, { status: 401 });
     }
-
-    const userId = userPayload.sub;
 
     try {
         if (!reqFile) {
             return NextResponse.json({ error: "No File Select" }, { status: 400 });
-        }
-
-        if (!await verifyUserPath(userId, reqFile)) {
-            logwarn("[Manage file Failed] : file not allowed");
-            return NextResponse.json({ error: "File path not allowed" }, { status: 400 });
         }
 
         let body: FileActionBody = {};
@@ -48,37 +49,62 @@ export async function POST(request: Request) {
         let result: any;
 
         switch (reqOption) {
-            case "rename":
-                result = await renameAction(getSafePath(reqFile), body.newName || "");
+            case "rename": {
+                const source = await authorizePath(user, reqFile, "RENAME");
+                const target = await authorizePath(
+                    user,
+                    joinVirtual(path.posix.dirname(source.virtualPath), validateEntryName(body.newName)),
+                    "RENAME"
+                );
+                result = await renameAction(source, target);
                 break;
+            }
 
             case "moveTo":
-            case "cut":
-                const cutSrcPath = await pathReplaceValidate(reqFile);
-                const cutDestPath = await pathReplaceValidate(body.destination || "");
+            case "cut": {
+                const source = await authorizePath(user, reqFile, "MOVE");
+                const target = await authorizeNewEntry(user, body.destination ?? "", path.posix.basename(source.virtualPath));
 
-                if (cutSrcPath === cutDestPath) {
+                if (source.virtualPath === target.virtualPath) {
                     return NextResponse.json({ error: "Source and destination are the same" }, { status: 400 });
                 }
 
-                log(`[Manage Debug] Cut: ${cutSrcPath} -> ${cutDestPath}`);
-                result = await moveAction(userId, cutSrcPath, cutDestPath);
+                log(`[Manage] Cut: ${source.virtualPath} -> ${target.virtualPath}`);
+                result = await moveAction(user.id, source, target);
                 break;
+            }
 
-            case "copy":
-                const srcPath = await pathReplaceValidate(reqFile);
-                const destPath = await pathReplaceValidate(body.destination || "");
-                log(`[Manage Debug] Copy: ${srcPath} -> ${destPath}`);
-                result = await copyAction(getSafePath(srcPath), destPath);
-                break;
+            case "copy": {
+                const source = await authorizePath(user, reqFile, "DOWNLOAD", { includeSubtree: true });
+                const target = await authorizeNewEntry(user, body.destination ?? "", path.posix.basename(source.virtualPath));
 
-            case "place":
-                result = await placeAction(getSafePath(reqFile), body.type || "", body.content || "");
+                log(`[Manage] Copy: ${source.virtualPath} -> ${target.virtualPath}`);
+                result = await copyAction(source, target);
                 break;
+            }
 
-            case "delete":
-                result = await deleteAction(userId, getSafePath(reqFile), reqFile, reqConfirm);
+            case "place": {
+                const requested = normalizeVirtualPath(reqFile);
+                const target = await authorizeNewEntry(
+                    user,
+                    path.posix.dirname(requested),
+                    path.posix.basename(requested)
+                );
+                result = await placeAction(target, body.type || "", body.content || "");
                 break;
+            }
+
+            case "delete": {
+                if (isTrashPath(reqFile)) {
+                    result = await deleteFromTrashAction(user.id, resolveTrashPath(user.id, reqFile), reqConfirm);
+                    if (result.error === "Require Confirm") {
+                        return NextResponse.json({ success: false, error: result.error }, { status: 409 });
+                    }
+                } else {
+                    result = await moveToTrashAction(user.id, await authorizePath(user, reqFile, "DELETE"));
+                }
+                break;
+            }
 
             default:
                 return NextResponse.json({ error: "Invalid operation specified" }, { status: 400 });
@@ -91,6 +117,9 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, ...result });
 
     } catch (err: unknown) {
+        const accessResponse = fileAccessErrorResponse(err);
+        if (accessResponse) return accessResponse;
+
         const errorMessage = err instanceof Error ? err.message : String(err);
         logerror("[Manage File Failed] : " + errorMessage);
 

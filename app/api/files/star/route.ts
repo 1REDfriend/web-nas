@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db';
 import { logerror } from '@/lib/logger';
 import { headers } from 'next/headers';
 import { UserJwtPayload } from '@/interfaces/userJwtpayload';
-import { validateUserPaths } from '@/middlewares/pathValidator';
+import { authorizePath, fileAccessErrorResponse, getAccessUser } from '@/lib/security/path-guard';
 
 export async function POST(request: Request) {
     const { searchParams } = new URL(request.url);
@@ -48,11 +48,19 @@ export async function POST(request: Request) {
             );
         }
 
-        await validateUserPaths(userId, reqPath)
+        const user = await getAccessUser(userId);
+        if (!user) {
+            return NextResponse.json(
+                { error: 'Unauthorized: User not found' },
+                { status: 401 }
+            );
+        }
+
+        const { virtualPath } = await authorizePath(user, reqPath, "VIEW");
 
         const compositeId = {
             userId: userId,
-            rootPath: reqPath,
+            rootPath: virtualPath,
         };
 
         const existingStar = await prisma.starPath.findUnique({
@@ -70,7 +78,7 @@ export async function POST(request: Request) {
             await prisma.starPath.create({
                 data: {
                     userId: userId,
-                    rootPath: reqPath,
+                    rootPath: virtualPath,
                 },
             });
             return NextResponse.json(
@@ -78,6 +86,9 @@ export async function POST(request: Request) {
             );
         }
     } catch (err: unknown) {
+        const accessResponse = fileAccessErrorResponse(err);
+        if (accessResponse) return accessResponse;
+
         logerror("[Star File Failed] : " + err);
         return NextResponse.json(
             { error: "Internal Error" },

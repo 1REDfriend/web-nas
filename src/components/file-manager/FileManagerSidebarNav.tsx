@@ -6,6 +6,9 @@ import { useEffect, useState } from "react";
 import { fetchStorage } from "@/lib/api/system/storage.service";
 import prettyBytes from "pretty-bytes";
 import { SharelinkRoute } from "./SharelinkRoute";
+import { PathRuleSettingsDialog } from "./PathRuleSettingsDialog";
+import { fetchCurrentRole } from "@/lib/api/admin/path-rule.service";
+import { RuleRole } from "@/lib/security/file-actions";
 
 type FileManagerSidebarNavProps = {
     selectedFolder: string;
@@ -19,6 +22,7 @@ export function FileManagerSidebarNav({
     const [total, setTotal] = useState(0);
     // const [free, setFree] = useState(0);
     const [used, setUsed] = useState(0);
+    const [role, setRole] = useState<RuleRole | null>(null);
     // const [loading, setLoading] = useState(true);
 
     const usagePercent = total > 0 ? (used / total) * 100 : 0;
@@ -43,6 +47,7 @@ export function FileManagerSidebarNav({
             }
         }
         storage()
+        fetchCurrentRole().then(setRole)
     }, [])
 
     return (
@@ -81,6 +86,7 @@ export function FileManagerSidebarNav({
                     {/* ใช้ component popup แทนปุ่มเดิม */}
                     <SharelinkRoute/>
                     <RootPathSettingsDialog />
+                    {role === "ADMIN" && <PathRuleSettingsDialog />}
                 </div>
             </div>
 

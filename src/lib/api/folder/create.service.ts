@@ -28,6 +28,6 @@ export async function createFolderApi(path: string, name: string): Promise<Creat
         return data;
     } catch (err : unknown) {
         logerror("[create folder service Failed] :", err)
-        return {success: false, error: "Internal Error"}
+        return {success: false, error: err instanceof Error ? err.message : "Internal Error"}
     }
 }

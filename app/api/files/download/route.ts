@@ -4,7 +4,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import mime from 'mime-types';
 import archiver from "archiver";
-import { ENV } from "@/lib/ENV";
+import { authorizePath, fileAccessErrorResponse, getRequestUser } from "@/lib/security/path-guard";
 import { prisma } from "@/lib/db";
 import { getSafePath } from "@/lib/routes/filesystem/utils";
 import { normalizeFsPath } from "@/lib/utils/fs-helper";
@@ -111,10 +111,9 @@ export async function POST(request: Request) {
         }
     }
 
-    const ROOT_STORAGE_PATH = ENV.STORAGE_ROOT;
-    if (!ROOT_STORAGE_PATH) {
-        logerror("[FATAL ERROR] STORAGE_ROOT environment variable is not set.");
-        return NextResponse.json({ error: "Internal Server Configuration Error" }, { status: 500 });
+    const user = await getRequestUser();
+    if (!user) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     try {
@@ -124,15 +123,8 @@ export async function POST(request: Request) {
                 { status: 400 }
             )
         }
-        const physicalPath = path.join(ROOT_STORAGE_PATH, reqFile);
 
-        const resolvedRoot = path.resolve(ROOT_STORAGE_PATH);
-        const resolvedPath = path.resolve(physicalPath);
-
-        if (!resolvedPath.startsWith(resolvedRoot)) {
-            logerror(`[File Download Failed] : Forbidden path access attempt: ${reqFile}`);
-            return NextResponse.json({ error: 'Forbidden path' }, { status: 403 });
-        }
+        const { physicalPath } = await authorizePath(user, reqFile, "DOWNLOAD", { includeSubtree: true });
 
         if (!fs.existsSync(physicalPath)) {
             return new NextResponse('File or directory not found',
@@ -194,6 +186,9 @@ export async function POST(request: Request) {
             { status: 400 }
         );
     } catch (err: unknown) {
+        const accessResponse = fileAccessErrorResponse(err);
+        if (accessResponse) return accessResponse;
+
         logerror("[File Downoad Failed] : " + err);
         if (err instanceof Error && (err as NodeJS.ErrnoException).code === 'ENOENT') {
             return NextResponse.json(

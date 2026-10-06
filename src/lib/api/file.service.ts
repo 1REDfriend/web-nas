@@ -33,7 +33,7 @@ async function handleApiError(res: Response) {
         let errorMessage = `API Error: ${res.status} ${res.statusText}`;
         try {
             const errorJson = await res.json();
-            errorMessage = errorJson.message || errorMessage;
+            errorMessage = errorJson.error || errorJson.message || errorMessage;
         } catch {
         }
         logerror(errorMessage);
@@ -227,6 +227,7 @@ export async function upload(
 
     } catch (error: unknown) {
         logerror('[Error in upload service] : ' + error);
+        throw error;
     }
 }
 

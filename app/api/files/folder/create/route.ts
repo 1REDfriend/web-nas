@@ -1,8 +1,9 @@
-import { xUserPayload } from "@/lib/api/user/x-user-payload";
 import { log, logerror } from "@/lib/logger";
-import { pathReplaceValidate } from "@/lib/reosolvePath";
-import { getSafePath } from "@/lib/routes/filesystem/utils";
-import { normalizeFsPath } from "@/lib/utils/fs-helper";
+import {
+    authorizeNewEntry,
+    fileAccessErrorResponse,
+    getRequestUser,
+} from "@/lib/security/path-guard";
 import fs from "fs-extra";
 import { NextResponse } from "next/server";
 
@@ -10,7 +11,7 @@ export async function POST(request:Request) {
     const body = await request.json()
     const { path, name } = body;
 
-    if (!path || !name) {
+    if (typeof path !== "string" || !name) {
         return NextResponse.json(
             { error: "No path found"},
             { status : 400}
@@ -18,36 +19,38 @@ export async function POST(request:Request) {
     }
 
     try {
-        const userPayload = await xUserPayload();
-        const userId = userPayload?.sub
+        const user = await getRequestUser();
 
-        if (!userId) {
+        if (!user) {
             return NextResponse.json(
                 { error: "Unaurtherization"},
                 { status: 401}
             )
         }
 
-        createFolder(path, name);
+        const target = await authorizeNewEntry(user, path, name);
+
+        if (await fs.pathExists(target.physicalPath)) {
+            return NextResponse.json(
+                { error: "An item with that name already exists" },
+                { status: 409 }
+            )
+        }
+
+        log("[Create Folder Path] :", target.virtualPath)
+        await fs.ensureDir(target.physicalPath);
 
         return NextResponse.json(
             { success: true, message: "Create folder Successful"}
         )
     } catch (err : unknown) {
+        const accessResponse = fileAccessErrorResponse(err);
+        if (accessResponse) return accessResponse;
+
         logerror("[folder create Failed] :", err)
         return NextResponse.json(
             { error : "Internal Error"},
             { status: 500}
         )
     }
-}
-
-async function createFolder(path : string, name: string) {
-    const nameNormal = normalizeFsPath(name)
-    const pathNormal = normalizeFsPath(path)
-    const validatePath = await pathReplaceValidate(pathNormal + nameNormal)
-
-    const fullPath = getSafePath(validatePath || "")
-    log("[Create Folder Path] :", fullPath)
-    fs.ensureDir(fullPath)
 }

@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/db";
 import fs from 'fs-extra'
-import { getInternalUserFolder } from "@/lib/routes/folder/getInternalUserFolder";
-import { pathReplaceValidate } from "@/lib/reosolvePath";
+import { getUserTrashDir } from "@/lib/security/path-guard";
 import path from "path";
 import { logerror } from "@/lib/logger";
 
@@ -14,15 +13,11 @@ export async function cleanTrashItemsByUserId(userId: string) {
     });
 
     if (expired.length > 0) {
-        const userFolder = await getInternalUserFolder(userId);
-        const trashFolder = path.join(userFolder, "trash");
+        const trashFolder = getUserTrashDir(userId);
         let succ = false
 
         await Promise.all(expired.map(async (item) => {
-            const itemName = `${item.item}_id${item.id}`;
-            const itemPath = await pathReplaceValidate(itemName);
-
-            const fullPath = path.join(trashFolder, itemPath);
+            const fullPath = path.join(trashFolder, path.basename(`${item.item}_id${item.id}`));
 
             try {
                 await fs.remove(fullPath);

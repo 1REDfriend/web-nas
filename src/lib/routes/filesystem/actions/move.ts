@@ -1,50 +1,33 @@
 import fs from 'fs-extra';
-import path from 'path';
 import { logerror } from '@/lib/logger';
 import { prisma } from '@/lib/db';
-import { resolveUserPath } from '@/lib/utils/user/resolveUserPath';
+import { AuthorizedPath } from '@/lib/security/path-guard';
 
-export async function moveAction(userId: string, rawPath: string, destination: string) {
-    if (!destination) {
-        throw new Error("No destination specified");
-    }
-
-    const safeSrcFolder = await resolveUserPath(userId, rawPath);
-    const safeDestFolder = await resolveUserPath(userId, destination);
-
-    if (!safeDestFolder || !safeSrcFolder) {
-        return { success: false, error: "Source file not found or Destination folder invalid" };
-    }
-
-    const fileName = path.basename(safeSrcFolder);
-    const finalDestPath = path.join(safeDestFolder, fileName);
-
-    const newRelativePath = path.join(destination, fileName).replace(/\\/g, '/');
-
+export async function moveAction(userId: string, source: AuthorizedPath, target: AuthorizedPath) {
     try {
-        await fs.move(safeSrcFolder, finalDestPath, { overwrite: false });
+        await fs.move(source.physicalPath, target.physicalPath, { overwrite: false });
 
         await prisma.starPath.updateMany({
             where: {
                 userId: userId,
-                rootPath: rawPath
+                rootPath: source.virtualPath
             },
             data: {
-                rootPath: newRelativePath 
+                rootPath: target.virtualPath
             }
         });
 
         await prisma.shareLink.updateMany({
             where: {
                 userId: userId,
-                rootPath: rawPath
+                rootPath: source.virtualPath
             },
             data: {
-                rootPath: newRelativePath
+                rootPath: target.virtualPath
             }
         });
 
-        return { success: true, message: "File moved successfully", newPath: finalDestPath };
+        return { success: true, message: "File moved successfully", newPath: target.virtualPath };
 
     } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);

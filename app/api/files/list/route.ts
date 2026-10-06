@@ -1,14 +1,19 @@
 import { NextResponse } from 'next/server';
-import path from 'path';
+import fs from 'fs-extra';
 import { logerror } from '@/lib/logger';
 import { ENV } from '@/lib/ENV';
-import { validateUserPaths } from '@/middlewares/pathValidator';
 import { getUserRootPaths, removeInvalidPathMap } from '@/lib/service/user-path-service';
 import { normalizeFsPath } from '@/lib/utils/fs-helper';
 import { getDirectoryFiles } from '@/lib/service/file-brower-service';
 import { xUserPayload } from '@/lib/api/user/x-user-payload';
-import { createInternalFolder } from '@/lib/routes/folder/createInternalFolder';
 import { cleanTrashItemsByUserId } from '@/lib/utils/trash/trash-clean';
+import {
+    authorizePath,
+    fileAccessErrorResponse,
+    getAccessUser,
+    isTrashPath,
+    resolveTrashPath,
+} from '@/lib/security/path-guard';
 
 export async function GET(request: Request) {
     try {
@@ -49,19 +54,25 @@ export async function GET(request: Request) {
             }
         }
 
-        const reqPath = normalizeFsPath(rawReqPath);
+        const user = await getAccessUser(userId);
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-        const validation = await validateUserPaths(userId, reqPath);
-        if (validation instanceof NextResponse) return validation;
+        let physicalPath: string;
+        let reqPath: string;
 
-        let selectedRoot = ENV.STORAGE_ROOT;
-        let physicalPath = path.join(selectedRoot, reqPath);
-
-        if (reqPath === "/trash") {
-            createInternalFolder(userId, "/trash")
-            await cleanTrashItemsByUserId(userId)
-            selectedRoot = ENV.STORAGE_INTERNAL;
-            physicalPath = path.join(selectedRoot, userId, reqPath);
+        if (isTrashPath(rawReqPath)) {
+            const trash = resolveTrashPath(user.id, rawReqPath);
+            if (trash.itemName) {
+                return NextResponse.json({ error: 'Trash items cannot be opened' }, { status: 400 });
+            }
+            await fs.ensureDir(trash.trashDir);
+            await cleanTrashItemsByUserId(user.id);
+            physicalPath = trash.trashDir;
+            reqPath = "/trash";
+        } else {
+            const target = await authorizePath(user, rawReqPath, "VIEW");
+            physicalPath = target.physicalPath;
+            reqPath = target.virtualPath;
         }
 
         const { data, totalFiles } = await getDirectoryFiles({
@@ -86,6 +97,9 @@ export async function GET(request: Request) {
         });
 
     } catch (err: unknown) {
+        const accessResponse = fileAccessErrorResponse(err);
+        if (accessResponse) return accessResponse;
+
         // --- Error Handling ---
         const { searchParams } = new URL(request.url);
         const rawReqPath = searchParams.get('path');
