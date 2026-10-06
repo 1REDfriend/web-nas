@@ -22,27 +22,20 @@ export function UserManageSetting() {
     const [users, setUsers] = useState<User[]>([]);
     const [message, setMessage] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [loading, setLoading] = useState<boolean>(false);
+    // Starts true: the first load runs on mount
+    const [loading, setLoading] = useState<boolean>(true);
 
-    const loadData = useCallback(async () => {
-        try {
-            setLoading(true);
-            setError(null);
-
-            const res = await fetchUsers();
-
-            if (res.users && Array.isArray(res.users)) {
-                setUsers(res.users);
-            } else {
-                setUsers([]);
-            }
-
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : "Failed to load users";
-            setError(errorMessage);
-        } finally {
-            setLoading(false);
-        }
+    // State is only set once the request settles, so this is safe to start from an effect
+    const loadData = useCallback(() => {
+        return fetchUsers()
+            .then((res) => {
+                setError(null);
+                setUsers(res.users && Array.isArray(res.users) ? res.users : []);
+            })
+            .catch((err: unknown) => {
+                setError(err instanceof Error ? err.message : "Failed to load users");
+            })
+            .finally(() => setLoading(false));
     }, []);
 
     useEffect(() => {

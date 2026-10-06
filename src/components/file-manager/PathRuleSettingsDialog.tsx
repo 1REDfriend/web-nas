@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Pencil, RotateCcw, ShieldAlert, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -80,9 +80,10 @@ export function PathRuleSettingsDialog() {
         }
     }, []);
 
-    useEffect(() => {
-        if (open) void loadRules();
-    }, [open, loadRules]);
+    function handleOpenChange(next: boolean) {
+        setOpen(next);
+        if (next) void loadRules();
+    }
 
     const visibleRules = useMemo(
         () => (roleFilter === "ALL" ? rules : rules.filter((r) => r.role === roleFilter)),
@@ -164,7 +165,7 @@ export function PathRuleSettingsDialog() {
     }
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
                 <Button variant={"ghost"} className="w-full justify-start gap-2">
                     <ShieldAlert className="w-4 h-4" />

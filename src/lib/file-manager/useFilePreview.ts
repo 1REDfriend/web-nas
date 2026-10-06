@@ -25,13 +25,11 @@ export function useFilePreview({
     const [previewError, setPreviewError] = useState<string | null>(null);
 
     const activePath = activeFile?.path || "";
+    // Folders and trash items have nothing to preview
+    const canPreview = !!activePath && activeFile?.type !== "directory" && !activePath.startsWith("/trash");
 
     useEffect(() => {
-        if (!activePath || activeFile?.type === "directory" || activePath.startsWith("/trash")) {
-            setPreviewContent(null);
-            setPreviewSize(null);
-            return;
-        }
+        if (!canPreview) return;
 
         const controller = new AbortController();
 
@@ -66,12 +64,12 @@ export function useFilePreview({
 
         loadPreview();
         return () => controller.abort();
-    }, [activePath, activeFile?.type]);
+    }, [activePath, canPreview]);
 
     return {
-        previewContent,
-        previewSize,
-        previewLoading,
-        previewError,
+        previewContent: canPreview ? previewContent : null,
+        previewSize: canPreview ? previewSize : null,
+        previewLoading: canPreview && previewLoading,
+        previewError: canPreview ? previewError : null,
     };
 }
