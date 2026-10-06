@@ -1,57 +1,86 @@
 import { logerror } from "@/lib/logger";
 import { NextResponse } from "next/server";
 import { prisma } from '@/lib/db';
-import bcrypt from 'bcrypt';
+import { xUserPayload } from "@/lib/api/user/x-user-payload";
+import { hashPassword, validatePassword, verifyPassword } from "@/lib/security/credentials";
+import { clearSessionCookie, revokeAllSessions } from "@/lib/security/session";
+import { LimitRule, recordAttempt, retryAfterSeconds } from "@/lib/security/rate-limit";
 
+// Changes the password of the logged-in user (identified by the session, not the body)
 export async function POST(request: Request) {
-    const body = await request.json();
-    const { username , oldPass : oldPassword, newPass : newPassword} = body;
+    const payload = await xUserPayload();
+    if (!payload?.sub) {
+        return NextResponse.json(
+            { error: 'Please log in first' },
+            { status: 401 }
+        )
+    }
+
+    const limits: LimitRule[] = [{ key: `password:${payload.sub}`, limit: 5, windowMs: 15 * 60 * 1000 }];
 
     try {
-        if (!username || !oldPassword || !newPassword) {
+        const body = await request.json().catch(() => ({}));
+        const { oldPass: oldPassword, newPass: newPassword } = body;
+
+        if (typeof oldPassword !== "string" || !oldPassword) {
             return NextResponse.json(
-                { error: 'Username and password are required' },
+                { error: 'Current password is required' },
                 { status: 400 }
             )
         }
 
+        const problem = validatePassword(newPassword);
+        if (problem) {
+            return NextResponse.json({ error: problem }, { status: 400 });
+        }
+
+        if (newPassword === oldPassword) {
+            return NextResponse.json(
+                { error: 'New password must be different from the current one' },
+                { status: 400 }
+            )
+        }
+
+        const wait = retryAfterSeconds(limits);
+        if (wait > 0) {
+            return NextResponse.json(
+                { error: `Too many failed attempts. Try again in ${Math.ceil(wait / 60)} minute(s).` },
+                { status: 429, headers: { 'Retry-After': String(wait) } }
+            );
+        }
+
         const user = await prisma.user.findUnique({
-            where: {username : username}
+            where: { id: payload.sub }
         })
 
-        if (!user) {
+        if (!user || !(await verifyPassword(oldPassword, user.passwordHash))) {
+            recordAttempt(limits);
             return NextResponse.json(
-                { error : 'Username or Password Invalid'},
+                { error : 'Current password is incorrect'},
                 { status: 400}
             );
         }
-
-        const isUser = await bcrypt.compare(oldPassword, user.passwordHash);
-
-        if (!isUser) {
-            return NextResponse.json(
-                { error : 'Username or Password Invalid'},
-                { status: 400}
-            );
-        }
-
-        const newPasswordHash = await bcrypt.hash(newPassword, 11)
 
         await prisma.user.update({
-            where: {username : username},
-            data: {passwordHash: newPasswordHash}
+            where: { id: user.id },
+            data: {
+                passwordHash: await hashPassword(newPassword),
+                mustChangePassword: false,
+            }
         })
 
-        await prisma.activeSession.deleteMany({
-            where: {id : user.id}
-        })
+        // Every device, including this one, has to log in again with the new password
+        await revokeAllSessions(user.id);
 
-        return NextResponse.json(
+        const response = NextResponse.json(
             {
-                message: 'Password Change successful',
-                user: username
+                message: 'Password changed. Please log in again.',
+                user: user.username
             }
         )
+        clearSessionCookie(response);
+
+        return response;
     } catch (err : unknown) {
         logerror("Old Password Change Failed : " + err);
         return NextResponse.json(

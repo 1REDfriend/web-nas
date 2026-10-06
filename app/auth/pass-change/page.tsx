@@ -5,96 +5,72 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label";
 import { passChange } from "@/lib/api/auth/pass-change";
-import { logerror } from "@/lib/logger";
+import { userLoginCheck } from "@/lib/api/user/userLoginCheck";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-
-type LoginResponse =
-    | {
-        message: string;
-        user?: { name?: string } | string;
-    };
+import { useEffect, useState } from "react";
 
 export default function PassChange() {
-
-    const [username, setUsername] = useState("");
     const [oldPassword, setOldPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
 
     const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState<string | null>(null);
+    const [mustChange, setMustChange] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [userName, setUserName] = useState<string | null>(null);
 
     const router = useRouter();
 
+    useEffect(() => {
+        userLoginCheck().then((status) => {
+            if (!status.login) {
+                router.push("/auth/login");
+                return;
+            }
+            setMustChange(status.mustChangePassword);
+        });
+    }, [router]);
+
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
-        setMessage(null);
         setError(null);
-        setUserName(null);
 
-        if (!username || !oldPassword || !newPassword || !confirmPassword) {
-            setError("Please enter both your username and password.");
+        if (!oldPassword || !newPassword || !confirmPassword) {
+            setError("Please fill in every field.");
             return;
         }
 
         if (newPassword != confirmPassword) {
-            setError("Confirm password not same!")
+            setError("New password and confirmation do not match.")
             return
         }
 
-        try {
-            setLoading(true);
+        setLoading(true);
+        const result = await passChange(oldPassword, newPassword);
+        setLoading(false);
 
-            const data: LoginResponse = await passChange(username, oldPassword, newPassword);
-
-            setMessage(data?.message || "Login successful");
-
-            if (typeof data?.user === "string") {
-                setUserName(data.user);
-            } else if (data?.user && typeof data.user === "object") {
-                setUserName(data.user.name ?? null);
-            }
-
-            setUsername("");
-            setOldPassword("");
-            setNewPassword("");
-            setConfirmPassword("");
-            router.push("/auth/login");
-        } catch (err) {
-            logerror(err + "");
-            setError("An error occurred connecting to the server.");
-        } finally {
-            setLoading(false);
+        if (!result.ok) {
+            setError(result.error);
+            return;
         }
+
+        router.push("/auth/login");
     }
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-50 px-4">
             <Card className="w-full max-w-md border-white/10 bg-slate-950/80 backdrop-blur">
                 <CardHeader>
-                    <CardTitle>Pass Change</CardTitle>
+                    <CardTitle>Change Password</CardTitle>
                     <CardDescription>
-                        passchange in with your account
+                        {mustChange
+                            ? "Your account uses a temporary password. Set your own password to continue."
+                            : "You will be logged out of every device after the change."}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <form className="space-y-4" onSubmit={handleSubmit}>
                         <div className="space-y-1">
-                            <Label htmlFor="username">Username</Label>
-                            <Input
-                                id="username"
-                                autoComplete="username"
-                                placeholder="yourname"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                            />
-                        </div>
-
-                        <div className="space-y-1">
-                            <Label htmlFor="password">Old Password</Label>
+                            <Label htmlFor="oldPassword">Current Password</Label>
                             <Input
                                 id="oldPassword"
                                 type="password"
@@ -106,23 +82,23 @@ export default function PassChange() {
                         </div>
 
                         <div className="space-y-1">
-                            <Label htmlFor="password">New Password</Label>
+                            <Label htmlFor="newPassword">New Password</Label>
                             <Input
                                 id="newPassword"
                                 type="password"
-                                autoComplete="current-password"
-                                placeholder="••••••••"
+                                autoComplete="new-password"
+                                placeholder="At least 8 characters"
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
                             />
                         </div>
 
                         <div className="space-y-1">
-                            <Label htmlFor="password">Confirm Password</Label>
+                            <Label htmlFor="confirmPassword">Confirm New Password</Label>
                             <Input
                                 id="confirmPassword"
                                 type="password"
-                                autoComplete="current-password"
+                                autoComplete="new-password"
                                 placeholder="••••••••"
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -135,27 +111,16 @@ export default function PassChange() {
                             </p>
                         )}
 
-                        {message && (
-                            <div className="mt-1 text-xs text-emerald-400 space-y-1">
-                                <p>{message}</p>
-                                {userName && (
-                                    <p>
-                                        User: <span className="font-semibold">{userName}</span>
-                                    </p>
-                                )}
-                            </div>
-                        )}
-
                         <Button
                             type="submit"
                             className="w-full mt-2"
                             disabled={loading}
                         >
-                            {loading ? "Changing in..." : "Change Please"}
+                            {loading ? "Changing..." : "Change Password"}
                         </Button>
                     </form>
                 </CardContent>
             </Card>
         </div>
     )
-} 
+}

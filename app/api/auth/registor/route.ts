@@ -1,106 +1,45 @@
 import { NextResponse } from "next/server";
-import bcrypt from 'bcrypt';
 import { prisma } from '@/lib/db';
 import { log, logerror } from "@/lib/logger";
-import { cookies } from "next/headers";
-import jwt, { JwtPayload } from "jsonwebtoken";
-import { ENV } from "@/lib/ENV";
+import { hashPassword, validatePassword, validateUsername } from "@/lib/security/credentials";
 
+// First-run setup only: creates the first account as ADMIN. Once any user
+// exists, accounts are created by an admin via /api/admin/user/create.
 export async function POST(request: Request) {
-    const body = await request.json();
-    const { username, password } = body;
-
     try {
-        if (!username || !password) {
-            return NextResponse.json(
-                { error: 'Username and password are required' },
-                { status: 400 }
-            );
+        const body = await request.json().catch(() => ({}));
+        const { username, password } = body;
+
+        const problem = validateUsername(username) ?? validatePassword(password);
+        if (problem) {
+            return NextResponse.json({ error: problem }, { status: 400 });
         }
 
-        const existingUser = await prisma.user.findUnique({
-            where: { username: username }
+        const passwordHash = await hashPassword(password);
+
+        const created = await prisma.$transaction(async (tx) => {
+            if ((await tx.user.count()) > 0) return null;
+
+            return tx.user.create({
+                data: {
+                    username,
+                    passwordHash,
+                    role: 'ADMIN',
+                }
+            });
         });
 
-        const admin = await prisma.user.findMany({
-            where: { role: "ADMIN" }
-        })
-
-        if (admin.length > 0) {
-            const cookieStore = await cookies();
-            const authCookie = cookieStore.get(ENV.TOKEN_COOKIE);
-
-            if (!authCookie?.value) {
-                return NextResponse.json(
-                    { error: 'Unauthorized: Missing token' },
-                    { status: 401 }
-                );
-            }
-
-            if (authCookie?.value) {
-                let userJwtPayload: string | JwtPayload;
-                try {
-                    userJwtPayload = jwt.verify(authCookie.value, ENV.JWT_SECRET);
-                } catch (err: unknown) {
-                    logerror("[JWT FAILED] : " + err);
-                    return NextResponse.json(
-                        { error: 'Internal Error.' },
-                        { status: 500 }
-                    )
-                }
-
-                if (typeof userJwtPayload === 'object' && 'id' in userJwtPayload) {
-                    const userId = userJwtPayload.id;
-
-                    const user = await prisma.user.findUnique({
-                        where: { id: userId }
-                    });
-
-                    if (!user) {
-                        return NextResponse.json(
-                            { error: 'Unauthorized: User not found' },
-                            { status: 401 }
-                        );
-                    }
-
-                    if (user.role != "ADMIN") {
-                        return NextResponse.json(
-                            { error: 'Unauthorized: User not allow permission' },
-                            { status: 401 }
-                        );
-                    }
-                }
-            }
-        }
-
-        if (existingUser) {
+        if (!created) {
             return NextResponse.json(
-                { error: 'Username already exists' },
-                { status: 409 }
+                { error: 'Registration is closed. Ask an admin to create your account.' },
+                { status: 403 }
             );
         }
 
-        if (password.length < 6) {
-            return NextResponse.json(
-                { error: 'Password must be at least 6 characters long' },
-                { status: 400 }
-            );
-        }
-
-        const hashedPassword = await bcrypt.hash(password, 11);
-
-        await prisma.user.create({
-            data: {
-                username: username,
-                passwordHash: hashedPassword,
-                role: admin.length > 0 ? 'USER' : 'ADMIN'
-            }
-        });
-
-        log("Registration successful for : " + username);
+        log("First admin registered : " + username);
 
         return NextResponse.json(
-            { message: 'User registered successfully' },
+            { message: 'Admin account created' },
             { status: 201 }
         );
     } catch (err: unknown) {

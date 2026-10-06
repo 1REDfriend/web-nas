@@ -23,6 +23,7 @@ model User {
   passwordHash String @map("password_hash")
   gmail String? @map("gmail")
   role Role @default(GUEST)
+  mustChangePassword Boolean @default(false) @map("must_change_password")
   createdAt DateTime @default(now()) @map("created_at")
 
   pathMaps PathMap[]
@@ -35,10 +36,11 @@ model User {
 }
 
 model ActiveSession {
-  id String @id @default(cuid())
-  token String
+  id String @id @default(cuid())          // also the JWT "jti" claim
+  token String                            // sha256 of the issued JWT
   userAgent String
   created_at DateTime @default(now()) @map("created_at")
+  expiresAt DateTime @default(now()) @map("expires_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String @map("user_id")

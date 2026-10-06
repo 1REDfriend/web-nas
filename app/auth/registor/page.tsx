@@ -55,7 +55,7 @@ export default function RegisterPage() {
             const data = await res.json();
 
             if (!res.ok) {
-                setError(data?.message || "Unsuccessful membership application");
+                setError(data?.error || data?.message || "Unsuccessful membership application");
                 return;
             }
 

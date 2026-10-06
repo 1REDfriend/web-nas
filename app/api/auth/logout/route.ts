@@ -1,23 +1,21 @@
-import { ENV } from "@/lib/ENV";
+import { xUserPayload } from "@/lib/api/user/x-user-payload";
 import { logerror } from "@/lib/logger";
+import { clearSessionCookie, revokeSession } from "@/lib/security/session";
 import { NextResponse } from "next/server";
 
-export async function GET() {
+async function logout() {
     try {
+        // proxy.ts only sets the payload for a valid session
+        const payload = await xUserPayload();
+        if (payload?.sid) {
+            await revokeSession(payload.sid);
+        }
+
         const response = NextResponse.json(
             { message : "Logout Successful"},
             { status : 200}
         );
-
-        response.cookies.set({
-            name: ENV.TOKEN_COOKIE,
-            value: '',
-            maxAge: 0,
-            httpOnly: true,
-            secure: true,
-            sameSite: 'strict',
-            path: '/',
-        });
+        clearSessionCookie(response);
 
         return response;
     } catch (err : unknown) {
@@ -27,4 +25,12 @@ export async function GET() {
             { status : 500}
         )
     }
+}
+
+export async function POST() {
+    return logout();
+}
+
+export async function GET() {
+    return logout();
 }

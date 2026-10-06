@@ -17,21 +17,22 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 
 export default function CreateUserPage() {
     const [username, setUsername] = useState("");
-    const [role, setRole] = useState<"ADMIN" | "USER">()
+    const [role, setRole] = useState<"ADMIN" | "USER" | "GUEST">()
 
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
-    const [password, setPassword] = useState("")
+    const [created, setCreated] = useState<{ username: string; password: string } | null>(null)
     const [error, setError] = useState<string | null>(null);
 
     const handleSelect = (value: string) => {
-        setRole(value as "ADMIN" | "USER");
+        setRole(value as "ADMIN" | "USER" | "GUEST");
     };
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         setMessage(null);
         setError(null);
+        setCreated(null);
 
         if (!username || !role) {
             setError("Please enter both your username or role.");
@@ -52,13 +53,12 @@ export default function CreateUserPage() {
             const data = await res.json();
 
             if (!res.ok) {
-                setError(data?.message || "Unsuccessful membership application");
+                setError(data?.error || data?.message || "Unsuccessful membership application");
                 return;
             }
 
             setMessage(data?.message || "User registered successfully");
-            setPassword(data?.password);
-            setUsername(data?.username);
+            setCreated({ username: data.user.username, password: data.user.tempPassword });
             setUsername("");
         } catch (err) {
             logerror(err + "");
@@ -100,6 +100,7 @@ export default function CreateUserPage() {
                                         <SelectLabel>Role</SelectLabel>
                                         <SelectItem value="ADMIN">ADMIN</SelectItem>
                                         <SelectItem value="USER">USER</SelectItem>
+                                        <SelectItem value="GUEST">GUEST</SelectItem>
                                     </SelectGroup>
                                 </SelectContent>
                             </Select>
@@ -111,12 +112,15 @@ export default function CreateUserPage() {
                             </p>
                         )}
 
-                        {message && (
-                            <p className="flex text-xs text-emerald-400 mt-1">
-                                {message}
-                                <span>Username: {username}</span> 
-                                <span>Password: {password}</span> 
-                            </p>
+                        {message && created && (
+                            <div className="space-y-1 rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-300">
+                                <p>{message}</p>
+                                <p>Username: <span className="font-mono">{created.username}</span></p>
+                                <p>Temporary password: <span className="font-mono select-all">{created.password}</span></p>
+                                <p className="text-emerald-400/80">
+                                    Copy it now, it is shown only once. The user must change it at first login.
+                                </p>
+                            </div>
                         )}
 
                         <Button

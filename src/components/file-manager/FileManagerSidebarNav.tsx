@@ -9,6 +9,8 @@ import { SharelinkRoute } from "./SharelinkRoute";
 import { PathRuleSettingsDialog } from "./PathRuleSettingsDialog";
 import { fetchCurrentRole } from "@/lib/api/admin/path-rule.service";
 import { RuleRole } from "@/lib/security/file-actions";
+import { LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 type FileManagerSidebarNavProps = {
     selectedFolder: string;
@@ -23,6 +25,12 @@ export function FileManagerSidebarNav({
     // const [free, setFree] = useState(0);
     const [used, setUsed] = useState(0);
     const [role, setRole] = useState<RuleRole | null>(null);
+    const router = useRouter();
+
+    async function handleLogout() {
+        await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
+        router.push("/auth/login");
+    }
     // const [loading, setLoading] = useState(true);
 
     const usagePercent = total > 0 ? (used / total) * 100 : 0;
@@ -87,6 +95,10 @@ export function FileManagerSidebarNav({
                     <SharelinkRoute/>
                     <RootPathSettingsDialog />
                     {role === "ADMIN" && <PathRuleSettingsDialog />}
+                    <Button variant={"ghost"} className="w-full justify-start gap-2" onClick={handleLogout}>
+                        <LogOut className="w-4 h-4" />
+                        <span>Log out</span>
+                    </Button>
                 </div>
             </div>
 
