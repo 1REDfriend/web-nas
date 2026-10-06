@@ -3,6 +3,7 @@ import formidable, { errors as formidableErrors } from 'formidable';
 import { NextApiRequest, NextApiResponse } from 'next';
 import path from 'path';
 import { log, logerror } from '@/lib/logger';
+import { recordRecent } from '@/lib/service/tracked-paths';
 import {
     AuthorizedPath,
     FileAccessError,
@@ -109,6 +110,7 @@ export default async function handler(
         await fs.move(tempPath, target.physicalPath);
 
         log("[UPLOAD] : " + target.virtualPath)
+        await recordRecent(user.id, target.virtualPath, "uploaded");
 
         return res.status(200).json(
             { message: 'File uploaded successfully', filePath: target.virtualPath }

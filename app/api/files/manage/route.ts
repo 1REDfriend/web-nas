@@ -6,6 +6,7 @@ import { moveAction } from "@/lib/routes/filesystem/actions/move";
 import { copyAction } from "@/lib/routes/filesystem/actions/copy";
 import { placeAction } from "@/lib/routes/filesystem/actions/place";
 import { deleteFromTrashAction, moveToTrashAction } from "@/lib/routes/filesystem/actions/delete";
+import { recordRecent } from "@/lib/service/tracked-paths";
 import {
     authorizeNewEntry,
     authorizePath,
@@ -56,7 +57,7 @@ export async function POST(request: Request) {
                     joinVirtual(path.posix.dirname(source.virtualPath), validateEntryName(body.newName)),
                     "RENAME"
                 );
-                result = await renameAction(source, target);
+                result = await renameAction(user.id, source, target);
                 break;
             }
 
@@ -80,6 +81,7 @@ export async function POST(request: Request) {
 
                 log(`[Manage] Copy: ${source.virtualPath} -> ${target.virtualPath}`);
                 result = await copyAction(source, target);
+                await recordRecent(user.id, target.virtualPath, "copied");
                 break;
             }
 
@@ -91,6 +93,7 @@ export async function POST(request: Request) {
                     path.posix.basename(requested)
                 );
                 result = await placeAction(target, body.type || "", body.content || "");
+                await recordRecent(user.id, target.virtualPath, "created");
                 break;
             }
 

@@ -12,7 +12,6 @@ import {
 } from "@/components/file-manager/config";
 import { toast } from "sonner";
 
-import { useFileCategories } from "./useFileCategories";
 import { useFileList } from "./useFileList";
 import { useFilePreview } from "./useFilePreview";
 import { useFileClipboard } from "./useFileClipboard";
@@ -36,9 +35,6 @@ export function useFileManager() {
 
     const urlPath = (searchParams?.get("path") as string | null) ?? null;
 
-    // --- categories ---
-    const { categoryPaths } = useFileCategories();
-
     // --- list & derived state ---
     const {
         files,
@@ -57,7 +53,6 @@ export function useFileManager() {
         page,
         query,
         urlPath,
-        categoryPaths,
         refetchTrigger,
     });
 
@@ -224,8 +219,7 @@ export function useFileManager() {
 
     function handleOpenDirectory(path: string) {
         let baseFolderPath: string | null =
-            categoryPaths.find((c) => c.id === selectedFolder)?.rootPath ??
-            (FOLDER_PATHS as Record<string, string | null>)[selectedFolder];
+            (FOLDER_PATHS as Record<string, string | null>)[selectedFolder] ?? null;
 
         if (baseFolderPath && !baseFolderPath.startsWith("/")) {
             baseFolderPath = `/${baseFolderPath}`;
@@ -273,7 +267,6 @@ export function useFileManager() {
     }
 
     const currentFolderLabel =
-        categoryPaths.find((c) => c.id === selectedFolder)?.rootPath ??
         FOLDERS.find((f) => f.id === selectedFolder)?.label ??
         "Files";
 
@@ -285,7 +278,6 @@ export function useFileManager() {
         meta,
         activeFilePath,
         setActiveFilePath,
-        categoryPaths,
         query,
         setQuery,
         page,

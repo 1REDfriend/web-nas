@@ -1,31 +1,14 @@
 import fs from 'fs-extra';
 import { logerror } from '@/lib/logger';
-import { prisma } from '@/lib/db';
+import { moveTrackedPaths, recordRecent } from '@/lib/service/tracked-paths';
 import { AuthorizedPath } from '@/lib/security/path-guard';
 
 export async function moveAction(userId: string, source: AuthorizedPath, target: AuthorizedPath) {
     try {
         await fs.move(source.physicalPath, target.physicalPath, { overwrite: false });
 
-        await prisma.starPath.updateMany({
-            where: {
-                userId: userId,
-                rootPath: source.virtualPath
-            },
-            data: {
-                rootPath: target.virtualPath
-            }
-        });
-
-        await prisma.shareLink.updateMany({
-            where: {
-                userId: userId,
-                rootPath: source.virtualPath
-            },
-            data: {
-                rootPath: target.virtualPath
-            }
-        });
+        await moveTrackedPaths(userId, source.virtualPath, target.virtualPath);
+        await recordRecent(userId, target.virtualPath, "moved");
 
         return { success: true, message: "File moved successfully", newPath: target.virtualPath };
 

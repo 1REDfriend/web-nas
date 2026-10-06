@@ -2,6 +2,7 @@ import { logerror } from "@/lib/logger";
 import { NextResponse } from "next/server";
 import { authorizePath, fileAccessErrorResponse, getRequestUser } from "@/lib/security/path-guard";
 import { createDownloadResponse } from "@/lib/routes/filesystem/download-response";
+import { recordRecent } from "@/lib/service/tracked-paths";
 
 // Share-link downloads live in /api/public/share/[id]/download
 export async function POST(request: Request) {
@@ -21,9 +22,11 @@ export async function POST(request: Request) {
             )
         }
 
-        const { physicalPath } = await authorizePath(user, reqFile, "DOWNLOAD", { includeSubtree: true });
+        const { physicalPath, virtualPath } = await authorizePath(user, reqFile, "DOWNLOAD", { includeSubtree: true });
 
-        return await createDownloadResponse(physicalPath);
+        const response = await createDownloadResponse(physicalPath);
+        await recordRecent(user.id, virtualPath, "downloaded");
+        return response;
     } catch (err: unknown) {
         const accessResponse = fileAccessErrorResponse(err);
         if (accessResponse) return accessResponse;

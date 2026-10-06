@@ -6,6 +6,7 @@ import { getUserRootPaths } from '@/lib/service/user-path-service';
 import { getDirectoryFiles } from '@/lib/service/file-brower-service';
 import { xUserPayload } from '@/lib/api/user/x-user-payload';
 import { cleanTrashItemsByUserId } from '@/lib/utils/trash/trash-clean';
+import { listRecent, listStarred, markStarred } from '@/lib/service/tracked-paths';
 import {
     authorizePath,
     fileAccessErrorResponse,
@@ -37,6 +38,23 @@ export async function GET(request: Request) {
         if (!ROOT_STORAGE_PATH) {
             logerror("[FATAL ERROR] STORAGE_ROOT environment variable is not set.");
             return NextResponse.json({ error: "Internal Server Configuration Error" }, { status: 500 });
+        }
+
+        // --- Case 0: Starred / Recent views (span every folder the user can see) ---
+        const view = searchParams.get('view');
+        if (!rawReqPath && (view === 'starred' || view === 'recent')) {
+            const user = await getAccessUser(userId);
+            if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+            let data = view === 'starred' ? await listStarred(user) : await listRecent(user);
+            if (search) {
+                data = data.filter((f) => f.name.toLowerCase().includes(search.toLowerCase()));
+            }
+
+            return NextResponse.json({
+                data,
+                meta: { totalFiles: data.length, currentPage: 1, itemsPerPage: Math.max(data.length, 1) }
+            });
         }
 
         // --- Case 1: List Root Paths (No path param) ---
@@ -74,7 +92,7 @@ export async function GET(request: Request) {
             reqPath = target.virtualPath;
         }
 
-        const { data, totalFiles } = await getDirectoryFiles({
+        const { data: entries, totalFiles } = await getDirectoryFiles({
             physicalPath,
             reqPath,
             page,
@@ -83,6 +101,8 @@ export async function GET(request: Request) {
             sortBy,
             order
         });
+
+        const data = reqPath === "/trash" ? entries : await markStarred(user.id, entries);
 
         return NextResponse.json({
             data,

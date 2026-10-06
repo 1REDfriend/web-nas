@@ -78,12 +78,19 @@ export function UploadFileManager({
             const dirEntry = entry as FileSystemDirectoryEntry;
             const dirReader = dirEntry.createReader();
 
-            const entries = await new Promise<FileSystemEntry[]>((resolve, reject) => {
-                dirReader.readEntries(
-                    (results) => resolve(results),
-                    (err) => reject(err)
-                );
-            });
+            // readEntries returns the folder in batches (about 100 at a time in
+            // Chrome); keep reading until it returns an empty batch
+            const entries: FileSystemEntry[] = [];
+            for (;;) {
+                const batch = await new Promise<FileSystemEntry[]>((resolve, reject) => {
+                    dirReader.readEntries(
+                        (results) => resolve(results),
+                        (err) => reject(err)
+                    );
+                });
+                if (batch.length === 0) break;
+                entries.push(...batch);
+            }
 
             const files: File[] = [];
             for (const childEntry of entries) {

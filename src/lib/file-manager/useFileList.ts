@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import * as fileService from "@/lib/api/file.service";
-import { categoryPath as CategoryPath } from "@/interfaces/path";
 import { logerror } from "@/lib/logger";
 import {
     FOLDER_PATHS,
@@ -15,7 +14,6 @@ type UseFileListParams = {
     page: number;
     query: string;
     urlPath: string | null;
-    categoryPaths: CategoryPath[];
     refetchTrigger: number;
 };
 
@@ -38,7 +36,6 @@ export function useFileList({
     page,
     query,
     urlPath,
-    categoryPaths,
     refetchTrigger,
 }: UseFileListParams): UseFileListResult {
     const [files, setFiles] = useState<FileItem[]>([]);
@@ -56,8 +53,7 @@ export function useFileList({
                 setListError(null);
 
                 let baseFolderPath: string | null =
-                    categoryPaths.find((c) => c.id === selectedFolder)?.rootPath ??
-                    (FOLDER_PATHS as Record<string, string | null>)[selectedFolder];
+                    (FOLDER_PATHS as Record<string, string | null>)[selectedFolder] ?? null;
 
                 if (baseFolderPath && !baseFolderPath.startsWith("/")) {
                     baseFolderPath = `/${baseFolderPath}`;
@@ -73,9 +69,15 @@ export function useFileList({
                     folderPath = null;
                 }
 
+                const view =
+                    selectedFolder === "starred" || selectedFolder === "recent"
+                        ? selectedFolder
+                        : undefined;
+
                 const { data, meta } = await fileService.fetchFiles(
                     {
                         folderPath,
+                        view,
                         page,
                         query: query.trim(),
                         sortBy: "name",
@@ -112,25 +114,14 @@ export function useFileList({
         loadFiles();
 
         return () => controller.abort();
-    }, [selectedFolder, page, query, urlPath, refetchTrigger, categoryPaths]);
+    }, [selectedFolder, page, query, urlPath, refetchTrigger]);
 
-    const visibleFiles = useMemo(() => {
-        let data = [...files];
-
-        if (selectedFolder === "starred") {
-            data = data.filter((f) => f.isStarred);
-        } else if (selectedFolder === "recent") {
-            data = data
-                .slice()
-                .sort((a, b) => {
-                    const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-                    const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-                    return bTime - aTime;
-                });
-        }
-
-        return data;
-    }, [files, selectedFolder]);
+    // The server already returns the Starred / Recent lists; only drop items
+    // un-starred while the Starred view is open
+    const visibleFiles = useMemo(
+        () => (selectedFolder === "starred" && !urlPath ? files.filter((f) => f.isStarred) : files),
+        [files, selectedFolder, urlPath]
+    );
 
     const activeFile = useMemo(() => {
         if (!visibleFiles.length) return null;

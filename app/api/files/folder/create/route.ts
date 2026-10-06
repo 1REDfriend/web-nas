@@ -5,6 +5,7 @@ import {
     getRequestUser,
 } from "@/lib/security/path-guard";
 import fs from "fs-extra";
+import { recordRecent } from "@/lib/service/tracked-paths";
 import { NextResponse } from "next/server";
 
 export async function POST(request:Request) {
@@ -39,6 +40,7 @@ export async function POST(request:Request) {
 
         log("[Create Folder Path] :", target.virtualPath)
         await fs.ensureDir(target.physicalPath);
+        await recordRecent(user.id, target.virtualPath, "created");
 
         return NextResponse.json(
             { success: true, message: "Create folder Successful"}

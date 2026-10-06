@@ -31,6 +31,7 @@ model User {
   starPaths StarPath[]
   trashShedule TrashShedule[]
   shareLink ShareLink[]
+  recentItems RecentItem[]
 
   @@map("users")
 }
@@ -128,4 +129,19 @@ model AppSetting {
   value       String
 
   @@map("app_settings")
+}
+
+// Files and folders a user recently opened, downloaded or changed (Recent view)
+model RecentItem {
+  id          String        @id @default(cuid())
+  path        String        @map("path")                // virtual path under STORAGE_ROOT
+  action      String        @map("action")
+  usedAt      DateTime      @default(now()) @map("used_at")
+
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String        @map("user_id")
+
+  @@unique([userId, path], name: "idx_recent_user_path")
+  @@index([userId, usedAt], name: "idx_recent_user_used_at")
+  @@map("recent_items")
 }

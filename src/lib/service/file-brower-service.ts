@@ -77,7 +77,7 @@ export async function getDirectoryFiles({
     }
 
     return {
-        data: resultFiles.filter(Boolean),
+        data: resultFiles.filter((f): f is NonNullable<typeof f> => f !== null),
         totalFiles
     };
 }

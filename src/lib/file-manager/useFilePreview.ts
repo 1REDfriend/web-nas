@@ -27,7 +27,7 @@ export function useFilePreview({
     const activePath = activeFile?.path || "";
 
     useEffect(() => {
-        if (!activePath || activeFile?.type === "directory") {
+        if (!activePath || activeFile?.type === "directory" || activePath.startsWith("/trash")) {
             setPreviewContent(null);
             setPreviewSize(null);
             return;

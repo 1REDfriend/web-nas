@@ -43,6 +43,8 @@ async function handleApiError(res: Response) {
 
 type FetchFilesParams = {
     folderPath: string | null;
+    // Starred / Recent span all folders; ignored when folderPath is set
+    view?: "starred" | "recent";
     page: number;
     query: string;
     sortBy: string;
@@ -56,6 +58,8 @@ export async function fetchFiles(
     const urlParams = new URLSearchParams();
     if (params.folderPath) {
         urlParams.set("path", params.folderPath);
+    } else if (params.view) {
+        urlParams.set("view", params.view);
     }
     urlParams.set("page", String(params.page));
     if (params.query.trim()) {
@@ -218,41 +222,6 @@ export async function upload(
     }
 }
 
-
-export async function addFolderFavorite(
-    path?: string,
-    favorite?: string
-) {
-    const params = new URLSearchParams();
-    if (path) params.set("path", path);
-    if (favorite) params.set("like", favorite);
-
-    let res;
-
-    if (path || favorite) {
-        res = await fetch(`${API_BASE}/folder?${params.toString()}`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            }
-        });
-    } else {
-        res = await fetch(`${API_BASE}/folder`, {
-            method: "GET",
-            headers: {
-                "Content-Type": "application/json",
-            }
-        });
-    }
-
-
-    await handleApiError(res);
-    const data = await res.json();
-    if (!data.success && !data.message) {
-        throw new Error(data.error || "Cannot add folder");
-    }
-    return data;
-}
 
 export async function pasteFiles(
     files: { path: string; name: string }[],
