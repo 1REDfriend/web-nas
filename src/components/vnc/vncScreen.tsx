@@ -1,32 +1,22 @@
 'use client';
 
 import { ENV } from '@/lib/ENV';
-import { useMemo } from 'react';
 
+// Web terminal (webssh behind Caddy on :7255). Defaults to the host the file
+// manager was opened on, so the login cookie is sent and Caddy lets it through.
+// Only rendered after the user opens the terminal, so `window` is available.
 export default function VncPage() {
-    const src = useMemo(() => {
-        // const vncHost = 'localhost';
-        // const vncPort = '6081';
-
-        // const params = new URLSearchParams({
-        //     host: vncHost,
-        //     port: vncPort,
-        //     path: 'websockify',
-        //     encrypt: '0',
-        //     autoconnect: '1',
-        //     resize: 'scale',
-        // });
-
-        return `https://${ENV.TERMINAL_HOST}`;
-    }, []);
+    const host = ENV.TERMINAL_HOST || (typeof window !== 'undefined' ? `${window.location.hostname}:7255` : '');
 
     return (
         <div className="w-full h-screen bg-black">
-            <iframe
-                src={src}
-                className="w-full h-full border-0"
-                allow="fullscreen"
-            />
+            {host && (
+                <iframe
+                    src={`https://${host}`}
+                    className="w-full h-full border-0"
+                    allow="fullscreen"
+                />
+            )}
         </div>
     );
 }

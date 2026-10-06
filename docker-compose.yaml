@@ -3,14 +3,21 @@ services:
     build:
       context: ./
       dockerfile: Dockerfile
+    # Files are created as this host user; it can only touch what that user may
+    user: "${PUID:-1000}:${PGID:-1000}"
     volumes:
-      - ./:/app
-      - /app/node_modules
-      - /:/host_root
+      # Database + trash/internal files (survive rebuilds)
+      - ./data:/app/data
+      # Only the shared data folder is visible, at the same path under /host_root,
+      # so folder assignments like "/mnt" keep working. Not the whole host.
+      - ${NAS_HOST_DIR:-/mnt}:/host_root${NAS_HOST_DIR:-/mnt}
     env_file:
       - ./.env
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
+      - DATABASE_URL=file:/app/data/main.sqlite
+      - STORAGE_INTERNAL=/app/data/storage
+      - STORAGE_ROOT=/host_root
     networks:
       - nas-network
     restart: unless-stopped
@@ -22,13 +29,14 @@ services:
     restart: unless-stopped
 
   caddy:
-    image: caddy:alpine
+    image: caddy:2-alpine
     restart: unless-stopped
     ports:
-      - "7255:7255"
-      - "5491:5491"
+      - "${WEBSSH_PORT:-7255}:7255"
+      - "${WEBNAS_PORT:-5491}:5491"
     volumes:
-      - ./CaddyFile:/etc/caddy/Caddyfile
+      - ./CaddyFile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
     networks:
       - nas-network
     depends_on:
@@ -38,3 +46,7 @@ services:
 networks:
   nas-network:
     driver: bridge
+
+volumes:
+  # Keeps Caddy's internal TLS certificates across restarts
+  caddy_data:

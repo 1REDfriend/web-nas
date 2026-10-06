@@ -98,26 +98,23 @@ export async function revokeAllSessions(userId: string) {
     await prisma.activeSession.deleteMany({ where: { userId } });
 }
 
-export function setSessionCookie(response: NextResponse, token: string) {
-    response.cookies.set({
+function cookieOptions(value: string, maxAge: number) {
+    return {
         name: ENV.TOKEN_COOKIE,
-        value: token,
-        maxAge: SESSION_TTL_SECONDS,
+        value,
+        maxAge,
         httpOnly: true,
         secure: true,
-        sameSite: "strict",
+        sameSite: "strict" as const,
         path: "/",
-    });
+        ...(ENV.COOKIE_DOMAIN ? { domain: ENV.COOKIE_DOMAIN } : {}),
+    };
+}
+
+export function setSessionCookie(response: NextResponse, token: string) {
+    response.cookies.set(cookieOptions(token, SESSION_TTL_SECONDS));
 }
 
 export function clearSessionCookie(response: NextResponse) {
-    response.cookies.set({
-        name: ENV.TOKEN_COOKIE,
-        value: "",
-        maxAge: 0,
-        httpOnly: true,
-        secure: true,
-        sameSite: "strict",
-        path: "/",
-    });
+    response.cookies.set(cookieOptions("", 0));
 }
