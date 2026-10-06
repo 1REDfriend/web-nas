@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
     InputGroup,
@@ -9,6 +12,7 @@ import { CreateFolderDialog } from "./CreateFolderDialog";
 import Link from "next/link";
 import { UploadFileManager } from "./UploadFileManager";
 import Image from "next/image";
+import { fetchCurrentRole } from "@/lib/api/admin/path-rule.service";
 
 type FileManagerTopBarProps = {
     query?: string;
@@ -29,6 +33,16 @@ export function FileManagerTopBar({
     onOpenTerminal,
     openTools,
 }: FileManagerTopBarProps) {
+    // The terminal is ADMIN-only (enforced by Caddy + /api/auth/terminal-check)
+    const [canUseTerminal, setCanUseTerminal] = useState(false);
+
+    const wantsTerminal = !!onOpenTerminal;
+
+    useEffect(() => {
+        if (!wantsTerminal) return;
+        fetchCurrentRole().then((role) => setCanUseTerminal(role === "ADMIN"));
+    }, [wantsTerminal]);
+
     return (
         <header className="flex z-9999 items-center justify-between w-full min-h-16 bg-red-500/5 border-b border-white/10 px-6 md:px-10 backdrop-blur" >
             {/* Logo */}
@@ -64,14 +78,16 @@ export function FileManagerTopBar({
 
                     {/* Actions */}
                     <div className="flex items-center gap-2">
-                        <Button
-                            onClick={onOpenTerminal}
-                            variant="outline"
-                            size="icon"
-                            className="border-white/10"
-                        >
-                            <TerminalSquare className="w-4 h-4" />
-                        </Button>
+                        {canUseTerminal && (
+                            <Button
+                                onClick={onOpenTerminal}
+                                variant="outline"
+                                size="icon"
+                                className="border-white/10"
+                            >
+                                <TerminalSquare className="w-4 h-4" />
+                            </Button>
+                        )}
                         <UploadFileManager currentPath={currentPath} onUploaded={onUploaded} />
                         <CreateFolderDialog currentPath="/" />
                     </div>

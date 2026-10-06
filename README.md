@@ -47,6 +47,8 @@ STORAGE_INTERNAL="your-storage_internal" => default use `storage`
 
 NEXT_PUBLIC_TERMINAL_HOST="your-next_public_terminal_host"
 
+> **NOTE** the web terminal (port 7255) is ADMIN-only: Caddy checks the file manager login before every request. Use the same host name as the file manager (e.g. both `192.168.1.104`), otherwise the browser does not send the login cookie and the terminal answers 401.
+
 PROTECTED_PATHS="/host_root/home/you/web-nas" => optional, comma-separated absolute paths that no role (not even ADMIN) can touch from the web UI
 
 ## Protected Folders
