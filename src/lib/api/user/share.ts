@@ -1,3 +1,5 @@
+import { FileItem } from "@/components/file-manager/config";
+
 export async function getShareLink() {
     try {
         const res = await fetch('/api/user/share', {
@@ -30,7 +32,10 @@ export async function createShareLink(filePath: string, expireAt?: Date | null, 
             })
         })
 
-        if (!res.ok) return { error: "Failed to create share" }
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}))
+            return { error: data.error || "Failed to create share" }
+        }
         const data = await res.json()
 
         return data
@@ -57,22 +62,32 @@ export async function deleteShareLink(id : string) {
     }
 }
 
-export async function fetchShareLinkId(
-    id : string
-) {
-    try {
-        const res = await fetch(`/api/user/share/id?id=${id}`, {
-            method: 'POST',
-            headers: {
-                "Content-Type": "application/json",
-            },
-        })
+export type PublicShareResponse = {
+    share: {
+        name: string;
+        isDirectory: boolean;
+        recursive: boolean;
+        expireAt: string | null;
+    };
+    path: string;
+    data: FileItem[];
+};
 
-        if (!res.ok) return { error: "Failed to fetch share" }
+// Public endpoint: works without login
+export async function fetchPublicShare(id: string, subPath: string = "/"): Promise<PublicShareResponse | { error: string }> {
+    try {
+        const params = new URLSearchParams({ path: subPath });
+        const res = await fetch(`/api/public/share/${encodeURIComponent(id)}?${params.toString()}`)
         const data = await res.json()
 
-        return data
+        if (!res.ok) return { error: data.error || "Failed to fetch share" }
+        return data as PublicShareResponse
     } catch {
         return { error: "Failed to fetch share" }
     }
+}
+
+export function publicShareDownloadUrl(id: string, subPath: string): string {
+    const params = new URLSearchParams({ path: subPath });
+    return `/api/public/share/${encodeURIComponent(id)}/download?${params.toString()}`
 }

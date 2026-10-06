@@ -3,7 +3,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import ptb from 'pretty-bytes'
 import { File as FileIcon, Folder, DownloadCloudIcon, InfoIcon } from "lucide-react";
 import { FileItem } from "./config";
-import * as fileService from "@/lib/api/file.service";
+import { publicShareDownloadUrl } from "@/lib/api/user/share";
 
 // Import Shadcn Context Menu
 import {
@@ -16,7 +16,6 @@ import {
 import { useRef, useState } from "react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Label } from "../ui/label";
-import { logerror } from "@/lib/logger";
 import prettyBytes from "pretty-bytes";
 
 type FileShareGridProps = {
@@ -47,22 +46,14 @@ export function FileShareGrid({
         setInfoOpen(true)
     }
 
-    async function onDownload( id: string ,file: FileItem) {
-        try {
-            const blob = await fileService.downloadShareFile(id ,file.path);
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = file.name;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
-        } catch (err) {
-            logerror(String(err));
-            alert(err instanceof Error ? err.message : "File download failed");
-        }
-
+    function onDownload(id: string, file: FileItem) {
+        // A plain link lets the browser stream the file to disk instead of buffering it
+        const a = document.createElement("a");
+        a.href = publicShareDownloadUrl(id, file.path);
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
     }
 
     return (

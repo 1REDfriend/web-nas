@@ -2,11 +2,11 @@ import { xUserPayload } from "@/lib/api/user/x-user-payload";
 import { logerror } from "@/lib/logger";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { fileExitsInDir, fileExitsUser } from "@/lib/routes/filesystem/fileExits";
-import { fileType } from "@/lib/routes/filesystem/fileType";
-import { getSafePath } from "@/lib/routes/filesystem/utils";
 import { setting } from "@/lib/ENV";
-import { authorizePath, fileAccessErrorResponse, getAccessUser } from "@/lib/security/path-guard";
+import { authorizePath, FileAccessError, fileAccessErrorResponse, getAccessUser } from "@/lib/security/path-guard";
+import { createShareId, isShareExpired, resolveShare } from "@/lib/security/share-access";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 export async function GET() {
     const userPayload = await xUserPayload();
@@ -21,40 +21,37 @@ export async function GET() {
     const userId = userPayload.sub;
 
     try {
-
-
         const rawShares = await prisma.shareLink.findMany({
-            where: { userId }
+            where: { userId },
+            orderBy: { createAt: 'desc' }
         });
 
         const userShare = await Promise.all(rawShares.map(async (shareLink) => {
             let status = 'Active';
-            const now = new Date();
+            let type: 'file' | 'folder' | null = null;
 
-            if (shareLink.expireAt && now > shareLink.expireAt) {
-                status = 'Expire';
+            if (isShareExpired(shareLink)) {
+                status = 'Expired';
             } else {
-                const pathExists = (await fileExitsUser(shareLink.userId, shareLink.rootPath)) &&
-                    (await fileExitsInDir(shareLink.rootPath));
-
-                if (!pathExists) {
-                    status = 'Invalid Path';
+                try {
+                    const resolved = await resolveShare(shareLink.id);
+                    type = resolved.isDirectory ? 'folder' : 'file';
+                } catch (err: unknown) {
+                    if (!(err instanceof FileAccessError)) throw err;
+                    status = 'Unavailable';
                 }
             }
 
-            const { userId, ...rest } = shareLink;
-
-            void userId
-
-            const type = await fileType(getSafePath(shareLink.rootPath))
-            const url = `${setting.frontend.shareURL}${shareLink.id}`
-
             return {
-                ...rest,
+                id: shareLink.id,
                 name: shareLink.rootPath,
                 type,
-                url,
-                status: status
+                url: `${setting.frontend.shareURL}${shareLink.id}`,
+                view: shareLink.view,
+                recursive: shareLink.recursive,
+                createAt: shareLink.createAt,
+                expiresAt: shareLink.expireAt,
+                status
             };
         }));
 
@@ -81,6 +78,17 @@ export async function POST(request: Request) {
         )
     }
 
+    let expireDate = new Date(Date.now() + setting.expireShareLink * DAY_MS);
+    if (expireAt !== undefined && expireAt !== null) {
+        expireDate = new Date(expireAt);
+        if (Number.isNaN(expireDate.getTime()) || expireDate.getTime() <= Date.now()) {
+            return NextResponse.json(
+                { error: 'Expiry date must be in the future' },
+                { status: 400 }
+            )
+        }
+    }
+
     const userPayload = await xUserPayload();
 
     if (!userPayload) {
@@ -105,19 +113,20 @@ export async function POST(request: Request) {
 
         const share = await prisma.shareLink.create({
             data : {
+                id: createShareId(),
                 user: {
                     connect: { id: userId }
                 },
                 rootPath: virtualPath,
-                recursive: recursive ?? null,
-                expireAt: expireAt ?? null
+                recursive: recursive === true,
+                expireAt: expireDate
             }
         })
 
-        const url = `/api/user/share/id/${share.id}`
+        const url = `${setting.frontend.shareURL}${share.id}`
 
         return NextResponse.json(
-            {sharelink:  url}
+            { sharelink: url, url, expireAt: share.expireAt }
         )
 
     } catch (err: unknown) {
@@ -155,12 +164,19 @@ export async function DELETE(request: Request) {
     const userId = userPayload.sub;
 
     try {
-        await prisma.shareLink.delete({
+        const { count } = await prisma.shareLink.deleteMany({
             where: {
                 userId,
                 id
             }
         })
+
+        if (count === 0) {
+            return NextResponse.json(
+                { error: 'Share link not found' },
+                { status: 404 }
+            )
+        }
 
         return NextResponse.json(
             {success: true, message: 'Delete link Successful'}

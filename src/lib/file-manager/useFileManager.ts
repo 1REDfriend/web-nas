@@ -261,9 +261,12 @@ export function useFileManager() {
             return false
         }
 
-        toast.success('Create Share Link Successful', {
-            description: data.url,
-            duration: 3000
+        const fullUrl = window.location.origin + data.url
+        void navigator.clipboard?.writeText(fullUrl).catch(() => undefined)
+
+        toast.success('Share link created and copied', {
+            description: fullUrl,
+            duration: 5000
         })
 
         return true

@@ -79,6 +79,7 @@ export async function middleware(request: NextRequest) {
 export const config = {
     matcher: [
         '/api/auth/user-check',
-        '/api/((?!auth|_next/static|_next/image|favicon.ico).*)'
+        // /api/public/* is reachable without login (share links); those routes do their own checks
+        '/api/((?!auth|public|_next/static|_next/image|favicon.ico).*)'
     ],
 };

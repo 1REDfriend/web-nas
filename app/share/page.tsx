@@ -41,11 +41,11 @@ import { useRouter } from "next/navigation"
 type ShareItem = {
     id: string
     name: string
-    type: "file" | "folder"
+    type: "file" | "folder" | null
     url: string
     view: number
     expiresAt: string | null
-    status: "Active" | "Expired"
+    status: "Active" | "Expired" | "Unavailable"
     createAt: string
 }
 
@@ -165,7 +165,7 @@ export default function ShareManagementPage() {
                                                         <span className="truncate max-w-[200px]">{item.name}</span>
                                                     </div>
                                                     <div className="text-xs text-muted-foreground ml-6 mt-1">
-                                                        Created: {item.createAt}
+                                                        Created: {new Date(item.createAt).toLocaleString()}
                                                     </div>
                                                 </TableCell>
 
@@ -193,7 +193,7 @@ export default function ShareManagementPage() {
                                                     <div className="flex items-center gap-1">
                                                         <Clock className="h-3 w-3 text-muted-foreground" />
                                                         <span className="text-sm">
-                                                            {item.expiresAt ? item.expiresAt : "Never"}
+                                                            {item.expiresAt ? new Date(item.expiresAt).toLocaleString() : "Never"}
                                                         </span>
                                                     </div>
                                                 </TableCell>
