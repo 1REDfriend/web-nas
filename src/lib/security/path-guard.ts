@@ -123,6 +123,15 @@ function physicalOf(root: string, virtualPath: string): string {
     return path.join(root, virtualPath);
 }
 
+// Turns a path on disk back into the virtual path the UI uses; null if it is
+// outside STORAGE_ROOT. Only for paths the server stored itself.
+export async function physicalToVirtual(physicalPath: string): Promise<string | null> {
+    const root = await getStorageRoot();
+    const resolved = path.resolve(physicalPath);
+    if (!isInside(resolved, root)) return null;
+    return normalizeVirtualPath(path.relative(root, resolved).split(path.sep).join("/"));
+}
+
 // Paths no role can touch, not even ADMIN, and that cannot be edited from the UI
 export async function getSystemProtectedPaths(): Promise<string[]> {
     const candidates = [

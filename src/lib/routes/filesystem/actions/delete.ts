@@ -51,7 +51,7 @@ export async function moveToTrashAction(userId: string, source: AuthorizedPath) 
     await cleanTrashItemsByUserId(userId)
 
     try {
-        const { id } = await upTrashDB(userId, name, source.physicalPath);
+        const { id } = await upTrashDB(userId, name, source.physicalPath, source.virtualPath);
         trashRecordId = id;
 
         if (!trashRecordId) {

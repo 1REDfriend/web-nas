@@ -77,7 +77,8 @@ model StarPath {
 model TrashShedule {
   id          String       @id @default(cuid())
   item        String       @map("item")
-  returnPath  String       @map("return_path")
+  returnPath  String       @map("return_path")              // physical path at delete time (legacy)
+  originalPath String?     @map("original_path")            // virtual path to restore to
 
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId      String       @map("user_id")

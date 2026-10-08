@@ -67,6 +67,7 @@ export default function FileManagerPage() {
     handleDownload,
     handleToggleStar,
     handleDelete,
+    handleRestore,
 
     handleRename,
     fileToRename,
@@ -305,6 +306,7 @@ export default function FileManagerPage() {
                     onCut={handleCut}
                     onCopy={handleCopy}
                     onShare={handleShare}
+                    onRestore={handleRestore}
                   />
                 </div>
 
@@ -317,6 +319,7 @@ export default function FileManagerPage() {
                   onDownload={handleDownload}
                   onToggleStar={handleToggleStar}
                   onDelete={handleDelete}
+                  onRestore={handleRestore}
                 />
               </section>
             </main>

@@ -11,7 +11,7 @@ import { AccessUser, authorizePath } from "@/lib/security/path-guard";
 
 const RECENT_LIMIT = 50;
 
-export type RecentAction = "opened" | "downloaded" | "uploaded" | "created" | "renamed" | "moved" | "copied";
+export type RecentAction = "opened" | "downloaded" | "uploaded" | "created" | "renamed" | "moved" | "copied" | "restored";
 
 // Best effort: a failure here must never fail the file operation itself
 export async function recordRecent(userId: string, virtualPath: string, action: RecentAction) {

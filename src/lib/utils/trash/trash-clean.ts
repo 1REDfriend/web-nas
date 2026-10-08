@@ -14,26 +14,23 @@ export async function cleanTrashItemsByUserId(userId: string) {
 
     if (expired.length > 0) {
         const trashFolder = getUserTrashDir(userId);
-        let succ = false
+        const removedIds: string[] = [];
 
         await Promise.all(expired.map(async (item) => {
             const fullPath = path.join(trashFolder, path.basename(`${item.item}_id${item.id}`));
 
             try {
                 await fs.remove(fullPath);
-                succ = true
+                removedIds.push(item.id);
             } catch (err) {
                 logerror(`Failed to remove file: ${fullPath}`, err);
             }
         }));
 
-        if (succ) {
+        // Only forget items whose files are really gone, so a failed removal is retried
+        if (removedIds.length > 0) {
             await prisma.trashShedule.deleteMany({
-                where: {
-                    id: {
-                        in: expired.map(e => e.id)
-                    }
-                }
+                where: { id: { in: removedIds } }
             });
         }
     }

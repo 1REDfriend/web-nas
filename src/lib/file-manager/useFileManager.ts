@@ -172,6 +172,25 @@ export function useFileManager() {
         }
     }
 
+    async function handleRestore(file: FileItem) {
+        const toastId = toast.loading(`Restoring ${file.name}...`);
+
+        try {
+            const { newPath } = await fileService.restoreFile(file.path);
+
+            setFiles((prev) => prev.filter((f) => f.path !== file.path));
+            if (activeFilePath === file.path) {
+                setActiveFilePath(null);
+            }
+
+            toast.success(`Restored ${file.name}`, { id: toastId, description: newPath });
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : "Failed to restore";
+            logerror(msg);
+            toast.error(msg, { id: toastId });
+        }
+    }
+
     function handleCancelDelete() {
         setFileToDelete(null);
     }
@@ -303,6 +322,7 @@ export function useFileManager() {
         handleDelete,
         handleConfirmDelete,
         handleCancelDelete,
+        handleRestore,
 
         handleRename,
         fileToRename,

@@ -170,6 +170,17 @@ export async function deleteFile(filePath: string, confirm?: string): Promise<De
     return json;
 }
 
+export async function restoreFile(filePath: string): Promise<{ success: boolean; newPath: string }> {
+    const params = new URLSearchParams();
+    params.set("file", filePath);
+    params.set("option", "restore");
+
+    const res = await fetch(`${API_BASE}/manage?${params.toString()}`, { method: "POST" });
+
+    await handleApiError(res);
+    return res.json();
+}
+
 export async function renameFile(
     filePath: string,
     newName: string

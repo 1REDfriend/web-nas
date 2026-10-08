@@ -7,6 +7,7 @@ import { copyAction } from "@/lib/routes/filesystem/actions/copy";
 import { placeAction } from "@/lib/routes/filesystem/actions/place";
 import { deleteFromTrashAction, moveToTrashAction } from "@/lib/routes/filesystem/actions/delete";
 import { recordRecent } from "@/lib/service/tracked-paths";
+import { restoreFromTrash } from "@/lib/service/trash-service";
 import {
     authorizeNewEntry,
     authorizePath,
@@ -106,6 +107,15 @@ export async function POST(request: Request) {
                 } else {
                     result = await moveToTrashAction(user.id, await authorizePath(user, reqFile, "DELETE"));
                 }
+                break;
+            }
+
+            case "restore": {
+                if (!isTrashPath(reqFile)) {
+                    return NextResponse.json({ error: "Only items in the trash can be restored" }, { status: 400 });
+                }
+                const restored = await restoreFromTrash(user, resolveTrashPath(user.id, reqFile));
+                result = { message: "Restored", newPath: restored.virtualPath };
                 break;
             }
 

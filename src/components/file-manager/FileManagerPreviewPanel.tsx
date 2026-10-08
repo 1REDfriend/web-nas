@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { DownloadCloud, File as FileIcon, Star, Trash2 } from "lucide-react";
+import { ArchiveRestore, DownloadCloud, File as FileIcon, Star, Trash2 } from "lucide-react";
 import { FileItem } from "./config";
 import ptb from 'pretty-bytes'
 
@@ -14,6 +14,7 @@ type FileManagerPreviewPanelProps = {
     onDownload: (file: FileItem) => void;
     onToggleStar: (file: FileItem) => void;
     onDelete: (file: FileItem) => void;
+    onRestore?: (file: FileItem) => void;
 };
 
 export function FileManagerPreviewPanel({
@@ -25,6 +26,7 @@ export function FileManagerPreviewPanel({
     onDownload,
     onToggleStar,
     onDelete,
+    onRestore,
 }: FileManagerPreviewPanelProps) {
     const isTrashFile = activeFile?.path?.startsWith('/trash') || activeFile?.path?.startsWith('trash');
 
@@ -68,7 +70,24 @@ export function FileManagerPreviewPanel({
                                     {activeFile.updatedAt}
                                 </p>
                             )}
-                            {activeFile.path && (
+                            {isTrashFile ? (
+                                <>
+                                    <p>
+                                        <span className="font-semibold text-slate-200">
+                                            Deleted from:
+                                        </span>{" "}
+                                        {activeFile.originalPath ?? "Unknown"}
+                                    </p>
+                                    {activeFile.expiresAt && (
+                                        <p>
+                                            <span className="font-semibold text-slate-200">
+                                                Deleted for good on:
+                                            </span>{" "}
+                                            {new Date(activeFile.expiresAt).toLocaleDateString()}
+                                        </p>
+                                    )}
+                                </>
+                            ) : activeFile.path && (
                                 <p>
                                     <span className="font-semibold text-slate-200">
                                         Location:
@@ -85,6 +104,18 @@ export function FileManagerPreviewPanel({
                                 Quick actions
                             </p>
                             <div className="flex flex-wrap gap-2">
+                                {isTrashFile ? (
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="text-xs"
+                                        onClick={() => onRestore?.(activeFile)}
+                                    >
+                                        <ArchiveRestore className="w-3 h-3 mr-1" />
+                                        Restore
+                                    </Button>
+                                ) : (
+                                    <>
                                 <Button
                                     size="sm"
                                     variant="outline"
@@ -103,6 +134,8 @@ export function FileManagerPreviewPanel({
                                     <Star className="w-3 h-3 mr-1" />
                                     Star
                                 </Button>
+                                    </>
+                                )}
                                 <Button
                                     size="sm"
                                     variant="outline"

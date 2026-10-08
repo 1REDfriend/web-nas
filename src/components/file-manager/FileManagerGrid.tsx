@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import ptb from 'pretty-bytes'
-import { File as FileIcon, Folder, Star, Copy, Scissors, Trash2, Pencil, MoveIcon, Share2Icon } from "lucide-react";
+import { File as FileIcon, Folder, Star, Copy, Scissors, Trash2, Pencil, MoveIcon, Share2Icon, ArchiveRestore } from "lucide-react";
 import { FileItem } from "./config";
 
 // Import Shadcn Context Menu
@@ -30,6 +30,7 @@ type FileManagerGridProps = {
     onCopy?: (file: FileItem) => void;
     onCut?: (file: FileItem) => void;
     onShare?: (file: FileItem) => void;
+    onRestore?: (file: FileItem) => void;
 };
 
 export function FileManagerGrid({
@@ -45,6 +46,7 @@ export function FileManagerGrid({
     onCopy,
     onCut,
     onShare,
+    onRestore,
 }: FileManagerGridProps) {
     const lastTapRef = useRef(0);
 
@@ -61,6 +63,8 @@ export function FileManagerGrid({
                     files.map((file) => {
                         const isActive = activeFilePath === file.path;
                         const isDirectory = file.type === "directory";
+                        // Trash items can only be restored or deleted for good
+                        const isTrashItem = file.path.startsWith("/trash/");
 
                         return (
                             <ContextMenu key={file.path || file.id}>
@@ -74,7 +78,7 @@ export function FileManagerGrid({
                                         draggable={"true"}
                                         onDoubleClick={(e) => {
                                             e.stopPropagation();
-                                            if (isDirectory) {
+                                            if (isDirectory && !isTrashItem) {
                                                 onOpenDirectory(file.path);
                                             }
                                         }}
@@ -87,7 +91,7 @@ export function FileManagerGrid({
                                                 e.preventDefault();
                                                 e.stopPropagation();
 
-                                                if (isDirectory) {
+                                                if (isDirectory && !isTrashItem) {
                                                     onOpenDirectory(file.path);
                                                 }
                                             } else {
@@ -142,6 +146,30 @@ export function FileManagerGrid({
 
                                 {/* เมนูคลิกขวาของ File Item (ใช้ Theme เดียวกัน) */}
                                 <ContextMenuContent className="min-w-[220px] rounded-xl border border-slate-800/80 bg-slate-900/95 backdrop-blur-md shadow-xl shadow-black/40 py-1">
+                                    {isTrashItem ? (
+                                        <>
+                                            <ContextMenuItem
+                                                inset
+                                                onClick={() => onRestore?.(file)}
+                                                className="flex items-center gap-2 text-slate-100 focus:bg-slate-800/80"
+                                            >
+                                                <ArchiveRestore className="h-3.5 w-3.5 text-slate-400" />
+                                                <span>Restore</span>
+                                            </ContextMenuItem>
+
+                                            <ContextMenuSeparator className="my-1 bg-slate-800/80" />
+
+                                            <ContextMenuItem
+                                                inset
+                                                className="flex items-center gap-2 text-red-400 focus:bg-slate-800/80 focus:text-red-400"
+                                                onClick={() => onDelete(file)}
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                                <span>Delete permanently</span>
+                                            </ContextMenuItem>
+                                        </>
+                                    ) : (
+                                        <>
                                     <ContextMenuItem
                                         inset
                                         onClick={() => onMove?.(file)}
@@ -200,6 +228,8 @@ export function FileManagerGrid({
                                         <Trash2 className="h-3.5 w-3.5" />
                                         <span>Delete</span>
                                     </ContextMenuItem>
+                                        </>
+                                    )}
                                 </ContextMenuContent>
                             </ContextMenu>
                         );

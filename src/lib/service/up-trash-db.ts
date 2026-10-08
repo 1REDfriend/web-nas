@@ -2,7 +2,7 @@ import { logerror } from "../logger";
 import { prisma } from "../db";
 import { setting } from "../ENV";
 
-export async function upTrashDB( userId: string,item: string, returnPath: string) {
+export async function upTrashDB( userId: string,item: string, returnPath: string, originalPath: string) {
     const date = new Date()
     date.setDate(date.getDate() + setting.expireTrash)
     try {
@@ -11,6 +11,7 @@ export async function upTrashDB( userId: string,item: string, returnPath: string
                 userId : userId,
                 item: item,
                 returnPath: returnPath,
+                originalPath: originalPath,
                 expireDate: date
             }
         })

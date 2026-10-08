@@ -7,6 +7,7 @@ import { getDirectoryFiles } from '@/lib/service/file-brower-service';
 import { xUserPayload } from '@/lib/api/user/x-user-payload';
 import { cleanTrashItemsByUserId } from '@/lib/utils/trash/trash-clean';
 import { listRecent, listStarred, markStarred } from '@/lib/service/tracked-paths';
+import { describeTrashItems } from '@/lib/service/trash-service';
 import {
     authorizePath,
     fileAccessErrorResponse,
@@ -102,7 +103,9 @@ export async function GET(request: Request) {
             order
         });
 
-        const data = reqPath === "/trash" ? entries : await markStarred(user.id, entries);
+        const data = reqPath === "/trash"
+            ? await describeTrashItems(user.id, entries)
+            : await markStarred(user.id, entries);
 
         return NextResponse.json({
             data,

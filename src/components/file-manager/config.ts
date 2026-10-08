@@ -16,6 +16,9 @@ export type FileItem = {
     isStarred?: boolean;
     // Only set on assigned root folders; false when the folder is missing on disk
     available?: boolean;
+    // Only set on trash items: where it was deleted from and when it is purged
+    originalPath?: string | null;
+    expiresAt?: string;
 };
 
 export type FileListMeta = {
