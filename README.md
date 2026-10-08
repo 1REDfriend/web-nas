@@ -45,7 +45,7 @@ STORAGE_ROOT="your-storage_root" => Docker overrides this to `/host_root`
 
 STORAGE_INTERNAL="your-storage_internal" => default `storage`; Docker overrides this to `/app/data/storage`
 
-NEXT_PUBLIC_TERMINAL_HOST="" => optional; empty means `<the host you opened>:7255`
+TERMINAL_HOST="" => optional host of the web terminal, e.g. `nas-ssh.example.com` behind a tunnel; read at runtime, so no rebuild is needed; empty means `<the host you opened>:7255`
 
 COOKIE_DOMAIN="example.com" => optional; set it when the terminal is on another subdomain (e.g. `nas.example.com` + `nas-ssh.example.com`) so the login cookie reaches both
 

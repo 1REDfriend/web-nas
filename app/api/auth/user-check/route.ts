@@ -1,5 +1,6 @@
 import { xUserPayload } from "@/lib/api/user/x-user-payload";
 import { prisma } from "@/lib/db";
+import { ENV } from "@/lib/ENV";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -23,5 +24,6 @@ export async function GET() {
         username: user.username,
         role: user.role,
         mustChangePassword: user.mustChangePassword,
+        terminalHost: user.role === "ADMIN" ? ENV.TERMINAL_HOST : "",
     });
 }

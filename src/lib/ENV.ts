@@ -7,8 +7,10 @@ export const ENV = ({
     COOKIE_DOMAIN: process.env.COOKIE_DOMAIN || "",
     STORAGE_ROOT: process.env.STORAGE_ROOT || "",
     STORAGE_INTERNAL: process.env.STORAGE_INTERNAL || "storage",
-    // Optional; when empty the browser uses "<current host>:7255" (see vncScreen.tsx)
-    TERMINAL_HOST: process.env.NEXT_PUBLIC_TERMINAL_HOST || "",
+    // Optional host of the web terminal, read at runtime and sent to the browser by
+    // /api/auth/user-check; when empty the browser uses "<current host>:7255".
+    // NEXT_PUBLIC_TERMINAL_HOST is still accepted for older .env files.
+    TERMINAL_HOST: process.env.TERMINAL_HOST || process.env.NEXT_PUBLIC_TERMINAL_HOST || "",
     // Extra absolute paths nobody may touch through the web UI (comma-separated)
     PROTECTED_PATHS: (process.env.PROTECTED_PATHS || "")
         .split(",")

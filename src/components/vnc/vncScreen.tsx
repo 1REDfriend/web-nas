@@ -1,12 +1,20 @@
 'use client';
 
-import { ENV } from '@/lib/ENV';
+import { useEffect, useState } from 'react';
 
-// Web terminal (webssh behind Caddy on :7255). Defaults to the host the file
-// manager was opened on, so the login cookie is sent and Caddy lets it through.
-// Only rendered after the user opens the terminal, so `window` is available.
+// Web terminal (webssh behind Caddy). The host comes from the server at runtime
+// (TERMINAL_HOST); without it the terminal is "<current host>:7255". Only
+// rendered after the user opens the terminal, so `window` is available.
 export default function VncPage() {
-    const host = ENV.TERMINAL_HOST || (typeof window !== 'undefined' ? `${window.location.hostname}:7255` : '');
+    const [host, setHost] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fallback = `${window.location.hostname}:7255`;
+        fetch('/api/auth/user-check')
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => setHost(data?.terminalHost || fallback))
+            .catch(() => setHost(fallback));
+    }, []);
 
     return (
         <div className="w-full h-screen bg-black">
