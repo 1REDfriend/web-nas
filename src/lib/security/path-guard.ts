@@ -170,20 +170,24 @@ async function assertPersistentLocation(root: string, physicalPath: string, acti
     }
 }
 
+async function getAssignedRoots(user: AccessUser, root: string): Promise<string[]> {
+    const pathMaps = await prisma.pathMap.findMany({
+        where: { userId: user.id },
+        select: { rootPath: true },
+    });
+
+    return Promise.all(
+        pathMaps.map((m) => realpathNearest(physicalOf(root, normalizeVirtualPath(m.rootPath))))
+    );
+}
+
 async function assertAssignedFolder(
     user: AccessUser,
     root: string,
     physicalPath: string,
     destructive: boolean
 ) {
-    const pathMaps = await prisma.pathMap.findMany({
-        where: { userId: user.id },
-        select: { rootPath: true },
-    });
-
-    const assignedRoots = await Promise.all(
-        pathMaps.map((m) => realpathNearest(physicalOf(root, normalizeVirtualPath(m.rootPath))))
-    );
+    const assignedRoots = await getAssignedRoots(user, root);
 
     if (!assignedRoots.some((r) => isInside(physicalPath, r))) {
         throw new FileAccessError("You do not have access to this path");
@@ -270,6 +274,41 @@ export async function authorizePath(
     await assertPathRules(user, root, physicalPath, action, checkSubtree);
 
     return { virtualPath, physicalPath };
+}
+
+// For walking many entries (search): loads everything authorizePath(…, "VIEW") would
+// check once, then answers per real path without touching the database again.
+// Only valid for real paths found by walking a folder without following symlinks.
+export type ViewChecker = {
+    root: string;
+    canView: (physicalPath: string) => boolean;
+    toVirtual: (physicalPath: string) => string;
+};
+
+export async function createViewChecker(user: AccessUser): Promise<ViewChecker> {
+    const root = await getStorageRoot();
+    const protectedPaths = await getSystemProtectedPaths();
+    const assignedRoots = user.role === "ADMIN" ? null : await getAssignedRoots(user, root);
+
+    const viewRules = await Promise.all(
+        (await getPathRulesForRole(user.role))
+            .filter((rule) => parseActions(rule.actions).includes("VIEW"))
+            .map(async (rule) => ({
+                path: await realpathNearest(physicalOf(root, normalizeVirtualPath(rule.path))),
+                recursive: rule.recursive,
+            }))
+    );
+
+    return {
+        root,
+        canView: (physicalPath) =>
+            isInside(physicalPath, root) &&
+            !protectedPaths.some((p) => isInside(physicalPath, p)) &&
+            (assignedRoots === null || assignedRoots.some((r) => isInside(physicalPath, r))) &&
+            !viewRules.some((r) => physicalPath === r.path || (r.recursive && isInside(physicalPath, r.path))),
+        toVirtual: (physicalPath) =>
+            normalizeVirtualPath(path.relative(root, physicalPath).split(path.sep).join("/")),
+    };
 }
 
 // Authorizes creating `name` inside `dir` (upload, new folder, paste target)

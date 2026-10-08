@@ -8,6 +8,7 @@ import { xUserPayload } from '@/lib/api/user/x-user-payload';
 import { cleanTrashItemsByUserId } from '@/lib/utils/trash/trash-clean';
 import { listRecent, listStarred, markStarred } from '@/lib/service/tracked-paths';
 import { describeTrashItems } from '@/lib/service/trash-service';
+import { searchFiles } from '@/lib/service/file-search';
 import {
     authorizePath,
     fileAccessErrorResponse,
@@ -55,6 +56,27 @@ export async function GET(request: Request) {
             return NextResponse.json({
                 data,
                 meta: { totalFiles: data.length, currentPage: 1, itemsPerPage: Math.max(data.length, 1) }
+            });
+        }
+
+        // --- Case 0b: Search through subfolders (not for the trash) ---
+        if (search.trim() && searchParams.get('deep') === '1' && !isTrashPath(rawReqPath ?? '')) {
+            const user = await getAccessUser(userId);
+            if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+            // A named folder must be viewable (403 otherwise, as when browsing);
+            // from the home page each assigned folder is searched if it can be
+            if (rawReqPath) await authorizePath(user, rawReqPath, "VIEW");
+
+            const startPaths = rawReqPath
+                ? [rawReqPath]
+                : (await getUserRootPaths(userId)).map((p) => p.path);
+
+            const { data, truncated } = await searchFiles(user, startPaths, search, request.signal);
+
+            return NextResponse.json({
+                data: await markStarred(user.id, data),
+                meta: { totalFiles: data.length, currentPage: 1, itemsPerPage: Math.max(data.length, 1), truncated }
             });
         }
 

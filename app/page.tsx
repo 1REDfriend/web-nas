@@ -307,6 +307,7 @@ export default function FileManagerPage() {
                     onCopy={handleCopy}
                     onShare={handleShare}
                     onRestore={handleRestore}
+                    showLocation={!!query.trim()}
                   />
                 </div>
 

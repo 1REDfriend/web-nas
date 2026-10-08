@@ -19,6 +19,7 @@ type FileListMeta = {
     itemsPerPage: number;
     sortBy?: string;
     order?: "asc" | "desc";
+    truncated?: boolean;
 };
 
 interface DeleteResponse {
@@ -45,6 +46,8 @@ type FetchFilesParams = {
     folderPath: string | null;
     // Starred / Recent span all folders; ignored when folderPath is set
     view?: "starred" | "recent";
+    // Search the folder and all its subfolders instead of only this folder
+    deep?: boolean;
     page: number;
     query: string;
     sortBy: string;
@@ -64,6 +67,7 @@ export async function fetchFiles(
     urlParams.set("page", String(params.page));
     if (params.query.trim()) {
         urlParams.set("search", params.query.trim());
+        if (params.deep) urlParams.set("deep", "1");
     }
     urlParams.set("sortBy", params.sortBy);
     urlParams.set("order", params.order);

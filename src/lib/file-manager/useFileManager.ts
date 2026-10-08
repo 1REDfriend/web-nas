@@ -260,6 +260,8 @@ export function useFileManager() {
         handlePathChange(relative);
         setPage(1);
         setActiveFilePath(null);
+        // Opening a folder from search results shows that folder, not more results
+        setQuery("");
     }
 
     async function handleSumitShare(file: string, expire: Date | null, recursive: boolean) {

@@ -78,6 +78,8 @@ export function useFileList({
                     {
                         folderPath,
                         view,
+                        // Typing in the search box looks through every subfolder
+                        deep: true,
                         page,
                         query: query.trim(),
                         sortBy: "name",
@@ -111,9 +113,13 @@ export function useFileList({
             }
         }
 
-        loadFiles();
+        // A search walks subfolders on the server: wait until typing pauses
+        const timer = setTimeout(loadFiles, query.trim() ? 300 : 0);
 
-        return () => controller.abort();
+        return () => {
+            clearTimeout(timer);
+            controller.abort();
+        };
     }, [selectedFolder, page, query, urlPath, refetchTrigger]);
 
     // The server already returns the Starred / Recent lists; only drop items

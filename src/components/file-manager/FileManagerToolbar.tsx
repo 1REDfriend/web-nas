@@ -39,6 +39,11 @@ export function FileManagerToolbar({
                 {listError && (
                     <p className="mt-1 text-xs text-red-400">{listError}</p>
                 )}
+                {meta?.truncated && (
+                    <p className="mt-1 text-xs text-amber-400">
+                        Showing the first matches only. Type more of the name to narrow the search.
+                    </p>
+                )}
             </div>
             <div className="flex items-center gap-2">
                 {meta && (

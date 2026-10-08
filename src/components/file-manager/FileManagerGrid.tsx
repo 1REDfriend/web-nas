@@ -32,6 +32,8 @@ type FileManagerGridProps = {
     onCut?: (file: FileItem) => void;
     onShare?: (file: FileItem) => void;
     onRestore?: (file: FileItem) => void;
+    // Search results come from many folders: show which one each is in
+    showLocation?: boolean;
 };
 
 export function FileManagerGrid({
@@ -48,6 +50,7 @@ export function FileManagerGrid({
     onCut,
     onShare,
     onRestore,
+    showLocation = false,
 }: FileManagerGridProps) {
     const lastTapRef = useRef(0);
 
@@ -118,6 +121,11 @@ export function FileManagerGrid({
                                                     <CardTitle className="text-sm truncate max-w-32">
                                                         {file.name}
                                                     </CardTitle>
+                                                    {showLocation && file.folder && (
+                                                        <span className="text-[11px] text-slate-400 max-w-32 truncate" title={file.folder}>
+                                                            in {file.folder}
+                                                        </span>
+                                                    )}
                                                     {file.available === false ? (
                                                         <span className="text-[11px] text-amber-400 max-w-32">
                                                             Offline (disk not found)

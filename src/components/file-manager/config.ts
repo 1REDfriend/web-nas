@@ -25,6 +25,8 @@ export type FileListMeta = {
     totalFiles: number;
     currentPage: number;
     itemsPerPage: number;
+    // Search stopped early (too many matches, too much to scan, or too slow)
+    truncated?: boolean;
     sortBy?: string;
     order?: "asc" | "desc";
 };
