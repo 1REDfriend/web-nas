@@ -3,6 +3,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import ptb from 'pretty-bytes'
 import { File as FileIcon, Folder, Star, Copy, Scissors, Trash2, Pencil, MoveIcon, Share2Icon, ArchiveRestore } from "lucide-react";
 import { FileItem } from "./config";
+import { mediaTypeOf, rawFileUrl } from "@/lib/file-manager/media";
 
 // Import Shadcn Context Menu
 import {
@@ -80,6 +81,9 @@ export function FileManagerGrid({
                                             e.stopPropagation();
                                             if (isDirectory && !isTrashItem) {
                                                 onOpenDirectory(file.path);
+                                            } else if (!isTrashItem && mediaTypeOf(file.name)) {
+                                                // Media opens full size in a new tab (the preview panel is hidden on small screens)
+                                                window.open(rawFileUrl(file.path), "_blank", "noopener");
                                             }
                                         }}
 
@@ -93,6 +97,8 @@ export function FileManagerGrid({
 
                                                 if (isDirectory && !isTrashItem) {
                                                     onOpenDirectory(file.path);
+                                                } else if (!isTrashItem && mediaTypeOf(file.name)) {
+                                                    window.open(rawFileUrl(file.path), "_blank", "noopener");
                                                 }
                                             } else {
                                                 lastTapRef.current = now;

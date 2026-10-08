@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import * as fileService from "@/lib/api/file.service";
 import { logerror } from "@/lib/logger";
 import { FileItem } from "@/components/file-manager/config";
+import { mediaTypeOf } from "./media";
 
 type UseFilePreviewParams = {
     activeFile: FileItem | null;
@@ -26,7 +27,12 @@ export function useFilePreview({
 
     const activePath = activeFile?.path || "";
     // Folders and trash items have nothing to preview
-    const canPreview = !!activePath && activeFile?.type !== "directory" && !activePath.startsWith("/trash");
+    // Images, video and audio are shown from /api/files/raw instead of as text
+    const canPreview =
+        !!activePath &&
+        activeFile?.type !== "directory" &&
+        !activePath.startsWith("/trash") &&
+        !mediaTypeOf(activePath);
 
     useEffect(() => {
         if (!canPreview) return;

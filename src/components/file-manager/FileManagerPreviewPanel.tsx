@@ -4,6 +4,8 @@ import { Separator } from "@/components/ui/separator";
 import { ArchiveRestore, DownloadCloud, File as FileIcon, Star, Trash2 } from "lucide-react";
 import { FileItem } from "./config";
 import ptb from 'pretty-bytes'
+import { mediaTypeOf } from "@/lib/file-manager/media";
+import { MediaPreview } from "./MediaPreview";
 
 type FileManagerPreviewPanelProps = {
     activeFile: FileItem | null;
@@ -29,6 +31,7 @@ export function FileManagerPreviewPanel({
     onRestore,
 }: FileManagerPreviewPanelProps) {
     const isTrashFile = activeFile?.path?.startsWith('/trash') || activeFile?.path?.startsWith('trash');
+    const media = activeFile && activeFile.type !== "directory" ? mediaTypeOf(activeFile.name) : null;
 
     return (
         <aside className="hidden xl:flex w-80 border-l border-white/10 flex-col bg-slate-950/60">
@@ -151,6 +154,10 @@ export function FileManagerPreviewPanel({
                         <Separator className="bg-white/5" />
 
                         <div className="text-xs text-slate-400">
+                            {media && !isTrashFile ? (
+                                <MediaPreview key={activeFile.path} path={activeFile.path} name={activeFile.name} kind={media.kind} />
+                            ) : (
+                            <>
                             {previewLoading && <p>Loading file content...</p>}
                             {previewError && (
                                 <p className="text-red-400">{previewError}</p>
@@ -164,6 +171,8 @@ export function FileManagerPreviewPanel({
                                 <p className="text-slate-500">
                                     This file does not have a preview or is a binary file.
                                 </p>
+                            )}
+                            </>
                             )}
                         </div>
                     </div>

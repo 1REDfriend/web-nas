@@ -1,9 +1,8 @@
 import { logerror } from "@/lib/logger";
 import { NextResponse } from "next/server";
 import fs from "fs-extra";
-import path from "path";
 import { authorizePath, fileAccessErrorResponse, getRequestUser } from "@/lib/security/path-guard";
-import { allowedExtensions } from "@/lib/routes/filesystem/allowedcExtensions";
+import { mediaTypeOf } from "@/lib/file-manager/media";
 import { recordRecent } from "@/lib/service/tracked-paths";
 
 // Only the start of a file is read for a preview, however large the file is
@@ -45,7 +44,8 @@ export async function GET(request: Request) {
         );
     }
 
-    if (isPreview && allowedExtensions.includes(path.extname(reqFile).toLowerCase())) {
+    // Media is shown through /api/files/raw, not as text
+    if (isPreview && mediaTypeOf(reqFile)) {
         return NextResponse.json({ file: reqFile, size: null, content: null });
     }
 
