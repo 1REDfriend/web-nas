@@ -68,6 +68,7 @@ export default function FileManagerPage() {
     handleToggleStar,
     handleDelete,
     handleRestore,
+    handleEmptyTrash,
 
     handleRename,
     fileToRename,
@@ -289,6 +290,7 @@ export default function FileManagerPage() {
                     onDownloadActive={() => {
                       if (activeFile) handleDownload(activeFile);
                     }}
+                    onEmptyTrash={selectedFolder === "trash" && !urlPath ? handleEmptyTrash : undefined}
                   />
 
                   <FileManagerGrid

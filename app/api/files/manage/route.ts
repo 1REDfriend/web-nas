@@ -5,7 +5,7 @@ import { renameAction } from "@/lib/routes/filesystem/actions/rename";
 import { moveAction } from "@/lib/routes/filesystem/actions/move";
 import { copyAction } from "@/lib/routes/filesystem/actions/copy";
 import { placeAction } from "@/lib/routes/filesystem/actions/place";
-import { deleteFromTrashAction, moveToTrashAction } from "@/lib/routes/filesystem/actions/delete";
+import { deleteFromTrashAction, emptyTrashAction, moveToTrashAction } from "@/lib/routes/filesystem/actions/delete";
 import { recordRecent } from "@/lib/service/tracked-paths";
 import { restoreFromTrash } from "@/lib/service/trash-service";
 import {
@@ -106,6 +106,17 @@ export async function POST(request: Request) {
                     }
                 } else {
                     result = await moveToTrashAction(user.id, await authorizePath(user, reqFile, "DELETE"));
+                }
+                break;
+            }
+
+            case "empty": {
+                if (normalizeVirtualPath(reqFile) !== "/trash") {
+                    return NextResponse.json({ error: "Only the trash can be emptied" }, { status: 400 });
+                }
+                result = await emptyTrashAction(user.id, reqConfirm);
+                if (result.error === "Require Confirm") {
+                    return NextResponse.json({ success: false, error: result.error }, { status: 409 });
                 }
                 break;
             }

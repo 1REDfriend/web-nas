@@ -191,6 +191,23 @@ export function useFileManager() {
         }
     }
 
+    async function handleEmptyTrash() {
+        const toastId = toast.loading("Emptying trash...");
+
+        try {
+            const { removed } = await fileService.emptyTrash();
+            setFiles([]);
+            setActiveFilePath(null);
+            toast.success(`Deleted ${removed} item${removed === 1 ? "" : "s"} permanently`, { id: toastId });
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : "Failed to empty trash";
+            logerror(msg);
+            toast.error(msg, { id: toastId });
+        } finally {
+            refetchFiles();
+        }
+    }
+
     function handleCancelDelete() {
         setFileToDelete(null);
     }
@@ -325,6 +342,7 @@ export function useFileManager() {
         handleConfirmDelete,
         handleCancelDelete,
         handleRestore,
+        handleEmptyTrash,
 
         handleRename,
         fileToRename,

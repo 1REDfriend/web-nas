@@ -1,5 +1,16 @@
 import { Button } from "@/components/ui/button";
-import { MoreVertical, DownloadCloud } from "lucide-react";
+import { useState } from "react";
+import { MoreVertical, DownloadCloud, Trash2 } from "lucide-react";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { FileListMeta } from "./config";
 
 type FileManagerToolbarProps = {
@@ -14,6 +25,8 @@ type FileManagerToolbarProps = {
     onPrevPage: () => void;
     onNextPage: () => void;
     onDownloadActive: () => void;
+    // Only passed while the trash is open
+    onEmptyTrash?: () => Promise<void>;
 };
 
 export function FileManagerToolbar({
@@ -28,7 +41,19 @@ export function FileManagerToolbar({
     onPrevPage,
     onNextPage,
     onDownloadActive,
+    onEmptyTrash,
 }: FileManagerToolbarProps) {
+    const [confirmEmpty, setConfirmEmpty] = useState(false);
+    const [emptying, setEmptying] = useState(false);
+
+    async function handleConfirmEmpty() {
+        if (!onEmptyTrash) return;
+        setEmptying(true);
+        await onEmptyTrash();
+        setEmptying(false);
+        setConfirmEmpty(false);
+    }
+
     return (
         <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-slate-950/40">
             <div>
@@ -73,6 +98,18 @@ export function FileManagerToolbar({
                         </div>
                     </div>
                 )}
+                {onEmptyTrash && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2 text-red-400 border-red-900/50 hover:bg-red-950/30 hover:text-red-300"
+                        disabled={visibleCount === 0 || listLoading}
+                        onClick={() => setConfirmEmpty(true)}
+                    >
+                        <Trash2 className="w-4 h-4" />
+                        Empty trash
+                    </Button>
+                )}
                 <Button
                     variant="outline"
                     size="sm"
@@ -87,6 +124,30 @@ export function FileManagerToolbar({
                     <MoreVertical className="w-4 h-4" />
                 </Button>
             </div>
+
+            <AlertDialog open={confirmEmpty} onOpenChange={(open) => !emptying && setConfirmEmpty(open)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Empty trash?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Everything in your trash will be deleted permanently. This cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={emptying}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={(e) => {
+                                e.preventDefault();
+                                void handleConfirmEmpty();
+                            }}
+                            disabled={emptying}
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                        >
+                            {emptying ? "Deleting..." : "Delete forever"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

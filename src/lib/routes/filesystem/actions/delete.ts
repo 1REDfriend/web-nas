@@ -43,6 +43,45 @@ export async function deleteFromTrashAction(userId: string, target: TrashTarget,
     }
 }
 
+// Permanently removes everything in the user's own trash folder. The folder comes
+// from the user id only, never from the request, so no other path can be reached.
+export async function emptyTrashAction(userId: string, confirm: boolean = false) {
+    if (!confirm) {
+        return { success: false, error: "Require Confirm" };
+    }
+
+    const trashFolder = getUserTrashDir(userId);
+    const names = await fs.readdir(trashFolder).catch(() => [] as string[]);
+
+    let removed = 0;
+    const failed: string[] = [];
+
+    for (const name of names) {
+        try {
+            // fs.remove unlinks a symlink instead of following it
+            await fs.remove(path.join(trashFolder, name));
+            removed++;
+        } catch (error) {
+            logerror("[Empty Trash] failed to remove " + name, error);
+            failed.push(name);
+        }
+    }
+
+    // Keep records whose files could not be removed, so they still show and can be retried
+    const records = await prisma.trashShedule.findMany({ where: { userId } });
+    const keep = new Set(failed);
+    const forget = records.filter((r) => !keep.has(`${r.item}_id${r.id}`)).map((r) => r.id);
+    if (forget.length > 0) {
+        await prisma.trashShedule.deleteMany({ where: { id: { in: forget }, userId } });
+    }
+
+    if (failed.length > 0) {
+        return { success: false, error: `${failed.length} item(s) could not be deleted`, removed };
+    }
+
+    return { success: true, message: "Trash emptied", removed };
+}
+
 export async function moveToTrashAction(userId: string, source: AuthorizedPath) {
     const name = path.basename(source.physicalPath);
     if (!name) return { success: false, error: "Invalid filename" };
