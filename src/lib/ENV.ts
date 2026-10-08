@@ -11,6 +11,13 @@ export const ENV = ({
     // /api/auth/user-check; when empty the browser uses "<current host>:7255".
     // NEXT_PUBLIC_TERMINAL_HOST is still accepted for older .env files.
     TERMINAL_HOST: process.env.TERMINAL_HOST || process.env.NEXT_PUBLIC_TERMINAL_HOST || "",
+    // Absolute paths under STORAGE_ROOT that are real, persistent storage (comma-separated).
+    // When set, nothing can be written anywhere else. Docker sets it to the mounted folder,
+    // because everything else under /host_root lives inside the container and is lost on rebuild.
+    STORAGE_WRITABLE_PATHS: (process.env.STORAGE_WRITABLE_PATHS || "")
+        .split(",")
+        .map((p) => p.trim())
+        .filter(Boolean),
     // Extra absolute paths nobody may touch through the web UI (comma-separated)
     PROTECTED_PATHS: (process.env.PROTECTED_PATHS || "")
         .split(",")

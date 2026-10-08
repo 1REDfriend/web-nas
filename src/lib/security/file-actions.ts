@@ -29,6 +29,9 @@ export type RuleRole = (typeof RULE_ROLES)[number];
 // Actions that remove or relocate the entry itself (as opposed to its content)
 export const DESTRUCTIVE_ACTIONS: readonly FileAction[] = ["RENAME", "MOVE", "DELETE"];
 
+// Actions that change what is stored on disk
+export const WRITE_ACTIONS: readonly FileAction[] = ["UPLOAD", "RENAME", "MOVE", "DELETE"];
+
 export function isFileAction(value: unknown): value is FileAction {
     return typeof value === "string" && (FILE_ACTIONS as readonly string[]).includes(value);
 }

@@ -51,6 +51,8 @@ COOKIE_DOMAIN="example.com" => optional; set it when the terminal is on another 
 
 PROTECTED_PATHS="" => optional, comma-separated absolute paths that no role (not even ADMIN) can touch from the web UI
 
+STORAGE_WRITABLE_PATHS="" => optional, comma-separated absolute paths that are real disk; when set, uploads, new folders, renames, moves and deletes are refused anywhere else, and these folders themselves cannot be deleted. Docker sets it to the mounted `NAS_HOST_DIR`
+
 Docker-only (read by `docker-compose.yaml`):
 
 NAS_HOST_DIR="/mnt" => the only host folder the app can see, mounted at `/host_root/mnt`; folder assignments use paths like `/mnt/...`

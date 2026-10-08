@@ -5,7 +5,7 @@ import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { ENV } from "@/lib/ENV";
 import { xUserPayload } from "@/lib/api/user/x-user-payload";
-import { DESTRUCTIVE_ACTIONS, FileAction, parseActions } from "./file-actions";
+import { DESTRUCTIVE_ACTIONS, FileAction, WRITE_ACTIONS, parseActions } from "./file-actions";
 import { getPathRulesForRole } from "./path-rules";
 
 // Single entry point for every file-system permission check.
@@ -143,6 +143,33 @@ export async function getSystemProtectedPaths(): Promise<string[]> {
     return [...new Set(resolved)];
 }
 
+async function getWritableRoots(): Promise<string[]> {
+    return Promise.all(ENV.STORAGE_WRITABLE_PATHS.map((p) => realpathNearest(path.resolve(p))));
+}
+
+// Writes must land on persistent storage, and the storage folders themselves
+// (and their parents) must never be deleted, renamed or moved
+async function assertPersistentLocation(root: string, physicalPath: string, action: FileAction, destructive: boolean) {
+    if (!WRITE_ACTIONS.includes(action)) return;
+
+    const writableRoots = await getWritableRoots();
+    if (writableRoots.length === 0) return;
+
+    if (destructive && writableRoots.some((w) => isInside(w, physicalPath))) {
+        throw new FileAccessError("This is a storage folder and cannot be renamed, moved or deleted");
+    }
+
+    if (!writableRoots.some((w) => isInside(physicalPath, w))) {
+        const allowed = writableRoots
+            .filter((w) => isInside(w, root))
+            .map((w) => "/" + path.relative(root, w).split(path.sep).join("/"))
+            .join(", ");
+        throw new FileAccessError(
+            `Files can only be saved on persistent storage (${allowed}). Anything written elsewhere would be lost when the app restarts.`
+        );
+    }
+}
+
 async function assertAssignedFolder(
     user: AccessUser,
     root: string,
@@ -233,6 +260,8 @@ export async function authorizePath(
             throw new FileAccessError("This folder contains a system-protected folder");
         }
     }
+
+    await assertPersistentLocation(root, physicalPath, action, destructive);
 
     if (user.role !== "ADMIN") {
         await assertAssignedFolder(user, root, physicalPath, destructive);

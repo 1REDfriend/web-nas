@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import fs from "fs-extra";
 import { logerror } from "@/lib/logger";
 import { ENV } from "@/lib/ENV";
-import path from "path";
+import { authorizePath, fileAccessErrorResponse } from "@/lib/security/path-guard";
 
 export async function POST(request: Request) {
     const body = await request.json();
@@ -61,12 +61,13 @@ export async function POST(request: Request) {
             );
         }
 
-        const safeSubPath = path.normalize(virtualPath).replace(/^(\.\.[\/\\])+/, '');
-
-        const physicalPath = path.join(ROOT_STORAGE_PATH, safeSubPath);
+        // Same checks as creating a folder there: inside the storage area, not a
+        // protected path, and on persistent storage (STORAGE_WRITABLE_PATHS)
+        const target = await authorizePath({ id: user.id, role: user.role }, virtualPath, "UPLOAD");
+        const safeSubPath = target.virtualPath;
 
         try {
-            await fs.promises.mkdir(physicalPath, { recursive: true });
+            await fs.ensureDir(target.physicalPath);
         } catch (mkdirError) {
             logerror("[Create Root Path Failed] : " + mkdirError);
             return NextResponse.json(
@@ -97,6 +98,9 @@ export async function POST(request: Request) {
             { success: true, rootPath: safeSubPath }
         )
     } catch (err: unknown) {
+        const accessResponse = fileAccessErrorResponse(err);
+        if (accessResponse) return accessResponse;
+
         logerror("[Import Root Path Failed] : " + err)
         return NextResponse.json(
             { error: "Internal Error" },

@@ -18,6 +18,8 @@ services:
       - DATABASE_URL=file:/app/data/main.sqlite
       - STORAGE_INTERNAL=/app/data/storage
       - STORAGE_ROOT=/host_root
+      # Only the mounted folder is real disk; refuse writes anywhere else under /host_root
+      - STORAGE_WRITABLE_PATHS=/host_root${NAS_HOST_DIR:-/mnt}
     networks:
       - nas-network
     restart: unless-stopped
