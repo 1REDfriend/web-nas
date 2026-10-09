@@ -12,10 +12,10 @@ import {
 } from "@/components/file-manager/config";
 import { toast } from "sonner";
 
-import { useFileCategories } from "./useFileCategories";
 import { useFileList } from "./useFileList";
 import { useFilePreview } from "./useFilePreview";
 import { useFileClipboard } from "./useFileClipboard";
+import { createShareLink } from "../api/user/share";
 
 export function useFileManager() {
     const [selectedFolder, setSelectedFolder] = useState("all");
@@ -35,9 +35,6 @@ export function useFileManager() {
 
     const urlPath = (searchParams?.get("path") as string | null) ?? null;
 
-    // --- categories ---
-    const { categoryPaths } = useFileCategories();
-
     // --- list & derived state ---
     const {
         files,
@@ -56,7 +53,6 @@ export function useFileManager() {
         page,
         query,
         urlPath,
-        categoryPaths,
         refetchTrigger,
     });
 
@@ -176,6 +172,42 @@ export function useFileManager() {
         }
     }
 
+    async function handleRestore(file: FileItem) {
+        const toastId = toast.loading(`Restoring ${file.name}...`);
+
+        try {
+            const { newPath } = await fileService.restoreFile(file.path);
+
+            setFiles((prev) => prev.filter((f) => f.path !== file.path));
+            if (activeFilePath === file.path) {
+                setActiveFilePath(null);
+            }
+
+            toast.success(`Restored ${file.name}`, { id: toastId, description: newPath });
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : "Failed to restore";
+            logerror(msg);
+            toast.error(msg, { id: toastId });
+        }
+    }
+
+    async function handleEmptyTrash() {
+        const toastId = toast.loading("Emptying trash...");
+
+        try {
+            const { removed } = await fileService.emptyTrash();
+            setFiles([]);
+            setActiveFilePath(null);
+            toast.success(`Deleted ${removed} item${removed === 1 ? "" : "s"} permanently`, { id: toastId });
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : "Failed to empty trash";
+            logerror(msg);
+            toast.error(msg, { id: toastId });
+        } finally {
+            refetchFiles();
+        }
+    }
+
     function handleCancelDelete() {
         setFileToDelete(null);
     }
@@ -223,8 +255,7 @@ export function useFileManager() {
 
     function handleOpenDirectory(path: string) {
         let baseFolderPath: string | null =
-            categoryPaths.find((c) => c.id === selectedFolder)?.rootPath ??
-            (FOLDER_PATHS as Record<string, string | null>)[selectedFolder];
+            (FOLDER_PATHS as Record<string, string | null>)[selectedFolder] ?? null;
 
         if (baseFolderPath && !baseFolderPath.startsWith("/")) {
             baseFolderPath = `/${baseFolderPath}`;
@@ -246,10 +277,34 @@ export function useFileManager() {
         handlePathChange(relative);
         setPage(1);
         setActiveFilePath(null);
+        // Opening a folder from search results shows that folder, not more results
+        setQuery("");
+    }
+
+    async function handleSumitShare(file: string, expire: Date | null, recursive: boolean) {
+        const data = await createShareLink(file, expire, recursive)
+
+        if (data.error) {
+            toast.error('Create Share Link Failed', {
+                description: data.error,
+                duration: 5000
+            })
+
+            return false
+        }
+
+        const fullUrl = window.location.origin + data.url
+        void navigator.clipboard?.writeText(fullUrl).catch(() => undefined)
+
+        toast.success('Share link created and copied', {
+            description: fullUrl,
+            duration: 5000
+        })
+
+        return true
     }
 
     const currentFolderLabel =
-        categoryPaths.find((c) => c.id === selectedFolder)?.rootPath ??
         FOLDERS.find((f) => f.id === selectedFolder)?.label ??
         "Files";
 
@@ -261,7 +316,6 @@ export function useFileManager() {
         meta,
         activeFilePath,
         setActiveFilePath,
-        categoryPaths,
         query,
         setQuery,
         page,
@@ -287,6 +341,8 @@ export function useFileManager() {
         handleDelete,
         handleConfirmDelete,
         handleCancelDelete,
+        handleRestore,
+        handleEmptyTrash,
 
         handleRename,
         fileToRename,
@@ -296,6 +352,8 @@ export function useFileManager() {
 
         handleOpenDirectory,
         refetchFiles,
+
+        handleSumitShare,
 
         // clipboard actions
         handleCut,

@@ -1,8 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import ptb from 'pretty-bytes'
-import { File as FileIcon, Folder, Star, Copy, Scissors, Trash2, Pencil, MoveIcon } from "lucide-react";
+import { File as FileIcon, Folder, Star, Copy, Scissors, Trash2, Pencil, MoveIcon, Share2Icon, ArchiveRestore } from "lucide-react";
 import { FileItem } from "./config";
+import { mediaTypeOf, rawFileUrl, thumbnailUrl } from "@/lib/file-manager/media";
+import { Thumbnail } from "./Thumbnail";
 
 // Import Shadcn Context Menu
 import {
@@ -29,6 +31,10 @@ type FileManagerGridProps = {
     onMove?: (file: FileItem) => void;
     onCopy?: (file: FileItem) => void;
     onCut?: (file: FileItem) => void;
+    onShare?: (file: FileItem) => void;
+    onRestore?: (file: FileItem) => void;
+    // Search results come from many folders: show which one each is in
+    showLocation?: boolean;
 };
 
 export function FileManagerGrid({
@@ -43,6 +49,9 @@ export function FileManagerGrid({
     onOpenDirectory,
     onCopy,
     onCut,
+    onShare,
+    onRestore,
+    showLocation = false,
 }: FileManagerGridProps) {
     const lastTapRef = useRef(0);
 
@@ -59,6 +68,8 @@ export function FileManagerGrid({
                     files.map((file) => {
                         const isActive = activeFilePath === file.path;
                         const isDirectory = file.type === "directory";
+                        // Trash items can only be restored or deleted for good
+                        const isTrashItem = file.path.startsWith("/trash/");
 
                         return (
                             <ContextMenu key={file.path || file.id}>
@@ -72,8 +83,11 @@ export function FileManagerGrid({
                                         draggable={"true"}
                                         onDoubleClick={(e) => {
                                             e.stopPropagation();
-                                            if (isDirectory) {
+                                            if (isDirectory && !isTrashItem) {
                                                 onOpenDirectory(file.path);
+                                            } else if (!isTrashItem && mediaTypeOf(file.name)) {
+                                                // Media opens full size in a new tab (the preview panel is hidden on small screens)
+                                                window.open(rawFileUrl(file.path), "_blank", "noopener");
                                             }
                                         }}
 
@@ -85,14 +99,19 @@ export function FileManagerGrid({
                                                 e.preventDefault();
                                                 e.stopPropagation();
 
-                                                if (isDirectory) {
+                                                if (isDirectory && !isTrashItem) {
                                                     onOpenDirectory(file.path);
+                                                } else if (!isTrashItem && mediaTypeOf(file.name)) {
+                                                    window.open(rawFileUrl(file.path), "_blank", "noopener");
                                                 }
                                             } else {
                                                 lastTapRef.current = now;
                                             }
                                         }}
                                     >
+                                        {!isDirectory && !isTrashItem && mediaTypeOf(file.name)?.kind === "image" && (
+                                            <Thumbnail src={thumbnailUrl(file.path)} name={file.name} />
+                                        )}
                                         <CardHeader className="pb-2 flex flex-row items-start justify-between gap-2">
                                             <div className="flex items-center gap-2 select-none">
                                                 <div className="w-8 h-8 rounded-md bg-red-500/20 flex items-center justify-center">
@@ -106,9 +125,20 @@ export function FileManagerGrid({
                                                     <CardTitle className="text-sm truncate max-w-32">
                                                         {file.name}
                                                     </CardTitle>
-                                                    <span className="text-[11px] text-slate-500 max-w-32">
-                                                        {file.type || "File"}
-                                                    </span>
+                                                    {showLocation && file.folder && (
+                                                        <span className="text-[11px] text-slate-400 max-w-32 truncate" title={file.folder}>
+                                                            in {file.folder}
+                                                        </span>
+                                                    )}
+                                                    {file.available === false ? (
+                                                        <span className="text-[11px] text-amber-400 max-w-32">
+                                                            Offline (disk not found)
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-[11px] text-slate-500 max-w-32">
+                                                            {file.type || "File"}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
                                             <button
@@ -134,6 +164,30 @@ export function FileManagerGrid({
 
                                 {/* เมนูคลิกขวาของ File Item (ใช้ Theme เดียวกัน) */}
                                 <ContextMenuContent className="min-w-[220px] rounded-xl border border-slate-800/80 bg-slate-900/95 backdrop-blur-md shadow-xl shadow-black/40 py-1">
+                                    {isTrashItem ? (
+                                        <>
+                                            <ContextMenuItem
+                                                inset
+                                                onClick={() => onRestore?.(file)}
+                                                className="flex items-center gap-2 text-slate-100 focus:bg-slate-800/80"
+                                            >
+                                                <ArchiveRestore className="h-3.5 w-3.5 text-slate-400" />
+                                                <span>Restore</span>
+                                            </ContextMenuItem>
+
+                                            <ContextMenuSeparator className="my-1 bg-slate-800/80" />
+
+                                            <ContextMenuItem
+                                                inset
+                                                className="flex items-center gap-2 text-red-400 focus:bg-slate-800/80 focus:text-red-400"
+                                                onClick={() => onDelete(file)}
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                                <span>Delete permanently</span>
+                                            </ContextMenuItem>
+                                        </>
+                                    ) : (
+                                        <>
                                     <ContextMenuItem
                                         inset
                                         onClick={() => onMove?.(file)}
@@ -175,12 +229,25 @@ export function FileManagerGrid({
 
                                     <ContextMenuItem
                                         inset
+                                        onClick={() => onShare?.(file)}
+                                        className="flex items-center gap-2 text-slate-100 focus:bg-slate-800/80"
+                                    >
+                                        <Share2Icon className="h-3.5 w-3.5 text-slate-400" />
+                                        <span>Share</span>
+                                    </ContextMenuItem>
+
+                                    <ContextMenuSeparator className="my-1 bg-slate-800/80" />
+
+                                    <ContextMenuItem
+                                        inset
                                         className="flex items-center gap-2 text-red-400 focus:bg-slate-800/80 focus:text-red-400"
                                         onClick={() => onDelete(file)}
                                     >
                                         <Trash2 className="h-3.5 w-3.5" />
                                         <span>Delete</span>
                                     </ContextMenuItem>
+                                        </>
+                                    )}
                                 </ContextMenuContent>
                             </ContextMenu>
                         );

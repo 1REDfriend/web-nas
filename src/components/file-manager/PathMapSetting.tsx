@@ -62,24 +62,19 @@ function groupByUserId(items: PathItem[]): GroupedData {
 export function PathMapSetting() {
     const [importData, setImportData] = useState<GroupedData>({});
     const [message, setMessage] = useState<string | null>(null);
-    const [loading, setLoading] = useState<boolean>(false);
+    // Starts true: the first load runs on mount
+    const [loading, setLoading] = useState<boolean>(true);
 
-    const fetchData = useCallback(async () => {
-        try {
-            setLoading(true);
-
-            const res = (await getImport()) as GetImportResponse;
-
-            const items = Array.isArray(res.pathMap) ? res.pathMap : [];
-            const grouped = groupByUserId(items);
-
-            setImportData(grouped);
-            setMessage(res.message ?? null);
-        } catch {
-            setMessage("Failed to load path map data");
-        } finally {
-            setLoading(false);
-        }
+    // State is only set once the request settles, so this is safe to start from an effect
+    const fetchData = useCallback(() => {
+        return (getImport() as Promise<GetImportResponse>)
+            .then((res) => {
+                const items = Array.isArray(res?.pathMap) ? res.pathMap : [];
+                setImportData(groupByUserId(items));
+                setMessage(res?.message ?? null);
+            })
+            .catch(() => setMessage("Failed to load path map data"))
+            .finally(() => setLoading(false));
     }, []);
 
     useEffect(() => {

@@ -1,23 +1,19 @@
 import { logerror } from "@/lib/logger";
-import { firstLogin } from "../auth/first-login";
 
 export async function userLoginCheck() {
     try {
-        const res = await fetch("/api/auth/user-check", {
-            method: 'GET',
-            headers: {
-                "Content-Type": "application/json",
-            }
-        })
+        const setup = await fetch("/api/auth/setup-status");
+        if (setup.ok && (await setup.json()).needsSetup) {
+            return { login: false, registor: true, mustChangePassword: false }
+        }
 
-        if (await firstLogin()) {
-            return {login: false, registor: true}
-        } 
+        const res = await fetch("/api/auth/user-check")
+        if (!res.ok) return { login: false, registor: false, mustChangePassword: false }
 
-        if (res.ok) return {login: true, registor: false}
-        else return {login: false, registor: false}
+        const data = await res.json()
+        return { login: true, registor: false, mustChangePassword: data.mustChangePassword === true }
     } catch {
         logerror("[Failed to fetch user login check]")
-        return {login: false, registor: false}
+        return { login: false, registor: false, mustChangePassword: false }
     }
 }

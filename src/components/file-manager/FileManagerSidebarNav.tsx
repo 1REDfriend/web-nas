@@ -5,6 +5,12 @@ import { RootPathSettingsDialog } from "./RootPathSettingsDialog";
 import { useEffect, useState } from "react";
 import { fetchStorage } from "@/lib/api/system/storage.service";
 import prettyBytes from "pretty-bytes";
+import { SharelinkRoute } from "./SharelinkRoute";
+import { PathRuleSettingsDialog } from "./PathRuleSettingsDialog";
+import { fetchCurrentRole } from "@/lib/api/admin/path-rule.service";
+import { RuleRole } from "@/lib/security/file-actions";
+import { LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 type FileManagerSidebarNavProps = {
     selectedFolder: string;
@@ -18,6 +24,13 @@ export function FileManagerSidebarNav({
     const [total, setTotal] = useState(0);
     // const [free, setFree] = useState(0);
     const [used, setUsed] = useState(0);
+    const [role, setRole] = useState<RuleRole | null>(null);
+    const router = useRouter();
+
+    async function handleLogout() {
+        await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
+        router.push("/auth/login");
+    }
     // const [loading, setLoading] = useState(true);
 
     const usagePercent = total > 0 ? (used / total) * 100 : 0;
@@ -42,6 +55,7 @@ export function FileManagerSidebarNav({
             }
         }
         storage()
+        fetchCurrentRole().then(setRole)
     }, [])
 
     return (
@@ -78,7 +92,13 @@ export function FileManagerSidebarNav({
                 </p>
                 <div className="space-y-1">
                     {/* ใช้ component popup แทนปุ่มเดิม */}
+                    <SharelinkRoute/>
                     <RootPathSettingsDialog />
+                    {role === "ADMIN" && <PathRuleSettingsDialog />}
+                    <Button variant={"ghost"} className="w-full justify-start gap-2" onClick={handleLogout}>
+                        <LogOut className="w-4 h-4" />
+                        <span>Log out</span>
+                    </Button>
                 </div>
             </div>
 

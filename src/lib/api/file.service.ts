@@ -19,6 +19,7 @@ type FileListMeta = {
     itemsPerPage: number;
     sortBy?: string;
     order?: "asc" | "desc";
+    truncated?: boolean;
 };
 
 interface DeleteResponse {
@@ -33,7 +34,7 @@ async function handleApiError(res: Response) {
         let errorMessage = `API Error: ${res.status} ${res.statusText}`;
         try {
             const errorJson = await res.json();
-            errorMessage = errorJson.message || errorMessage;
+            errorMessage = errorJson.error || errorJson.message || errorMessage;
         } catch {
         }
         logerror(errorMessage);
@@ -43,6 +44,10 @@ async function handleApiError(res: Response) {
 
 type FetchFilesParams = {
     folderPath: string | null;
+    // Starred / Recent span all folders; ignored when folderPath is set
+    view?: "starred" | "recent";
+    // Search the folder and all its subfolders instead of only this folder
+    deep?: boolean;
     page: number;
     query: string;
     sortBy: string;
@@ -56,10 +61,13 @@ export async function fetchFiles(
     const urlParams = new URLSearchParams();
     if (params.folderPath) {
         urlParams.set("path", params.folderPath);
+    } else if (params.view) {
+        urlParams.set("view", params.view);
     }
     urlParams.set("page", String(params.page));
     if (params.query.trim()) {
         urlParams.set("search", params.query.trim());
+        if (params.deep) urlParams.set("deep", "1");
     }
     urlParams.set("sortBy", params.sortBy);
     urlParams.set("order", params.order);
@@ -166,6 +174,25 @@ export async function deleteFile(filePath: string, confirm?: string): Promise<De
     return json;
 }
 
+export async function emptyTrash(): Promise<{ success: boolean; removed: number }> {
+    const params = new URLSearchParams({ file: "/trash", option: "empty", confirm: "true" });
+    const res = await fetch(`${API_BASE}/manage?${params.toString()}`, { method: "POST" });
+
+    await handleApiError(res);
+    return res.json();
+}
+
+export async function restoreFile(filePath: string): Promise<{ success: boolean; newPath: string }> {
+    const params = new URLSearchParams();
+    params.set("file", filePath);
+    params.set("option", "restore");
+
+    const res = await fetch(`${API_BASE}/manage?${params.toString()}`, { method: "POST" });
+
+    await handleApiError(res);
+    return res.json();
+}
+
 export async function renameFile(
     filePath: string,
     newName: string
@@ -214,44 +241,10 @@ export async function upload(
 
     } catch (error: unknown) {
         logerror('[Error in upload service] : ' + error);
+        throw error;
     }
 }
 
-
-export async function addFolderFavorite(
-    path?: string,
-    favorite?: string
-) {
-    const params = new URLSearchParams();
-    if (path) params.set("path", path);
-    if (favorite) params.set("like", favorite);
-
-    let res;
-
-    if (path || favorite) {
-        res = await fetch(`${API_BASE}/folder?${params.toString()}`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            }
-        });
-    } else {
-        res = await fetch(`${API_BASE}/folder`, {
-            method: "GET",
-            headers: {
-                "Content-Type": "application/json",
-            }
-        });
-    }
-
-
-    await handleApiError(res);
-    const data = await res.json();
-    if (!data.success && !data.message) {
-        throw new Error(data.error || "Cannot add folder");
-    }
-    return data;
-}
 
 export async function pasteFiles(
     files: { path: string; name: string }[],

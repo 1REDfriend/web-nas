@@ -14,11 +14,12 @@ import {
 import { useRouter } from "next/navigation";
 import { logerror } from "@/lib/logger";
 
-type LoginResponse =
-    | {
-        message: string;
-        user?: { name?: string } | string;
-    };
+type LoginResponse = {
+    message?: string;
+    error?: string;
+    mustChangePassword?: boolean;
+    user?: { name?: string } | string;
+};
 
 export default function LoginPage() {
     const [username, setUsername] = useState("");
@@ -56,7 +57,7 @@ export default function LoginPage() {
             const data: LoginResponse = await res.json();
 
             if (!res.ok) {
-                setError(data?.message || "Login failed");
+                setError(data?.error || data?.message || "Login failed");
                 return;
             }
 
@@ -70,7 +71,7 @@ export default function LoginPage() {
 
             setUsername("");
             setPassword("");
-            router.push("/");
+            router.push(data?.mustChangePassword ? "/auth/pass-change" : "/");
         } catch (err) {
             logerror(err + "");
             setError("An error occurred connecting to the server.");

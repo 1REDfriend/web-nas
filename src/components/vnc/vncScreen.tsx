@@ -1,32 +1,30 @@
 'use client';
 
-import { ENV } from '@/lib/ENV';
-import { useMemo } from 'react';
+import { useEffect, useState } from 'react';
 
+// Web terminal (webssh behind Caddy). The host comes from the server at runtime
+// (TERMINAL_HOST); without it the terminal is "<current host>:7255". Only
+// rendered after the user opens the terminal, so `window` is available.
 export default function VncPage() {
-    const src = useMemo(() => {
-        // const vncHost = 'localhost';
-        // const vncPort = '6081';
+    const [host, setHost] = useState<string | null>(null);
 
-        // const params = new URLSearchParams({
-        //     host: vncHost,
-        //     port: vncPort,
-        //     path: 'websockify',
-        //     encrypt: '0',
-        //     autoconnect: '1',
-        //     resize: 'scale',
-        // });
-
-        return `https://${ENV.TERMINAL_HOST}`;
+    useEffect(() => {
+        const fallback = `${window.location.hostname}:7255`;
+        fetch('/api/auth/user-check')
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => setHost(data?.terminalHost || fallback))
+            .catch(() => setHost(fallback));
     }, []);
 
     return (
         <div className="w-full h-screen bg-black">
-            <iframe
-                src={src}
-                className="w-full h-full border-0"
-                allow="fullscreen"
-            />
+            {host && (
+                <iframe
+                    src={`https://${host}`}
+                    className="w-full h-full border-0"
+                    allow="fullscreen"
+                />
+            )}
         </div>
     );
 }

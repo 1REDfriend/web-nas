@@ -1,90 +1,67 @@
 import { logerror } from "@/lib/logger";
 import { NextResponse } from "next/server";
-import bcrypt from 'bcrypt';
 import { prisma } from '@/lib/db';
-import { SignJWT } from 'jose';;
-import { ENV } from "@/lib/ENV";
+import { verifyPassword } from "@/lib/security/credentials";
+import { createSession, setSessionCookie } from "@/lib/security/session";
+import { getClientIp, LimitRule, recordAttempt, resetLimits, retryAfterSeconds } from "@/lib/security/rate-limit";
+
+const WINDOW_MS = 15 * 60 * 1000;
+
+function loginLimits(ip: string, username: string): LimitRule[] {
+    const name = username.toLowerCase();
+    return [
+        { key: `login:ip-user:${ip}:${name}`, limit: 5, windowMs: WINDOW_MS },
+        { key: `login:ip:${ip}`, limit: 30, windowMs: WINDOW_MS },
+        { key: `login:user:${name}`, limit: 50, windowMs: WINDOW_MS },
+    ];
+}
 
 export async function POST(request: Request) {
-    const body = await request.json();
-    const { username, password } = body;
-
     try {
-        if (!username || !password) {
+        const body = await request.json().catch(() => ({}));
+        const { username, password } = body;
+
+        if (typeof username !== "string" || typeof password !== "string" || !username || !password) {
             return NextResponse.json(
                 { error: 'Username and password are required' },
                 { status: 400 }
             );
         }
 
+        const limits = loginLimits(getClientIp(request), username);
+        const wait = retryAfterSeconds(limits);
+        if (wait > 0) {
+            return NextResponse.json(
+                { error: `Too many failed attempts. Try again in ${Math.ceil(wait / 60)} minute(s).` },
+                { status: 429, headers: { 'Retry-After': String(wait) } }
+            );
+        }
+
         const user = await prisma.user.findUnique({
-            where: {
-                username: username
-            }
-        })
-
-        if (!user) {
-            return NextResponse.json(
-                { error: 'Invalid username or password' },
-                { status: 401 }
-            );
-        }
-
-        const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-
-        if (!isPasswordValid) {
-            return NextResponse.json(
-                { error: 'Invalid username or password' },
-                { status: 401 }
-            );
-        }
-
-        const payload = {
-            userId: user.id,
-            username: user.username,
-        };
-
-        if (!ENV.JWT_SECRET) {
-            logerror("JWT_SECRET is not defined in environment variables.");
-            return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-        }
-
-        const secret = new TextEncoder().encode(ENV.JWT_SECRET);
-
-        const token = await new SignJWT(payload)
-            .setProtectedHeader({ alg: 'HS256' })
-            .setSubject(user.id as string)
-            .setExpirationTime('1h')
-            .setIssuedAt()
-            .sign(secret);
-
-        const userAgent = request.headers.get('user-agent') || 'Unknown Device';
-
-        await prisma.activeSession.create({
-            data: {
-                userId: user.id,
-                token: token,
-                userAgent: userAgent,
-            }
+            where: { username }
         });
+
+        if (!(await verifyPassword(password, user?.passwordHash)) || !user) {
+            recordAttempt(limits);
+            return NextResponse.json(
+                { error: 'Invalid username or password' },
+                { status: 401 }
+            );
+        }
+
+        resetLimits([limits[0].key]);
+
+        const { token } = await createSession(user, request.headers.get('user-agent') || 'Unknown Device');
 
         const response = NextResponse.json(
             {
                 message: 'Login successful',
-                user: user.username
+                user: user.username,
+                mustChangePassword: user.mustChangePassword,
             },
             { status: 200 }
         );
-
-        response.cookies.set({
-            name: ENV.TOKEN_COOKIE,
-            value: token,
-            maxAge: 60 * 60 * 1,
-            httpOnly: true,
-            secure: true,
-            sameSite: 'strict',
-            path: '/',
-        });
+        setSessionCookie(response, token);
 
         return response;
     } catch (err: unknown) {

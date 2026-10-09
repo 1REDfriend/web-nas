@@ -1,14 +1,21 @@
 import { NextResponse } from 'next/server';
-import path from 'path';
+import fs from 'fs-extra';
 import { logerror } from '@/lib/logger';
 import { ENV } from '@/lib/ENV';
-import { validateUserPaths } from '@/middlewares/pathValidator';
-import { getUserRootPaths, removeInvalidPathMap } from '@/lib/service/user-path-service';
-import { normalizeFsPath } from '@/lib/utils/fs-helper';
+import { getUserRootPaths } from '@/lib/service/user-path-service';
 import { getDirectoryFiles } from '@/lib/service/file-brower-service';
 import { xUserPayload } from '@/lib/api/user/x-user-payload';
-import { createInternalFolder } from '@/lib/folder/createInternalFolder';
 import { cleanTrashItemsByUserId } from '@/lib/utils/trash/trash-clean';
+import { listRecent, listStarred, markStarred } from '@/lib/service/tracked-paths';
+import { describeTrashItems } from '@/lib/service/trash-service';
+import { searchFiles } from '@/lib/service/file-search';
+import {
+    authorizePath,
+    fileAccessErrorResponse,
+    getAccessUser,
+    isTrashPath,
+    resolveTrashPath,
+} from '@/lib/security/path-guard';
 
 export async function GET(request: Request) {
     try {
@@ -35,6 +42,44 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: "Internal Server Configuration Error" }, { status: 500 });
         }
 
+        // --- Case 0: Starred / Recent views (span every folder the user can see) ---
+        const view = searchParams.get('view');
+        if (!rawReqPath && (view === 'starred' || view === 'recent')) {
+            const user = await getAccessUser(userId);
+            if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+            let data = view === 'starred' ? await listStarred(user) : await listRecent(user);
+            if (search) {
+                data = data.filter((f) => f.name.toLowerCase().includes(search.toLowerCase()));
+            }
+
+            return NextResponse.json({
+                data,
+                meta: { totalFiles: data.length, currentPage: 1, itemsPerPage: Math.max(data.length, 1) }
+            });
+        }
+
+        // --- Case 0b: Search through subfolders (not for the trash) ---
+        if (search.trim() && searchParams.get('deep') === '1' && !isTrashPath(rawReqPath ?? '')) {
+            const user = await getAccessUser(userId);
+            if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+            // A named folder must be viewable (403 otherwise, as when browsing);
+            // from the home page each assigned folder is searched if it can be
+            if (rawReqPath) await authorizePath(user, rawReqPath, "VIEW");
+
+            const startPaths = rawReqPath
+                ? [rawReqPath]
+                : (await getUserRootPaths(userId)).map((p) => p.path);
+
+            const { data, truncated } = await searchFiles(user, startPaths, search, request.signal);
+
+            return NextResponse.json({
+                data: await markStarred(user.id, data),
+                meta: { totalFiles: data.length, currentPage: 1, itemsPerPage: Math.max(data.length, 1), truncated }
+            });
+        }
+
         // --- Case 1: List Root Paths (No path param) ---
         if (!rawReqPath) {
             try {
@@ -49,22 +94,28 @@ export async function GET(request: Request) {
             }
         }
 
-        const reqPath = normalizeFsPath(rawReqPath);
+        const user = await getAccessUser(userId);
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-        const validation = await validateUserPaths(userId, reqPath);
-        if (validation instanceof NextResponse) return validation;
+        let physicalPath: string;
+        let reqPath: string;
 
-        let selectedRoot = ENV.STORAGE_ROOT;
-        let physicalPath = path.join(selectedRoot, reqPath);
-
-        if (reqPath === "/trash") {
-            createInternalFolder(userId, "/trash")
-            await cleanTrashItemsByUserId(userId)
-            selectedRoot = ENV.STORAGE_INTERNAL;
-            physicalPath = path.join(selectedRoot, userId, reqPath);
+        if (isTrashPath(rawReqPath)) {
+            const trash = resolveTrashPath(user.id, rawReqPath);
+            if (trash.itemName) {
+                return NextResponse.json({ error: 'Trash items cannot be opened' }, { status: 400 });
+            }
+            await fs.ensureDir(trash.trashDir);
+            await cleanTrashItemsByUserId(user.id);
+            physicalPath = trash.trashDir;
+            reqPath = "/trash";
+        } else {
+            const target = await authorizePath(user, rawReqPath, "VIEW");
+            physicalPath = target.physicalPath;
+            reqPath = target.virtualPath;
         }
 
-        const { data, totalFiles } = await getDirectoryFiles({
+        const { data: entries, totalFiles } = await getDirectoryFiles({
             physicalPath,
             reqPath,
             page,
@@ -73,6 +124,10 @@ export async function GET(request: Request) {
             sortBy,
             order
         });
+
+        const data = reqPath === "/trash"
+            ? await describeTrashItems(user.id, entries)
+            : await markStarred(user.id, entries);
 
         return NextResponse.json({
             data,
@@ -86,31 +141,15 @@ export async function GET(request: Request) {
         });
 
     } catch (err: unknown) {
-        // --- Error Handling ---
-        const { searchParams } = new URL(request.url);
-        const rawReqPath = searchParams.get('path');
+        const accessResponse = fileAccessErrorResponse(err);
+        if (accessResponse) return accessResponse;
 
         logerror("[File List Failed] : " + err);
 
-        if (err instanceof Error) {
-            if ('code' in err && (err as { code: string }).code === 'ENOENT') {
-                const reqPath = rawReqPath ? normalizeFsPath(rawReqPath) : '';
-                logerror("[File List Failed] : Path not found. " + err.message);
-
-                if (rawReqPath) {
-                    await removeInvalidPathMap(rawReqPath);
-
-                    if (rawReqPath.startsWith('/')) {
-                        await removeInvalidPathMap(rawReqPath.substring(1));
-                    }
-                }
-
-                if (reqPath && reqPath !== rawReqPath) {
-                    await removeInvalidPathMap(reqPath);
-                }
-
-                return NextResponse.json({ error: 'Path not found' }, { status: 404 });
-            }
+        // A missing path is reported, never "repaired": an unplugged or not-yet-mounted
+        // disk must not wipe the folder assignments that point at it.
+        if (err instanceof Error && 'code' in err && (err as { code: string }).code === 'ENOENT') {
+            return NextResponse.json({ error: 'Path not found. If it is on an external disk, check that the disk is connected.' }, { status: 404 });
         }
 
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

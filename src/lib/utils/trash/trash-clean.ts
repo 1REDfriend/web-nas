@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/db";
 import fs from 'fs-extra'
-import { getInternalUserFolder } from "@/lib/folder/getInternalUserFolder";
-import { pathReplaceValidate } from "@/lib/reosolvePath";
+import { getUserTrashDir } from "@/lib/security/path-guard";
 import path from "path";
 import { logerror } from "@/lib/logger";
 
@@ -14,31 +13,24 @@ export async function cleanTrashItemsByUserId(userId: string) {
     });
 
     if (expired.length > 0) {
-        const userFolder = await getInternalUserFolder(userId);
-        const trashFolder = path.join(userFolder, "trash");
-        let succ = false
+        const trashFolder = getUserTrashDir(userId);
+        const removedIds: string[] = [];
 
         await Promise.all(expired.map(async (item) => {
-            const itemName = `${item.item}_id${item.id}`;
-            const itemPath = await pathReplaceValidate(itemName);
-
-            const fullPath = path.join(trashFolder, itemPath);
+            const fullPath = path.join(trashFolder, path.basename(`${item.item}_id${item.id}`));
 
             try {
                 await fs.remove(fullPath);
-                succ = true
+                removedIds.push(item.id);
             } catch (err) {
                 logerror(`Failed to remove file: ${fullPath}`, err);
             }
         }));
 
-        if (succ) {
+        // Only forget items whose files are really gone, so a failed removal is retried
+        if (removedIds.length > 0) {
             await prisma.trashShedule.deleteMany({
-                where: {
-                    id: {
-                        in: expired.map(e => e.id)
-                    }
-                }
+                where: { id: { in: removedIds } }
             });
         }
     }

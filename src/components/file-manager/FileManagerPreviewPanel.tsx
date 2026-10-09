@@ -1,9 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { DownloadCloud, File as FileIcon, Star, Trash2 } from "lucide-react";
+import { ArchiveRestore, DownloadCloud, File as FileIcon, Star, Trash2 } from "lucide-react";
 import { FileItem } from "./config";
 import ptb from 'pretty-bytes'
+import { mediaTypeOf, rawFileUrl } from "@/lib/file-manager/media";
+import { MediaPreview } from "./MediaPreview";
 
 type FileManagerPreviewPanelProps = {
     activeFile: FileItem | null;
@@ -14,6 +16,7 @@ type FileManagerPreviewPanelProps = {
     onDownload: (file: FileItem) => void;
     onToggleStar: (file: FileItem) => void;
     onDelete: (file: FileItem) => void;
+    onRestore?: (file: FileItem) => void;
 };
 
 export function FileManagerPreviewPanel({
@@ -25,8 +28,10 @@ export function FileManagerPreviewPanel({
     onDownload,
     onToggleStar,
     onDelete,
+    onRestore,
 }: FileManagerPreviewPanelProps) {
     const isTrashFile = activeFile?.path?.startsWith('/trash') || activeFile?.path?.startsWith('trash');
+    const media = activeFile && activeFile.type !== "directory" ? mediaTypeOf(activeFile.name) : null;
 
     return (
         <aside className="hidden xl:flex w-80 border-l border-white/10 flex-col bg-slate-950/60">
@@ -68,7 +73,24 @@ export function FileManagerPreviewPanel({
                                     {activeFile.updatedAt}
                                 </p>
                             )}
-                            {activeFile.path && (
+                            {isTrashFile ? (
+                                <>
+                                    <p>
+                                        <span className="font-semibold text-slate-200">
+                                            Deleted from:
+                                        </span>{" "}
+                                        {activeFile.originalPath ?? "Unknown"}
+                                    </p>
+                                    {activeFile.expiresAt && (
+                                        <p>
+                                            <span className="font-semibold text-slate-200">
+                                                Deleted for good on:
+                                            </span>{" "}
+                                            {new Date(activeFile.expiresAt).toLocaleDateString()}
+                                        </p>
+                                    )}
+                                </>
+                            ) : activeFile.path && (
                                 <p>
                                     <span className="font-semibold text-slate-200">
                                         Location:
@@ -85,6 +107,18 @@ export function FileManagerPreviewPanel({
                                 Quick actions
                             </p>
                             <div className="flex flex-wrap gap-2">
+                                {isTrashFile ? (
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="text-xs"
+                                        onClick={() => onRestore?.(activeFile)}
+                                    >
+                                        <ArchiveRestore className="w-3 h-3 mr-1" />
+                                        Restore
+                                    </Button>
+                                ) : (
+                                    <>
                                 <Button
                                     size="sm"
                                     variant="outline"
@@ -103,6 +137,8 @@ export function FileManagerPreviewPanel({
                                     <Star className="w-3 h-3 mr-1" />
                                     Star
                                 </Button>
+                                    </>
+                                )}
                                 <Button
                                     size="sm"
                                     variant="outline"
@@ -118,6 +154,10 @@ export function FileManagerPreviewPanel({
                         <Separator className="bg-white/5" />
 
                         <div className="text-xs text-slate-400">
+                            {media && !isTrashFile ? (
+                                <MediaPreview key={activeFile.path} src={rawFileUrl(activeFile.path)} name={activeFile.name} kind={media.kind} />
+                            ) : (
+                            <>
                             {previewLoading && <p>Loading file content...</p>}
                             {previewError && (
                                 <p className="text-red-400">{previewError}</p>
@@ -131,6 +171,8 @@ export function FileManagerPreviewPanel({
                                 <p className="text-slate-500">
                                     This file does not have a preview or is a binary file.
                                 </p>
+                            )}
+                            </>
                             )}
                         </div>
                     </div>

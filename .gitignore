@@ -45,9 +45,14 @@ next-env.d.ts
 /prisma/src/generated/prisma
 prisma/main.sqlite
 
-*lock.*
-package-lock.json
+# package-lock.json is committed so every install gets the same versions
+bun.lock*
 /public/novnc
 
 storage/*
 *.env
+webtop_data/*
+data/
+
+# Stray e2e fixtures (they normally live in the OS temp folder)
+tests/e2e/.work/

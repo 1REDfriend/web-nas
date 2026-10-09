@@ -14,12 +14,19 @@ export type FileItem = {
     updatedAt?: string;
     folder?: string;
     isStarred?: boolean;
+    // Only set on assigned root folders; false when the folder is missing on disk
+    available?: boolean;
+    // Only set on trash items: where it was deleted from and when it is purged
+    originalPath?: string | null;
+    expiresAt?: string;
 };
 
 export type FileListMeta = {
     totalFiles: number;
     currentPage: number;
     itemsPerPage: number;
+    // Search stopped early (too many matches, too much to scan, or too slow)
+    truncated?: boolean;
     sortBy?: string;
     order?: "asc" | "desc";
 };

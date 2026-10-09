@@ -1,45 +1,34 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-
-import bcrypt from "bcrypt";
-import { xUserPayload } from "@/lib/api/user/x-user-payload";
-import generateRandomPassword from "@/lib/utils/passwordGenerator";
+import { logerror } from "@/lib/logger";
+import { getRequestUser } from "@/lib/security/path-guard";
+import { isRuleRole } from "@/lib/security/file-actions";
+import { generateTempPassword, hashPassword, validateUsername } from "@/lib/security/credentials";
 
 export async function POST(req: Request) {
     try {
-        const body = await req.json();
-        const { username, role } = body;
-
-        const userPayload = await xUserPayload()
-        if (!userPayload) {
-            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+        const requester = await getRequestUser();
+        if (!requester) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const userId = userPayload.sub
-
-        const user = await prisma.user.findUnique({
-            where: {id: userId}
-        })
-
-        if (!user) {
+        if (requester.role !== "ADMIN") {
             return NextResponse.json(
-                { error : "Fuck U"},
-                { status: 500}
-            )
-        }
-
-        if (user.role !== "ADMIN") {
-            return NextResponse.json(
-                { message: "Forbidden: You do not have permission to create users." },
+                { error: "Forbidden: You do not have permission to create users." },
                 { status: 403 }
             );
         }
 
-        if (!username || !role) {
-            return NextResponse.json(
-                { message: "Username and Role are required." },
-                { status: 400 }
-            );
+        const body = await req.json().catch(() => ({}));
+        const { username, role } = body;
+
+        const usernameProblem = validateUsername(username);
+        if (usernameProblem) {
+            return NextResponse.json({ error: usernameProblem }, { status: 400 });
+        }
+
+        if (!isRuleRole(role)) {
+            return NextResponse.json({ error: "Role must be ADMIN, USER or GUEST." }, { status: 400 });
         }
 
         const existingUser = await prisma.user.findUnique({
@@ -48,21 +37,20 @@ export async function POST(req: Request) {
 
         if (existingUser) {
             return NextResponse.json(
-                { message: "Username already exists." },
+                { error: "Username already exists." },
                 { status: 409 }
             );
         }
 
-        const rawPassword = generateRandomPassword(6);
-
-        const saltRounds = 10;
-        const passwordHash = await bcrypt.hash(rawPassword, saltRounds);
+        const tempPassword = generateTempPassword();
 
         const newUser = await prisma.user.create({
             data: {
                 username,
-                passwordHash,
-                role: role,
+                passwordHash: await hashPassword(tempPassword),
+                role,
+                // The admin has seen this password, so the user must replace it
+                mustChangePassword: true,
             },
         });
 
@@ -72,14 +60,14 @@ export async function POST(req: Request) {
                 id: newUser.id,
                 username: newUser.username,
                 role: newUser.role,
-                tempPassword: rawPassword,
+                tempPassword,
             },
         }, { status: 201 });
 
     } catch (error) {
-        console.error("Create User Error:", error);
+        logerror("Create User Error:", error);
         return NextResponse.json(
-            { message: "Internal Server Error" },
+            { error: "Internal Server Error" },
             { status: 500 }
         );
     }

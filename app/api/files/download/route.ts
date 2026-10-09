@@ -1,19 +1,17 @@
 import { logerror } from "@/lib/logger";
 import { NextResponse } from "next/server";
-import fs from 'fs-extra';
-import path from 'path';
-import mime from 'mime-types';
-import archiver from "archiver";
-import { ENV } from "@/lib/ENV";
+import { authorizePath, fileAccessErrorResponse, getRequestUser } from "@/lib/security/path-guard";
+import { createDownloadResponse } from "@/lib/routes/filesystem/download-response";
+import { recordRecent } from "@/lib/service/tracked-paths";
 
+// Share-link downloads live in /api/public/share/[id]/download
 export async function POST(request: Request) {
     const body = await request.json()
     const { reqFile } = body;
 
-    const ROOT_STORAGE_PATH = ENV.STORAGE_ROOT;
-    if (!ROOT_STORAGE_PATH) {
-        logerror("[FATAL ERROR] STORAGE_ROOT environment variable is not set.");
-        return NextResponse.json({ error: "Internal Server Configuration Error" }, { status: 500 });
+    const user = await getRequestUser();
+    if (!user) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     try {
@@ -23,76 +21,16 @@ export async function POST(request: Request) {
                 { status: 400 }
             )
         }
-        const physicalPath = path.join(ROOT_STORAGE_PATH, reqFile);
 
-        const resolvedRoot = path.resolve(ROOT_STORAGE_PATH);
-        const resolvedPath = path.resolve(physicalPath);
+        const { physicalPath, virtualPath } = await authorizePath(user, reqFile, "DOWNLOAD", { includeSubtree: true });
 
-        if (!resolvedPath.startsWith(resolvedRoot)) {
-            logerror(`[File Download Failed] : Forbidden path access attempt: ${reqFile}`);
-            return NextResponse.json({ error: 'Forbidden path' }, { status: 403 });
-        }
-
-        if (!fs.existsSync(physicalPath)) {
-            return new NextResponse('File or directory not found',
-                { status: 404 }
-            );
-        }
-
-        const stats = fs.statSync(physicalPath);
-        const headers = new Headers();
-
-        if (stats.isFile()) {
-            const fileBuffer = fs.readFileSync(physicalPath);
-            const filename = path.basename(physicalPath);
-            const contentType = mime.lookup(physicalPath) || 'application/octet-stream';
-
-            headers.set('Content-Type', contentType);
-            headers.set('Content-Disposition', `attachment; filename="${filename}"`);
-            headers.set('Content-Length', stats.size.toString());
-
-            return new NextResponse(fileBuffer, {
-                status: 200,
-                headers: headers,
-            });
-        }
-
-        if (stats.isDirectory()) {
-            const zipFileName = `${path.basename(physicalPath)}.zip`;
-            const archive = archiver('zip', {
-                zlib: { level: 9 },
-            });
-
-            const stream = new ReadableStream({
-                start(controller) {
-                    archive.on('data', (chunk: Buffer) => {
-                        controller.enqueue(chunk);
-                    });
-                    archive.on('end', () => {
-                        controller.close();
-                    });
-                    archive.on('error', (err: Error) => {
-                        controller.error(err);
-                    });
-
-                    archive.directory(physicalPath, false);
-                    archive.finalize();
-                },
-            });
-
-            headers.set('Content-Type', 'application/zip');
-            headers.set('Content-Disposition', `attachment; filename="${zipFileName}"`);
-
-            return new NextResponse(stream, {
-                status: 200,
-                headers: headers,
-            });
-        }
-
-        return new NextResponse('Path is not a file or directory',
-            { status: 400 }
-        );
+        const response = await createDownloadResponse(physicalPath);
+        await recordRecent(user.id, virtualPath, "downloaded");
+        return response;
     } catch (err: unknown) {
+        const accessResponse = fileAccessErrorResponse(err);
+        if (accessResponse) return accessResponse;
+
         logerror("[File Downoad Failed] : " + err);
         if (err instanceof Error && (err as NodeJS.ErrnoException).code === 'ENOENT') {
             return NextResponse.json(

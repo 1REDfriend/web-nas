@@ -3,7 +3,13 @@ import formidable, { errors as formidableErrors } from 'formidable';
 import { NextApiRequest, NextApiResponse } from 'next';
 import path from 'path';
 import { log, logerror } from '@/lib/logger';
-import { ENV } from '@/lib/ENV';
+import { recordRecent } from '@/lib/service/tracked-paths';
+import {
+    AuthorizedPath,
+    FileAccessError,
+    authorizeNewEntry,
+    getAccessUser,
+} from '@/lib/security/path-guard';
 
 export const config = {
     api: {
@@ -20,6 +26,19 @@ async function ensureUploadDirExists(currentPath: fs.PathLike) {
     }
 };
 
+async function getUserFromRequest(req: NextApiRequest) {
+    // Set by middleware.ts after the JWT has been verified
+    const raw = req.headers['x-user-payload'];
+    if (typeof raw !== 'string') return null;
+
+    try {
+        const payload = JSON.parse(raw) as { sub?: string };
+        return getAccessUser(payload.sub);
+    } catch {
+        return null;
+    }
+}
+
 export default async function handler(
     req: NextApiRequest,
     res: NextApiResponse
@@ -27,6 +46,11 @@ export default async function handler(
     if (req.method !== 'POST') {
         res.setHeader('Allow', 'POST');
         return res.status(405).end('Method Not Allowed');
+    }
+
+    const user = await getUserFromRequest(req);
+    if (!user) {
+        return res.status(401).json({ error: 'Unauthorized' });
     }
 
     try {
@@ -60,30 +84,43 @@ export default async function handler(
             return res.status(400).json({ error: 'No file uploaded' });
         }
 
+        const tempPath = uploadedFile.filepath;
+
         if (!currentPathField) {
+            await fs.remove(tempPath);
             return res.status(404).json({ error: 'No Path uploaded' });
         }
 
-        const safeSubPath = path.normalize(currentPathField || "").replace(/^(\.\.[\/\\])+/, '');
-        const destinationDir = path.join(ENV.STORAGE_ROOT, safeSubPath);
-        await ensureUploadDirExists(destinationDir);
+        let target: AuthorizedPath;
+        try {
+            // Browsers may send "dir/name" for folder uploads; only the last segment is the file name
+            const originalName = (uploadedFile.originalFilename || 'unknown_file').replace(/\\/g, '/');
+            target = await authorizeNewEntry(user, currentPathField, path.posix.basename(originalName));
+        } catch (err: unknown) {
+            await fs.remove(tempPath);
+            throw err;
+        }
 
-        const tempPath = uploadedFile.filepath;
-        const originalFilename = uploadedFile.originalFilename || 'unknown_file';
+        if (await fs.pathExists(target.physicalPath)) {
+            await fs.remove(tempPath);
+            return res.status(409).json({ error: 'A file with that name already exists' });
+        }
 
-        const newPath = path.join(destinationDir, originalFilename);
-        await fs.move(tempPath, newPath);
+        await ensureUploadDirExists(path.dirname(target.physicalPath));
+        await fs.move(tempPath, target.physicalPath);
 
-        log("[TEMP_PATH] : " + tempPath)
-        log("[PATH] : " + newPath)
-
-        const virtualFilePath = path.join(safeSubPath, originalFilename).replace(/\\/g, '/');
+        log("[UPLOAD] : " + target.virtualPath)
+        await recordRecent(user.id, target.virtualPath, "uploaded");
 
         return res.status(200).json(
-            { message: 'File uploaded successfully', filePath:  virtualFilePath}
+            { message: 'File uploaded successfully', filePath: target.virtualPath }
         );
 
     } catch (error: unknown) {
+        if (error instanceof FileAccessError) {
+            return res.status(error.status).json({ error: error.message });
+        }
+
         if (typeof error === 'object' && error !== null && 'status' in error && 'message' in error) {
 
             const customError = error as { status: number; message: string };

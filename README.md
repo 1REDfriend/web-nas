@@ -38,19 +38,66 @@ If you use cloudflare. You should `Disable TLS` on cloudflare zero trush
 
 ## ENV
 
-DATABASE_URL="file:./main.sqlite"
+DATABASE_URL="file:./main.sqlite" => Docker overrides this to `/app/data/main.sqlite`
 
 TOKEN_COOKIE="your-token_cookie"
 
 JWT_SECRET="your-jwt_secret"
 
-STORAGE_ROOT="your-storage_root"
+STORAGE_ROOT="your-storage_root" => Docker overrides this to `/host_root`
 
-STORAGE_INTERNAL="your-storage_internal" => default use `storage` 
+STORAGE_INTERNAL="your-storage_internal" => default `storage`; Docker overrides this to `/app/data/storage`
 
-NEXT_PUBLIC_TERMINAL_HOST="your-next_public_terminal_host"
+TERMINAL_HOST="" => optional host of the web terminal, e.g. `nas-ssh.example.com` behind a tunnel; read at runtime, so no rebuild is needed; empty means `<the host you opened>:7255`
 
-> **NOTE** if you will use external disk without docker, you should Edit `volume - /:/host_root` and change `.env STORAGE_ROOT` to `/host_root` 
+COOKIE_DOMAIN="example.com" => optional; set it when the terminal is on another subdomain (e.g. `nas.example.com` + `nas-ssh.example.com`) so the login cookie reaches both
+
+PROTECTED_PATHS="" => optional, comma-separated absolute paths that no role (not even ADMIN) can touch from the web UI
+
+STORAGE_WRITABLE_PATHS="" => optional, comma-separated absolute paths that are real disk; when set, uploads, new folders, renames, moves and deletes are refused anywhere else, and these folders themselves cannot be deleted. Docker sets it to the mounted `NAS_HOST_DIR`
+
+Docker-only (read by `docker-compose.yaml`):
+
+NAS_HOST_DIR="/mnt" => the only host folder the app can see, mounted at `/host_root/mnt`; folder assignments use paths like `/mnt/...`
+
+PUID="1000" / PGID="1000" => host user the app runs as; it can only change files that user may change
+
+WEBNAS_PORT="5491" / WEBSSH_PORT="7255" => host ports published by Caddy
+
+> **NOTE** the web terminal (port 7255) is ADMIN-only: Caddy checks the file manager login before every request. Open it on the same host name as the file manager, or set `COOKIE_DOMAIN`, otherwise the browser does not send the login cookie and the terminal answers 401.
+
+## Docker
+
+```
+mkdir -p data
+docker compose up -d --build
+```
+
+The container syncs the database schema on start and keeps everything that must survive a rebuild in `./data` (database and trash).
+
+### Upgrading from the old layout (whole host mounted, database in `prisma/`)
+
+```
+docker compose down
+mkdir -p data
+cp prisma/main.sqlite data/main.sqlite
+sudo cp -a storage data/storage && sudo chown -R 1000:1000 data
+docker compose up -d --build
+```
+
+Keep the old files until everything works. Folder assignments outside `NAS_HOST_DIR` show as Offline until that folder is mounted too.
+
+## Tests
+
+`npm run test:e2e` runs the end-to-end suites against a throwaway server, database and storage tree; see [tests/e2e/README.md](tests/e2e/README.md).
+
+## Protected Folders
+
+Admins can block actions (view, download, upload, rename, move, delete, share) on any folder per role from **Setting → Protected Folders**. Built-in rules protect OS folders (`/etc`, `/usr`, `/var`, ...) and make GUEST read-only; they can be edited, removed, or restored with **Restore defaults**.
+
+The app folder and `STORAGE_INTERNAL` are always locked, and so is anything in `PROTECTED_PATHS`.
+
+Without Docker, update the database after pulling: `npx prisma db push` (existing install) or `npx prisma migrate deploy` (fresh database).
 
 ## Screen Shot
 

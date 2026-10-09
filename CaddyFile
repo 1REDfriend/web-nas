@@ -2,6 +2,22 @@
     tls internal {
         on_demand
     }
+
+    # The terminal is only for logged-in ADMINs of the file manager. Caddy asks the
+    # app before every request (page, assets and the websocket); the session cookie
+    # set on :5491 is sent here too because cookies are shared across ports.
+    forward_auth webnas:3000 {
+        uri /api/auth/terminal-check
+        # The auth check is a plain GET: Next.js resets connections that ask to
+        # upgrade, so drop the websocket handshake headers from this subrequest
+        header_up -Connection
+        header_up -Upgrade
+        header_up -Sec-WebSocket-Key
+        header_up -Sec-WebSocket-Version
+        header_up -Sec-WebSocket-Extensions
+        header_up -Sec-WebSocket-Protocol
+    }
+
     reverse_proxy webssh:8888
 }
 
@@ -9,5 +25,10 @@
     tls internal {
         on_demand
     }
+
+    request_body {
+        max_size 100GB
+    }
+
     reverse_proxy webnas:3000
 }

@@ -19,6 +19,8 @@ export default function LoginCheck() {
                 router.push('/auth/registor');
             } else if (!token || !token.login) {
                 router.push('/auth/login');
+            } else if (token.mustChangePassword) {
+                router.push('/auth/pass-change');
             } else {
                 setIsAuthenticated(true);
             }

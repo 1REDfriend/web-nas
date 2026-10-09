@@ -23,6 +23,7 @@ model User {
   passwordHash String @map("password_hash")
   gmail String? @map("gmail")
   role Role @default(GUEST)
+  mustChangePassword Boolean @default(false) @map("must_change_password")
   createdAt DateTime @default(now()) @map("created_at")
 
   pathMaps PathMap[]
@@ -30,15 +31,17 @@ model User {
   starPaths StarPath[]
   trashShedule TrashShedule[]
   shareLink ShareLink[]
+  recentItems RecentItem[]
 
   @@map("users")
 }
 
 model ActiveSession {
-  id String @id @default(cuid())
-  token String
+  id String @id @default(cuid())          // also the JWT "jti" claim
+  token String                            // sha256 of the issued JWT
   userAgent String
   created_at DateTime @default(now()) @map("created_at")
+  expiresAt DateTime @default(now()) @map("expires_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String @map("user_id")
@@ -74,7 +77,8 @@ model StarPath {
 model TrashShedule {
   id          String       @id @default(cuid())
   item        String       @map("item")
-  returnPath  String       @map("return_path")
+  returnPath  String       @map("return_path")              // physical path at delete time (legacy)
+  originalPath String?     @map("original_path")            // virtual path to restore to
 
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId      String       @map("user_id")
@@ -91,13 +95,54 @@ model ShareLink {
   id          String        @id @default(cuid())
   rootPath    String        @map("root_path")
 
+  view        Int           @default(0)
+
   recursive   Boolean       @default(false)       // for folder share
 
   user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId      String        @map("user_id")
 
   createAt    DateTime      @default(now())
-  expireAt    DateTime
+  expireAt    DateTime?
   @@index([userId], name: "idx_share_link_user_id")
   @@map("share_link")
+}
+
+// Admin-managed folder protection: blocks the listed actions on a path for one role
+model PathRule {
+  id          String        @id @default(cuid())
+  path        String        @map("path")                // virtual path under STORAGE_ROOT
+  role        Role
+  actions     String        @map("actions")             // comma-separated FileAction list (blocked actions)
+  recursive   Boolean       @default(true)              // also applies to everything inside the folder
+  note        String?
+  isDefault   Boolean       @default(false) @map("is_default")
+
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  @@unique([path, role], name: "idx_path_role_unique")
+  @@map("path_rules")
+}
+
+model AppSetting {
+  key         String        @id
+  value       String
+
+  @@map("app_settings")
+}
+
+// Files and folders a user recently opened, downloaded or changed (Recent view)
+model RecentItem {
+  id          String        @id @default(cuid())
+  path        String        @map("path")                // virtual path under STORAGE_ROOT
+  action      String        @map("action")
+  usedAt      DateTime      @default(now()) @map("used_at")
+
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String        @map("user_id")
+
+  @@unique([userId, path], name: "idx_recent_user_path")
+  @@index([userId, usedAt], name: "idx_recent_user_used_at")
+  @@map("recent_items")
 }

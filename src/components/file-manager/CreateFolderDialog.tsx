@@ -49,7 +49,7 @@ export function CreateFolderDialog({ onSuccess }: CreateFolderDialogProps) {
                 })
             } else {
                 toast.error("Folder created Failed", {
-                    description: `Folder "${folderName}"`,
+                    description: data.error || `Folder "${folderName}"`,
                 })
             }
 
