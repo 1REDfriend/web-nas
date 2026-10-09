@@ -53,3 +53,6 @@ storage/*
 *.env
 webtop_data/*
 data/
+
+# Stray e2e fixtures (they normally live in the OS temp folder)
+tests/e2e/.work/

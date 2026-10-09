@@ -84,6 +84,10 @@ docker compose up -d --build
 
 Keep the old files until everything works. Folder assignments outside `NAS_HOST_DIR` show as Offline until that folder is mounted too.
 
+## Tests
+
+`npm run test:e2e` runs the end-to-end suites against a throwaway server, database and storage tree; see [tests/e2e/README.md](tests/e2e/README.md).
+
 ## Protected Folders
 
 Admins can block actions (view, download, upload, rename, move, delete, share) on any folder per role from **Setting → Protected Folders**. Built-in rules protect OS folders (`/etc`, `/usr`, `/var`, ...) and make GUEST read-only; they can be edited, removed, or restored with **Restore defaults**.

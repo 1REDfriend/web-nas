@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:e2e": "node tests/e2e/run-all.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",
