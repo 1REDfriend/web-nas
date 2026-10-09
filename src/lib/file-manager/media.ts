@@ -45,3 +45,7 @@ export function mediaTypeOf(name: string): { kind: MediaKind; mime: string } | n
 export function rawFileUrl(path: string): string {
     return `/api/files/raw?${new URLSearchParams({ file: path }).toString()}`;
 }
+
+export function thumbnailUrl(path: string): string {
+    return `/api/files/thumb?${new URLSearchParams({ file: path }).toString()}`;
+}

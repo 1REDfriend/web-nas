@@ -4,6 +4,7 @@ import ptb from 'pretty-bytes'
 import { File as FileIcon, Folder, Star, Copy, Scissors, Trash2, Pencil, MoveIcon, Share2Icon, ArchiveRestore } from "lucide-react";
 import { FileItem } from "./config";
 import { mediaTypeOf, rawFileUrl } from "@/lib/file-manager/media";
+import { Thumbnail } from "./Thumbnail";
 
 // Import Shadcn Context Menu
 import {
@@ -108,6 +109,9 @@ export function FileManagerGrid({
                                             }
                                         }}
                                     >
+                                        {!isDirectory && !isTrashItem && mediaTypeOf(file.name)?.kind === "image" && (
+                                            <Thumbnail path={file.path} name={file.name} />
+                                        )}
                                         <CardHeader className="pb-2 flex flex-row items-start justify-between gap-2">
                                             <div className="flex items-center gap-2 select-none">
                                                 <div className="w-8 h-8 rounded-md bg-red-500/20 flex items-center justify-center">
