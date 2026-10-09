@@ -3,7 +3,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import ptb from 'pretty-bytes'
 import { File as FileIcon, Folder, Star, Copy, Scissors, Trash2, Pencil, MoveIcon, Share2Icon, ArchiveRestore } from "lucide-react";
 import { FileItem } from "./config";
-import { mediaTypeOf, rawFileUrl } from "@/lib/file-manager/media";
+import { mediaTypeOf, rawFileUrl, thumbnailUrl } from "@/lib/file-manager/media";
 import { Thumbnail } from "./Thumbnail";
 
 // Import Shadcn Context Menu
@@ -110,7 +110,7 @@ export function FileManagerGrid({
                                         }}
                                     >
                                         {!isDirectory && !isTrashItem && mediaTypeOf(file.name)?.kind === "image" && (
-                                            <Thumbnail path={file.path} name={file.name} />
+                                            <Thumbnail src={thumbnailUrl(file.path)} name={file.name} />
                                         )}
                                         <CardHeader className="pb-2 flex flex-row items-start justify-between gap-2">
                                             <div className="flex items-center gap-2 select-none">

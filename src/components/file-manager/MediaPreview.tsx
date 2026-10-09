@@ -3,18 +3,18 @@
 import { useState } from "react";
 import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { MediaKind, rawFileUrl } from "@/lib/file-manager/media";
+import { MediaKind } from "@/lib/file-manager/media";
 
 type MediaPreviewProps = {
-    path: string;
+    // rawFileUrl(...) or shareRawUrl(...) from media.ts
+    src: string;
     name: string;
     kind: MediaKind;
 };
 
-// Render with key={path} so a new file starts with a fresh error state
-export function MediaPreview({ path, name, kind }: MediaPreviewProps) {
+// Render with key={src} so a new file starts with a fresh error state
+export function MediaPreview({ src, name, kind }: MediaPreviewProps) {
     const [failed, setFailed] = useState(false);
-    const src = rawFileUrl(path);
 
     if (failed) {
         return (

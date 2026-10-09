@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import ptb from 'pretty-bytes'
-import { File as FileIcon, Folder, DownloadCloudIcon, InfoIcon } from "lucide-react";
+import { File as FileIcon, Folder, DownloadCloudIcon, InfoIcon, Eye } from "lucide-react";
 import { FileItem } from "./config";
 import { publicShareDownloadUrl } from "@/lib/api/user/share";
 
@@ -17,6 +17,10 @@ import { useRef, useState } from "react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Label } from "../ui/label";
 import prettyBytes from "pretty-bytes";
+import { Button } from "../ui/button";
+import { mediaTypeOf, shareRawUrl, shareThumbnailUrl } from "@/lib/file-manager/media";
+import { MediaPreview } from "./MediaPreview";
+import { Thumbnail } from "./Thumbnail";
 
 type FileShareGridProps = {
     files: FileItem[];
@@ -39,6 +43,9 @@ export function FileShareGrid({
     const lastTapRef = useRef(0);
 
     const [infoOpen, setInfoOpen] = useState(false);
+    // Image, video or audio file shown in the preview dialog
+    const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
+    const previewMedia = previewFile ? mediaTypeOf(previewFile.name) : null;
     const [infoData, setInfoData] = useState<FileItem>();
 
     async function onInfo(file: FileItem) {
@@ -69,6 +76,7 @@ export function FileShareGrid({
                     files.map((file) => {
                         const isActive = activeFilePath === file.path;
                         const isDirectory = file.type === "directory";
+                        const media = isDirectory ? null : mediaTypeOf(file.name);
 
                         return (
                             <ContextMenu key={file.path || file.id}>
@@ -78,6 +86,8 @@ export function FileShareGrid({
                                             }`}
                                         onClick={() => {
                                             onSelectFile(file.path);
+                                            // Visitors have no preview panel: open media straight away
+                                            if (media) setPreviewFile(file);
                                         }}
                                         draggable={"true"}
                                         onDoubleClick={(e) => {
@@ -103,6 +113,9 @@ export function FileShareGrid({
                                             }
                                         }}
                                     >
+                                        {media?.kind === "image" && (
+                                            <Thumbnail src={shareThumbnailUrl(ShareLinkID, file.path)} name={file.name} />
+                                        )}
                                         <CardHeader className="pb-2 flex flex-row items-start justify-between gap-2">
                                             <div className="flex items-center gap-2 select-none">
                                                 <div className="w-8 h-8 rounded-md bg-red-500/20 flex items-center justify-center">
@@ -130,6 +143,17 @@ export function FileShareGrid({
                                 </ContextMenuTrigger>
 
                                 <ContextMenuContent className="min-w-[220px] rounded-xl border border-slate-800/80 bg-slate-900/95 backdrop-blur-md shadow-xl shadow-black/40 py-1">
+                                    {media && (
+                                        <ContextMenuItem
+                                            inset
+                                            onClick={() => setPreviewFile(file)}
+                                            className="flex items-center gap-2 text-slate-100 focus:bg-slate-800/80"
+                                        >
+                                            <Eye className="h-3.5 w-3.5 text-slate-400" />
+                                            <span>Preview</span>
+                                        </ContextMenuItem>
+                                    )}
+
                                     <ContextMenuItem
                                         inset
                                         onClick={() => onInfo?.(file)}
@@ -154,6 +178,30 @@ export function FileShareGrid({
                             </ContextMenu>
                         );
                     })}
+
+                <Dialog open={!!previewFile} onOpenChange={(open) => !open && setPreviewFile(null)}>
+                    <DialogContent className="sm:max-w-3xl">
+                        <DialogHeader>
+                            <DialogTitle className="truncate">{previewFile?.name}</DialogTitle>
+                        </DialogHeader>
+                        {previewFile && previewMedia && (
+                            <MediaPreview
+                                key={previewFile.path}
+                                src={shareRawUrl(ShareLinkID, previewFile.path)}
+                                name={previewFile.name}
+                                kind={previewMedia.kind}
+                            />
+                        )}
+                        <DialogFooter>
+                            {previewFile && (
+                                <Button variant="outline" className="gap-2" onClick={() => onDownload(ShareLinkID, previewFile)}>
+                                    <DownloadCloudIcon className="h-4 w-4" />
+                                    Download
+                                </Button>
+                            )}
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
 
                 <Dialog open={infoOpen} onOpenChange={() => setInfoOpen(false)}>
                     <DialogContent>

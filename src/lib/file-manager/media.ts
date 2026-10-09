@@ -49,3 +49,12 @@ export function rawFileUrl(path: string): string {
 export function thumbnailUrl(path: string): string {
     return `/api/files/thumb?${new URLSearchParams({ file: path }).toString()}`;
 }
+
+// Share-link versions (public, no login). `subPath` is relative to the shared root.
+export function shareRawUrl(shareId: string, subPath: string): string {
+    return `/api/public/share/${encodeURIComponent(shareId)}/raw?${new URLSearchParams({ path: subPath }).toString()}`;
+}
+
+export function shareThumbnailUrl(shareId: string, subPath: string): string {
+    return `/api/public/share/${encodeURIComponent(shareId)}/thumb?${new URLSearchParams({ path: subPath }).toString()}`;
+}

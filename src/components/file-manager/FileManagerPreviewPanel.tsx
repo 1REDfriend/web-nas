@@ -4,7 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import { ArchiveRestore, DownloadCloud, File as FileIcon, Star, Trash2 } from "lucide-react";
 import { FileItem } from "./config";
 import ptb from 'pretty-bytes'
-import { mediaTypeOf } from "@/lib/file-manager/media";
+import { mediaTypeOf, rawFileUrl } from "@/lib/file-manager/media";
 import { MediaPreview } from "./MediaPreview";
 
 type FileManagerPreviewPanelProps = {
@@ -155,7 +155,7 @@ export function FileManagerPreviewPanel({
 
                         <div className="text-xs text-slate-400">
                             {media && !isTrashFile ? (
-                                <MediaPreview key={activeFile.path} path={activeFile.path} name={activeFile.name} kind={media.kind} />
+                                <MediaPreview key={activeFile.path} src={rawFileUrl(activeFile.path)} name={activeFile.name} kind={media.kind} />
                             ) : (
                             <>
                             {previewLoading && <p>Loading file content...</p>}

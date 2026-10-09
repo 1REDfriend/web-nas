@@ -38,7 +38,9 @@ export function isShareExpired(share: Pick<ShareLink, "expireAt">, now = new Dat
 const UNAVAILABLE = "This share link is no longer available";
 
 const RATE_WINDOW_MS = 5 * 60 * 1000;
-const RATE_LIMITS = { list: 300, download: 60 } as const;
+// Media gets its own, larger buckets: seeking a video sends many Range requests,
+// and a folder of photos asks for one thumbnail per picture
+const RATE_LIMITS = { list: 300, download: 60, media: 600, thumb: 600 } as const;
 
 // Public endpoints have no login, so every request counts against the caller's IP
 export function assertShareRateLimit(request: Request, kind: keyof typeof RATE_LIMITS) {

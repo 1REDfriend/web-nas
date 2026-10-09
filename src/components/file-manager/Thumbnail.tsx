@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { thumbnailUrl } from "@/lib/file-manager/media";
 
 // Image preview at the top of a grid card. Hides itself if the server cannot
 // make one (unsupported format, too large, no permission) so the card keeps its icon.
-export function Thumbnail({ path, name }: { path: string; name: string }) {
+// `src` is thumbnailUrl(...) or shareThumbnailUrl(...) from media.ts
+export function Thumbnail({ src, name }: { src: string; name: string }) {
     const [failed, setFailed] = useState(false);
     if (failed) return null;
 
@@ -15,7 +15,7 @@ export function Thumbnail({ path, name }: { path: string; name: string }) {
             {/* next/image cannot optimise files behind the session-checked API */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-                src={thumbnailUrl(path)}
+                src={src}
                 alt={name}
                 loading="lazy"
                 decoding="async"
