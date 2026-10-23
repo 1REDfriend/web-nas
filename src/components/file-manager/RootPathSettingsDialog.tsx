@@ -85,8 +85,9 @@ export function RootPathSettingsDialog() {
             </DialogTrigger>
 
             <DialogContent className="bg-slate-950 border-white/10 text-slate-50 sm:max-w-[1200px]">
-                <section className="flex space-x-7 max-h-screen">
-                    <section>
+                {/* Stacked and scrolling below lg; side by side from lg up */}
+                <section className="flex max-h-[80dvh] flex-col gap-7 overflow-y-auto lg:flex-row">
+                    <section className="min-w-0">
                         <DialogHeader>
                             <DialogTitle className="text-rose-500">Settings</DialogTitle>
                             <DialogDescription className="text-slate-400">
@@ -95,21 +96,23 @@ export function RootPathSettingsDialog() {
                             </DialogDescription>
                         </DialogHeader>
 
-                        <Button
-                            onClick={() => {
-                                route.push("/auth/pass-change")
-                            }}
-                        >
-                            <LogIn /> Change Password!
-                        </Button>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                            <Button
+                                onClick={() => {
+                                    route.push("/auth/pass-change")
+                                }}
+                            >
+                                <LogIn /> Change Password!
+                            </Button>
 
-                        <Button
-                            onClick={() => {
-                                route.push("/admin/user/create")
-                            }}
-                        >
-                            <UserPlus /> Add User
-                        </Button>
+                            <Button
+                                onClick={() => {
+                                    route.push("/admin/user/create")
+                                }}
+                            >
+                                <UserPlus /> Add User
+                            </Button>
+                        </div>
 
                         <form className="space-y-4 mt-2" onSubmit={handleSubmit}>
                             <div className="space-y-2">
@@ -156,7 +159,7 @@ export function RootPathSettingsDialog() {
 
                     {/* <Separator className="bg-white/5" /> */}
 
-                    <section className="space-y-4">
+                    <section className="min-w-0 space-y-4">
                         <p className="font-bold text-lg text-rose-500">User Management</p>
                         <div className="bg-slate-900/30 p-2 rounded-lg border border-white/5">
                             <UserManageSetting />
@@ -165,7 +168,7 @@ export function RootPathSettingsDialog() {
 
                     {/* <Separator className="bg-white/5" /> */}
 
-                    <section className="space-y-4">
+                    <section className="min-w-0 space-y-4">
                         <p className="font-bold text-lg text-rose-500">Import Management</p>
                         <div className="bg-slate-900/30 p-2 rounded-lg border border-white/5">
                             <PathMapSetting />

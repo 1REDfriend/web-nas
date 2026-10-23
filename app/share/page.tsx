@@ -37,6 +37,7 @@ import { FileManagerTopBar } from "@/components/file-manager/FileManagerTopBar"
 import { deleteShareLink, getShareLink } from "@/lib/api/user/share"
 import { FileManagerSidebarNav } from "@/components/file-manager/FileManagerSidebarNav"
 import { useRouter } from "next/navigation"
+import { formatDate } from "@/lib/file-manager/format"
 
 type ShareItem = {
     id: string
@@ -82,6 +83,50 @@ export default function ShareManagementPage() {
         })
     }
 
+    // Same menu for the desktop table and the phone cards
+    const actionsMenu = (item: ShareItem) => (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-11 w-11 p-0 md:h-8 md:w-8">
+                    <span className="sr-only">Open menu</span>
+                    <MoreHorizontal className="h-4 w-4" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+
+                <DropdownMenuItem onClick={() => copyToClipboard(window.location.origin + item.url)}>
+                    <Copy className="mr-2 h-4 w-4" />
+                    Copy Link
+                </DropdownMenuItem>
+
+                <DropdownMenuItem onClick={() => window.open(item.url, '_self')}>
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    View Page
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem
+                    className="text-red-600 focus:text-red-600"
+                    onClick={() => revokeLink(item.id)}
+                >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Revoke Access
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
+    )
+
+    const statusBadge = (item: ShareItem) =>
+        item.status === "Active" ? (
+            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                Active
+            </Badge>
+        ) : (
+            <Badge variant="secondary">{item.status}</Badge>
+        )
+
     useEffect(() => {
         const fetchData = async () => {
             const data = await getShareLink();
@@ -112,7 +157,7 @@ export default function ShareManagementPage() {
 
             <section className="min-h-screen flex flex-col">
 
-                <FileManagerTopBar />
+                <FileManagerTopBar nav={{ selectedFolder: "", onSelectFolder: () => router.push('/') }} />
 
                 <div className="flex flex-1 overflow-hidden">
                     <FileManagerSidebarNav
@@ -121,10 +166,10 @@ export default function ShareManagementPage() {
                             router.push('/')
                         }}
                     />
-                    <section className="relative p-10 z-10 sm:px-40 w-full">
-                        <div className="flex justify-between items-center py-5">
+                    <section className="relative z-10 w-full overflow-y-auto px-3 py-4 sm:p-10 lg:px-40">
+                        <div className="flex justify-between items-center py-2 sm:py-5">
                             <div>
-                                <h2 className="text-3xl font-bold tracking-tight">Shared Links</h2>
+                                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Shared Links</h2>
                                 <p className="text-muted-foreground">
                                     Manage the links you share, check views, or unshare.
                                 </p>
@@ -139,8 +184,48 @@ export default function ShareManagementPage() {
                                     List of files and folders currently being shared
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent>
-                                <Table>
+                            <CardContent className="px-3 sm:px-6">
+                                {/* Phones: one card per link instead of a table that scrolls sideways */}
+                                <ul className="space-y-2 md:hidden">
+                                    {shares.map((item) => (
+                                        <li key={item.id} className="rounded-xl border border-white/10 bg-slate-900/60 p-3">
+                                            <div className="flex items-start gap-3">
+                                                {item.type === "folder" ? (
+                                                    <Folder className="mt-0.5 h-5 w-5 shrink-0 text-blue-500" />
+                                                ) : (
+                                                    <FileText className="mt-0.5 h-5 w-5 shrink-0 text-gray-500" />
+                                                )}
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="break-all text-sm font-medium">{item.name}</p>
+                                                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                                                        {statusBadge(item)}
+                                                        <span className="flex items-center gap-1">
+                                                            <Eye className="h-3 w-3" />
+                                                            {item.view}
+                                                        </span>
+                                                        <span className="flex items-center gap-1">
+                                                            <Clock className="h-3 w-3" />
+                                                            {item.expiresAt ? formatDate(item.expiresAt) : "Never"}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="-mr-2 -mt-2 flex shrink-0 items-center">
+                                                    <Button
+                                                        variant="ghost"
+                                                        className="h-11 w-11 p-0"
+                                                        aria-label="Copy link"
+                                                        onClick={() => copyToClipboard(window.location.origin + item.url)}
+                                                    >
+                                                        <Copy className="h-4 w-4" />
+                                                    </Button>
+                                                    {actionsMenu(item)}
+                                                </div>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+
+                                <Table className="hidden md:table">
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead className="w-[300px]">Name</TableHead>
@@ -171,13 +256,7 @@ export default function ShareManagementPage() {
 
                                                 {/* Column: Status */}
                                                 <TableCell>
-                                                    {item.status === "Active" ? (
-                                                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                                                            Active
-                                                        </Badge>
-                                                    ) : (
-                                                        <Badge variant="secondary">{item.status}</Badge>
-                                                    )}
+                                                    {statusBadge(item)}
                                                 </TableCell>
 
                                                 {/* Column: Views */}
@@ -200,37 +279,7 @@ export default function ShareManagementPage() {
 
                                                 {/* Column: Actions */}
                                                 <TableCell className="text-right">
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" className="h-8 w-8 p-0">
-                                                                <span className="sr-only">Open menu</span>
-                                                                <MoreHorizontal className="h-4 w-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end">
-                                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-
-                                                            <DropdownMenuItem onClick={() => copyToClipboard(window.location.origin + item.url)}>
-                                                                <Copy className="mr-2 h-4 w-4" />
-                                                                Copy Link
-                                                            </DropdownMenuItem>
-
-                                                            <DropdownMenuItem onClick={() => window.open(item.url, '_self')}>
-                                                                <ExternalLink className="mr-2 h-4 w-4" />
-                                                                View Page
-                                                            </DropdownMenuItem>
-
-                                                            <DropdownMenuSeparator />
-
-                                                            <DropdownMenuItem
-                                                                className="text-red-600 focus:text-red-600"
-                                                                onClick={() => revokeLink(item.id)}
-                                                            >
-                                                                <Trash2 className="mr-2 h-4 w-4" />
-                                                                Revoke Access
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
+                                                    {actionsMenu(item)}
                                                 </TableCell>
                                             </TableRow>
                                         ))}

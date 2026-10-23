@@ -173,7 +173,8 @@ export function PathRuleSettingsDialog() {
                 </Button>
             </DialogTrigger>
 
-            <DialogContent className="bg-slate-950 border-white/10 text-slate-50 sm:max-w-[1100px] max-h-[90vh] overflow-y-auto">
+            {/* One column as wide as the dialog: the rules table scrolls sideways inside it on phones */}
+            <DialogContent className="bg-slate-950 border-white/10 text-slate-50 sm:max-w-[1100px] max-h-[90vh] overflow-y-auto grid-cols-[minmax(0,1fr)]">
                 <DialogHeader>
                     <DialogTitle className="text-rose-500">Protected Folders</DialogTitle>
                     <DialogDescription className="text-slate-400">
