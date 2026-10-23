@@ -3,11 +3,11 @@
 import { useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { ChevronDown, File as FileIcon, Folder, Info, XIcon } from "lucide-react";
-import ptb from "pretty-bytes";
 import { cn } from "@/lib/utils";
 import { FileItem } from "./config";
 import { FileDetails, FilePreviewState } from "./FileDetails";
 import type { FileAction } from "@/lib/file-manager/fileActions";
+import { formatDate, formatSize } from "@/lib/file-manager/format";
 
 type FileActionSheetProps = {
     file: FileItem | null;
@@ -17,33 +17,30 @@ type FileActionSheetProps = {
     actions: FileAction[];
     preview?: FilePreviewState;
     mediaSrc?: string;
+    // Open with the details already expanded (a tap on a file, rather than a long press).
+    // Read once: give the sheet a new `key` each time it opens.
+    defaultShowInfo?: boolean;
 };
 
 // What a long press, right-click or the ⋮ button opens: the file's name and
 // summary on top, its details one tap away, then every action as a big row.
 // Slides up from the bottom on phones, sits in the middle on wider screens.
-export function FileActionSheet({ file, open, onOpenChange, actions, preview, mediaSrc }: FileActionSheetProps) {
-    const [showInfo, setShowInfo] = useState(false);
-
-    function handleOpenChange(next: boolean) {
-        if (!next) setShowInfo(false);
-        onOpenChange(next);
-    }
+export function FileActionSheet({ file, open, onOpenChange, actions, preview, mediaSrc, defaultShowInfo = false }: FileActionSheetProps) {
+    const [showInfo, setShowInfo] = useState(defaultShowInfo);
 
     function runAction(action: FileAction) {
         // Close first so a dialog the action opens (rename, share, delete) takes focus cleanly
-        handleOpenChange(false);
+        onOpenChange(false);
         action.run();
     }
 
     const isDirectory = file?.type === "directory";
-    const size = file && !isDirectory && file.size != null && file.size !== "" ? Number(file.size) : null;
-    const summary = [file?.type || "File", size != null && !Number.isNaN(size) ? ptb(size) : null]
+    const summary = [file?.type || "File", !isDirectory && formatSize(file?.size), formatDate(file?.updatedAt)]
         .filter(Boolean)
         .join(" · ");
 
     return (
-        <DialogPrimitive.Root open={open && !!file} onOpenChange={handleOpenChange}>
+        <DialogPrimitive.Root open={open && !!file} onOpenChange={onOpenChange}>
             <DialogPrimitive.Portal>
                 <DialogPrimitive.Overlay className="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/60" />
                 <DialogPrimitive.Content
@@ -97,7 +94,7 @@ export function FileActionSheet({ file, open, onOpenChange, actions, preview, me
                                 </button>
                                 {showInfo && (
                                     <div className="px-4 pb-3 pt-1">
-                                        <FileDetails file={file} preview={preview} mediaSrc={mediaSrc} />
+                                        <FileDetails file={file} preview={preview} mediaSrc={mediaSrc} hideSummary />
                                     </div>
                                 )}
 

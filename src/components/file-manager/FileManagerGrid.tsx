@@ -1,38 +1,42 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import ptb from 'pretty-bytes'
-import { File as FileIcon, Folder, Star, Copy, Scissors, Trash2, Pencil, MoveIcon, Share2Icon, ArchiveRestore } from "lucide-react";
-import { FileItem } from "./config";
-import { mediaTypeOf, rawFileUrl, thumbnailUrl } from "@/lib/file-manager/media";
-import { Thumbnail } from "./Thumbnail";
-
-// Import Shadcn Context Menu
 import {
     ContextMenu,
     ContextMenuContent,
     ContextMenuItem,
-    ContextMenuTrigger,
     ContextMenuSeparator,
-    ContextMenuShortcut,
+    ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { useRef } from "react";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { File as FileIcon, Folder, MoreVertical, Star } from "lucide-react";
+import { FileItem } from "./config";
+import { mediaTypeOf, thumbnailUrl } from "@/lib/file-manager/media";
+import { FileAction, isTrashItem } from "@/lib/file-manager/fileActions";
+import { formatDate, formatSize } from "@/lib/file-manager/format";
+import { longPressStyle, useLongPress } from "@/lib/file-manager/useLongPress";
+import { cn } from "@/lib/utils";
+import { Thumbnail } from "./Thumbnail";
 
+// Each input keeps its own habits:
+//   mouse  click selects, double-click opens, right-click or ⋮ opens a menu at the pointer
+//   touch  tap opens (folders) or shows (files), long press or ⋮ opens the action sheet
 type FileManagerGridProps = {
     files: FileItem[];
     activeFilePath: string | null;
     listLoading: boolean;
-    onSelectFile: (path: string) => void;
-    onDownload: (file: FileItem) => void;
-    onRename: (file: FileItem) => void;
-    onDelete: (file: FileItem) => void;
+    onSelect: (file: FileItem) => void;
+    onOpen: (file: FileItem) => void;
+    onTouchTap: (file: FileItem) => void;
+    onOpenSheet: (file: FileItem) => void;
+    // Items for the right-click and ⋮ menus
+    menuActionsFor: (file: FileItem) => FileAction[];
     onToggleStar: (file: FileItem) => void;
-    onOpenDirectory: (path: string) => void;
-
-    onMove?: (file: FileItem) => void;
-    onCopy?: (file: FileItem) => void;
-    onCut?: (file: FileItem) => void;
-    onShare?: (file: FileItem) => void;
-    onRestore?: (file: FileItem) => void;
     // Search results come from many folders: show which one each is in
     showLocation?: boolean;
 };
@@ -41,23 +45,13 @@ export function FileManagerGrid({
     files,
     activeFilePath,
     listLoading,
-    onSelectFile,
-    onRename,
-    onDelete,
-    onMove,
-    onToggleStar,
-    onOpenDirectory,
-    onCopy,
-    onCut,
-    onShare,
-    onRestore,
     showLocation = false,
+    ...handlers
 }: FileManagerGridProps) {
-    const lastTapRef = useRef(0);
-
     return (
         <ScrollArea className="flex-1 overflow-y-scroll">
-            <div className="p-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            {/* One column of rows on phones, cards from sm up */}
+            <div className="p-2 sm:p-4 grid gap-1.5 sm:gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                 {listLoading && !files.length && (
                     <div className="col-span-full flex justify-center py-10 text-sm text-slate-400">
                         Loading file...
@@ -65,193 +59,15 @@ export function FileManagerGrid({
                 )}
 
                 {!listLoading &&
-                    files.map((file) => {
-                        const isActive = activeFilePath === file.path;
-                        const isDirectory = file.type === "directory";
-                        // Trash items can only be restored or deleted for good
-                        const isTrashItem = file.path.startsWith("/trash/");
-
-                        return (
-                            <ContextMenu key={file.path || file.id}>
-                                <ContextMenuTrigger asChild>
-                                    <Card
-                                        className={`cursor-pointer border-white/10 bg-slate-900/70 hover:bg-slate-800/80 transition ${isActive ? "ring-1 ring-red-500/60" : ""
-                                            }`}
-                                        onClick={() => {
-                                            onSelectFile(file.path);
-                                        }}
-                                        draggable={"true"}
-                                        onDoubleClick={(e) => {
-                                            e.stopPropagation();
-                                            if (isDirectory && !isTrashItem) {
-                                                onOpenDirectory(file.path);
-                                            } else if (!isTrashItem && mediaTypeOf(file.name)) {
-                                                // Media opens full size in a new tab (the preview panel is hidden on small screens)
-                                                window.open(rawFileUrl(file.path), "_blank", "noopener");
-                                            }
-                                        }}
-
-                                        onTouchEnd={(e) => {
-                                            const now = Date.now();
-                                            const DOUBLE_TAP_DELAY = 300;
-
-                                            if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-
-                                                if (isDirectory && !isTrashItem) {
-                                                    onOpenDirectory(file.path);
-                                                } else if (!isTrashItem && mediaTypeOf(file.name)) {
-                                                    window.open(rawFileUrl(file.path), "_blank", "noopener");
-                                                }
-                                            } else {
-                                                lastTapRef.current = now;
-                                            }
-                                        }}
-                                    >
-                                        {!isDirectory && !isTrashItem && mediaTypeOf(file.name)?.kind === "image" && (
-                                            <Thumbnail src={thumbnailUrl(file.path)} name={file.name} />
-                                        )}
-                                        <CardHeader className="pb-2 flex flex-row items-start justify-between gap-2">
-                                            <div className="flex items-center gap-2 select-none">
-                                                <div className="w-8 h-8 rounded-md bg-red-500/20 flex items-center justify-center">
-                                                    {isDirectory ? (
-                                                        <Folder className="w-4 h-4 text-red-400" />
-                                                    ) : (
-                                                        <FileIcon className="w-4 h-4 text-red-200" />
-                                                    )}
-                                                </div>
-                                                <div className="flex flex-col">
-                                                    <CardTitle className="text-sm truncate max-w-32">
-                                                        {file.name}
-                                                    </CardTitle>
-                                                    {showLocation && file.folder && (
-                                                        <span className="text-[11px] text-slate-400 max-w-32 truncate" title={file.folder}>
-                                                            in {file.folder}
-                                                        </span>
-                                                    )}
-                                                    {file.available === false ? (
-                                                        <span className="text-[11px] text-amber-400 max-w-32">
-                                                            Offline (disk not found)
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-[11px] text-slate-500 max-w-32">
-                                                            {file.type || "File"}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onToggleStar(file);
-                                                }}
-                                                className="text-slate-500 hover:text-yellow-400 transition"
-                                            >
-                                                <Star
-                                                    className={`w-4 h-4 ${file.isStarred ? "fill-yellow-400" : ""
-                                                        }`}
-                                                />
-                                            </button>
-                                        </CardHeader>
-                                        <CardContent className="pt-0 text-xs text-slate-400 space-y-1 select-none">
-                                            {file.size && <p>Size: {ptb(Number(file.size))}</p>}
-                                            {file.updatedAt && <p>Updated: {file.updatedAt}</p>}
-                                        </CardContent>
-                                    </Card>
-                                </ContextMenuTrigger>
-
-                                {/* เมนูคลิกขวาของ File Item (ใช้ Theme เดียวกัน) */}
-                                <ContextMenuContent className="min-w-[220px] rounded-xl border border-slate-800/80 bg-slate-900/95 backdrop-blur-md shadow-xl shadow-black/40 py-1">
-                                    {isTrashItem ? (
-                                        <>
-                                            <ContextMenuItem
-                                                inset
-                                                onClick={() => onRestore?.(file)}
-                                                className="flex items-center gap-2 text-slate-100 focus:bg-slate-800/80"
-                                            >
-                                                <ArchiveRestore className="h-3.5 w-3.5 text-slate-400" />
-                                                <span>Restore</span>
-                                            </ContextMenuItem>
-
-                                            <ContextMenuSeparator className="my-1 bg-slate-800/80" />
-
-                                            <ContextMenuItem
-                                                inset
-                                                className="flex items-center gap-2 text-red-400 focus:bg-slate-800/80 focus:text-red-400"
-                                                onClick={() => onDelete(file)}
-                                            >
-                                                <Trash2 className="h-3.5 w-3.5" />
-                                                <span>Delete permanently</span>
-                                            </ContextMenuItem>
-                                        </>
-                                    ) : (
-                                        <>
-                                    <ContextMenuItem
-                                        inset
-                                        onClick={() => onMove?.(file)}
-                                        className="flex items-center gap-2 text-slate-100 focus:bg-slate-800/80"
-                                    >
-                                        <MoveIcon className="h-3.5 w-3.5 text-slate-400" />
-                                        <span>Move</span>
-                                        <ContextMenuShortcut className="ml-auto text-xs text-slate-500"></ContextMenuShortcut>
-                                    </ContextMenuItem>
-
-                                    <ContextMenuItem
-                                        inset
-                                        onClick={() => onCopy?.(file)}
-                                        className="flex items-center gap-2 text-slate-100 focus:bg-slate-800/80"
-                                    >
-                                        <Copy className="h-3.5 w-3.5 text-slate-400" />
-                                        <span>Copy</span>
-                                    </ContextMenuItem>
-
-                                    <ContextMenuItem
-                                        inset
-                                        onClick={() => onCut?.(file)}
-                                        className="flex items-center gap-2 text-slate-100 focus:bg-slate-800/80"
-                                    >
-                                        <Scissors className="h-3.5 w-3.5 text-slate-400" />
-                                        <span>Cut</span>
-                                    </ContextMenuItem>
-
-                                    <ContextMenuItem
-                                        inset
-                                        onClick={() => onRename(file)}
-                                        className="flex items-center gap-2 text-slate-100 focus:bg-slate-800/80"
-                                    >
-                                        <Pencil className="h-3.5 w-3.5 text-slate-400" />
-                                        <span>Rename</span>
-                                    </ContextMenuItem>
-
-                                    <ContextMenuSeparator className="my-1 bg-slate-800/80" />
-
-                                    <ContextMenuItem
-                                        inset
-                                        onClick={() => onShare?.(file)}
-                                        className="flex items-center gap-2 text-slate-100 focus:bg-slate-800/80"
-                                    >
-                                        <Share2Icon className="h-3.5 w-3.5 text-slate-400" />
-                                        <span>Share</span>
-                                    </ContextMenuItem>
-
-                                    <ContextMenuSeparator className="my-1 bg-slate-800/80" />
-
-                                    <ContextMenuItem
-                                        inset
-                                        className="flex items-center gap-2 text-red-400 focus:bg-slate-800/80 focus:text-red-400"
-                                        onClick={() => onDelete(file)}
-                                    >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                        <span>Delete</span>
-                                    </ContextMenuItem>
-                                        </>
-                                    )}
-                                </ContextMenuContent>
-                            </ContextMenu>
-                        );
-                    })}
+                    files.map((file) => (
+                        <FileTile
+                            key={file.path || file.id}
+                            file={file}
+                            isActive={activeFilePath === file.path}
+                            showLocation={showLocation}
+                            {...handlers}
+                        />
+                    ))}
 
                 {!listLoading && !files.length && (
                     <div className="col-span-full flex flex-col items-center justify-center py-16 text-center text-slate-500">
@@ -264,5 +80,188 @@ export function FileManagerGrid({
                 )}
             </div>
         </ScrollArea>
+    );
+}
+
+const MENU_CLASS =
+    "min-w-[220px] rounded-xl border border-slate-800/80 bg-slate-900/95 backdrop-blur-md shadow-xl shadow-black/40 py-1";
+
+function itemClass(action: FileAction) {
+    return cn(
+        "flex items-center gap-2 focus:bg-slate-800/80",
+        action.destructive ? "text-red-400 focus:text-red-400" : "text-slate-100",
+    );
+}
+
+function iconClass(action: FileAction) {
+    return cn("h-3.5 w-3.5", !action.destructive && "text-slate-400");
+}
+
+type FileTileProps = Omit<FileManagerGridProps, "files" | "activeFilePath" | "listLoading" | "showLocation"> & {
+    file: FileItem;
+    isActive: boolean;
+    showLocation: boolean;
+};
+
+function FileTile({
+    file,
+    isActive,
+    showLocation,
+    onSelect,
+    onOpen,
+    onTouchTap,
+    onOpenSheet,
+    menuActionsFor,
+    onToggleStar,
+}: FileTileProps) {
+    const [contextOpen, setContextOpen] = useState(false);
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const isDirectory = file.type === "directory";
+    const inTrash = isTrashItem(file);
+    const showThumb = !isDirectory && !inTrash && mediaTypeOf(file.name)?.kind === "image";
+
+    const { handlers: press, lastPointer } = useLongPress({
+        onTap: (pointer) => (pointer === "touch" || pointer === "pen" ? onTouchTap(file) : onSelect(file)),
+        onLongPress: () => onOpenSheet(file),
+    });
+    const usingTouch = () => lastPointer() === "touch" || lastPointer() === "pen";
+
+    // Built when a menu is about to show, so it reflects the file as it is now
+    const actions = contextOpen || dropdownOpen ? menuActionsFor(file) : [];
+
+    const icon = (
+        <div className="flex h-full w-full items-center justify-center rounded-lg bg-red-500/15 sm:rounded-none sm:bg-slate-950/40">
+            {isDirectory ? (
+                <Folder className="h-5 w-5 text-red-400 sm:h-8 sm:w-8" />
+            ) : (
+                <FileIcon className="h-5 w-5 text-red-200 sm:h-8 sm:w-8" />
+            )}
+        </div>
+    );
+
+    const meta = isDirectory
+        ? ["Folder", formatDate(file.updatedAt)]
+        : [formatSize(file.size), formatDate(file.updatedAt)];
+
+    return (
+        <ContextMenu onOpenChange={setContextOpen}>
+            <ContextMenuTrigger asChild>
+                <div
+                    role="button"
+                    tabIndex={0}
+                    aria-label={file.name}
+                    {...press}
+                    onDoubleClick={(e) => {
+                        // A double tap is two taps, already handled
+                        if (usingTouch()) return;
+                        e.stopPropagation();
+                        onOpen(file);
+                    }}
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                            e.preventDefault();
+                            onOpen(file);
+                        } else if (e.key === " ") {
+                            e.preventDefault();
+                            onSelect(file);
+                        }
+                    }}
+                    style={longPressStyle}
+                    className={cn(
+                        "group relative flex cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-slate-900/70 p-1.5 transition hover:bg-slate-800/80",
+                        "sm:flex-col sm:items-stretch sm:gap-0 sm:overflow-hidden sm:p-0",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/60",
+                        isActive && "ring-1 ring-red-500/60",
+                    )}
+                >
+                    {/* Preview: small square on phones, a banner on cards */}
+                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg sm:h-28 sm:w-full sm:rounded-none">
+                        {showThumb ? (
+                            <Thumbnail src={thumbnailUrl(file.path)} name={file.name} className="h-full w-full" fallback={icon} />
+                        ) : (
+                            icon
+                        )}
+                    </div>
+
+                    <div className="flex min-w-0 flex-1 items-center gap-1 sm:px-3 sm:py-2">
+                        <div className="min-w-0 flex-1">
+                            <p
+                                className="line-clamp-2 break-all text-sm font-medium leading-snug text-slate-100 sm:line-clamp-1"
+                                title={file.name}
+                            >
+                                {file.name}
+                            </p>
+                            {showLocation && file.folder && (
+                                <p className="truncate text-[11px] text-slate-400">in {file.folder}</p>
+                            )}
+                            {file.available === false ? (
+                                <p className="text-[11px] text-amber-400">Offline (disk not found)</p>
+                            ) : (
+                                <p className="truncate text-[11px] text-slate-500">{meta.filter(Boolean).join(" · ")}</p>
+                            )}
+                        </div>
+
+                        {!inTrash && (
+                            <button
+                                type="button"
+                                aria-label={file.isStarred ? "Remove star" : "Add star"}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onToggleStar(file);
+                                }}
+                                onDoubleClick={(e) => e.stopPropagation()}
+                                className="flex h-11 w-9 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:text-yellow-400"
+                            >
+                                <Star className={cn("h-4 w-4", file.isStarred && "fill-yellow-400 text-yellow-400")} />
+                            </button>
+                        )}
+
+                        <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen} modal={false}>
+                            <DropdownMenuTrigger asChild>
+                                <button
+                                    type="button"
+                                    aria-label="More actions"
+                                    onPointerDown={(e) => {
+                                        // Touch gets the sheet on click instead; this stops Radix opening the menu
+                                        if (e.pointerType !== "mouse") e.preventDefault();
+                                    }}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (usingTouch()) onOpenSheet(file);
+                                    }}
+                                    onDoubleClick={(e) => e.stopPropagation()}
+                                    className="flex h-11 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-800 hover:text-slate-100"
+                                >
+                                    <MoreVertical className="h-4 w-4" />
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className={MENU_CLASS}>
+                                {actions.map((action, i) => (
+                                    <div key={action.id}>
+                                        {action.groupStart && i > 0 && <DropdownMenuSeparator className="my-1 bg-slate-800/80" />}
+                                        <DropdownMenuItem onSelect={action.run} className={itemClass(action)}>
+                                            <action.icon className={iconClass(action)} />
+                                            <span>{action.label}</span>
+                                        </DropdownMenuItem>
+                                    </div>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                </div>
+            </ContextMenuTrigger>
+
+            <ContextMenuContent className={MENU_CLASS}>
+                {actions.map((action, i) => (
+                    <div key={action.id}>
+                        {action.groupStart && i > 0 && <ContextMenuSeparator className="my-1 bg-slate-800/80" />}
+                        <ContextMenuItem inset onSelect={action.run} className={itemClass(action)}>
+                            <action.icon className={iconClass(action)} />
+                            <span>{action.label}</span>
+                        </ContextMenuItem>
+                    </div>
+                ))}
+            </ContextMenuContent>
+        </ContextMenu>
     );
 }

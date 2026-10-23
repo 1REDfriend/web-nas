@@ -8,6 +8,9 @@ import { FileManagerSidebarNav } from "@/components/file-manager/FileManagerSide
 import { FileManagerToolbar } from "@/components/file-manager/FileManagerToolbar";
 import { FileManagerGrid } from "@/components/file-manager/FileManagerGrid";
 import { FileManagerPreviewPanel } from "@/components/file-manager/FileManagerPreviewPanel";
+import { FileActionSheet } from "@/components/file-manager/FileActionSheet";
+import { getFileActions, isTrashItem } from "@/lib/file-manager/fileActions";
+import { mediaTypeOf, rawFileUrl } from "@/lib/file-manager/media";
 import LoginCheck from "@/components/auth/loginCheck";
 import { ContextMenuBar } from "@/components/ContextMenuBar";
 import VncPage from "@/components/vnc/vncScreen";
@@ -110,7 +113,7 @@ export default function FileManagerPage() {
     };
   }, [terminalRef]);
 
-  const isTrashTarget = fileToDelete?.path.startsWith('/trash') || fileToDelete?.path.startsWith('trash');
+  const isTrashTarget = !!fileToDelete && isTrashItem(fileToDelete);
 
   const [tempName, setTempName] = useState("");
 
@@ -129,6 +132,59 @@ export default function FileManagerPage() {
     setShareOpen(true)
     setShareFile(file)
   }
+
+  // The action sheet: opened by a touch long press or ⋮ (actions first), by
+  // tapping a file when the side panel is hidden, or by Info in a menu (details first).
+  // A new key per open resets the sheet; the last file stays so it can animate out.
+  const [sheet, setSheet] = useState<{ file: FileItem; showInfo: boolean; key: number } | null>(null)
+  const [sheetOpen, setSheetOpen] = useState(false)
+
+  function openSheet(file: FileItem, showInfo: boolean) {
+    // Selecting it also loads the text preview shown under Info
+    setActiveFilePath(file.path)
+    setSheet((prev) => ({ file, showInfo, key: (prev?.key ?? 0) + 1 }))
+    setSheetOpen(true)
+  }
+
+  // Touch: a tap opens a folder, or shows a file in the sheet
+  function handleTouchTap(file: FileItem) {
+    if (file.type === "directory" && !isTrashItem(file)) {
+      handleOpenDirectory(file.path)
+      return
+    }
+    setActiveFilePath(file.path)
+    // From xl up the side panel already shows the file
+    if (!window.matchMedia("(min-width: 1280px)").matches) openSheet(file, true)
+  }
+
+  // Mouse double-click (or Enter): open a folder, or media full size in a new tab
+  function handleOpen(file: FileItem) {
+    if (isTrashItem(file)) return
+    if (file.type === "directory") {
+      handleOpenDirectory(file.path)
+    } else if (mediaTypeOf(file.name)) {
+      window.open(rawFileUrl(file.path), "_blank", "noopener")
+    }
+  }
+
+  const actionHandlers = {
+    download: handleDownload,
+    star: handleToggleStar,
+    share: handleShare,
+    rename: onRenameClick,
+    copy: handleCopy,
+    cut: handleCut,
+    restore: handleRestore,
+    delete: handleDelete,
+  }
+
+  // Desktop menus also get Info, for when the side panel is hidden
+  const menuActionsFor = (file: FileItem) =>
+    getFileActions(file, { ...actionHandlers, info: (f) => openSheet(f, true) })
+
+  // The sheet's file as it is now in the list (e.g. after starring it)
+  const sheetFile = sheet ? visibleFiles.find((f) => f.path === sheet.file.path) ?? sheet.file : null
+  const sheetActions = sheetFile ? getFileActions(sheetFile, actionHandlers) : []
 
   return (
     <Suspense fallback={<p>Loading...</p>}>
@@ -297,18 +353,12 @@ export default function FileManagerPage() {
                     files={visibleFiles}
                     activeFilePath={activeFilePath}
                     listLoading={listLoading}
-                    onSelectFile={setActiveFilePath}
-                    onDownload={handleDownload}
-                    onRename={onRenameClick}
-                    onDelete={handleDelete}
+                    onSelect={(file) => setActiveFilePath(file.path)}
+                    onOpen={handleOpen}
+                    onTouchTap={handleTouchTap}
+                    onOpenSheet={(file) => openSheet(file, false)}
+                    menuActionsFor={menuActionsFor}
                     onToggleStar={handleToggleStar}
-                    onOpenDirectory={handleOpenDirectory}
-
-                    onMove={handleCut}
-                    onCut={handleCut}
-                    onCopy={handleCopy}
-                    onShare={handleShare}
-                    onRestore={handleRestore}
                     showLocation={!!query.trim()}
                   />
                 </div>
@@ -326,6 +376,21 @@ export default function FileManagerPage() {
                 />
               </section>
             </main>
+
+            <FileActionSheet
+              key={sheet?.key}
+              file={sheetFile}
+              open={sheetOpen}
+              onOpenChange={setSheetOpen}
+              actions={sheetActions}
+              defaultShowInfo={sheet?.showInfo}
+              preview={sheetFile && sheetFile.path === activeFile?.path ? {
+                content: previewContent,
+                size: previewSize,
+                loading: previewLoading,
+                error: previewError,
+              } : undefined}
+            />
 
             <AlertDialog open={!!fileToDelete} onOpenChange={(open) => !open && handleCancelDelete()}>
               <AlertDialogContent>

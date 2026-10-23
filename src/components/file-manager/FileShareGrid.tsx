@@ -114,7 +114,7 @@ export function FileShareGrid({
                                         }}
                                     >
                                         {media?.kind === "image" && (
-                                            <Thumbnail src={shareThumbnailUrl(ShareLinkID, file.path)} name={file.name} />
+                                            <Thumbnail src={shareThumbnailUrl(ShareLinkID, file.path)} name={file.name} className="-mt-6 -mb-2 h-28 rounded-t-xl" />
                                         )}
                                         <CardHeader className="pb-2 flex flex-row items-start justify-between gap-2">
                                             <div className="flex items-center gap-2 select-none">

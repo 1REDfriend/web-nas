@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { ArchiveRestore, Copy, DownloadCloud, Pencil, Scissors, Share2, Star, StarOff, Trash2 } from "lucide-react";
+import { ArchiveRestore, Copy, DownloadCloud, Info, Pencil, Scissors, Share2, Star, StarOff, Trash2 } from "lucide-react";
 import type { FileItem } from "@/components/file-manager/config";
 
 // The one list of things a user can do to a file. The grid menu, the preview
@@ -7,6 +7,7 @@ import type { FileItem } from "@/components/file-manager/config";
 // changed rule (e.g. what trash items allow) is written once.
 
 export type FileActionId =
+    | "info"
     | "download"
     | "star"
     | "share"
@@ -34,17 +35,22 @@ export function isTrashItem(file: Pick<FileItem, "path">): boolean {
 
 type ActionSpec = Omit<FileAction, "run">;
 
+// Desktop menus offer it for when the side panel is hidden; the action sheet has its own
+const INFO: ActionSpec = { id: "info", label: "Info", icon: Info };
+
 function specsFor(file: FileItem): ActionSpec[] {
     // Trash items can only be restored or deleted for good
     if (isTrashItem(file)) {
         return [
-            { id: "restore", label: "Restore", icon: ArchiveRestore },
+            INFO,
+            { id: "restore", label: "Restore", icon: ArchiveRestore, groupStart: true },
             { id: "delete", label: "Delete permanently", icon: Trash2, destructive: true, groupStart: true },
         ];
     }
 
     return [
-        { id: "download", label: "Download", icon: DownloadCloud },
+        INFO,
+        { id: "download", label: "Download", icon: DownloadCloud, groupStart: true },
         file.isStarred
             ? { id: "star", label: "Remove star", icon: StarOff }
             : { id: "star", label: "Add star", icon: Star },

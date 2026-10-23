@@ -3,16 +3,21 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { MouseEvent, PointerEvent } from "react";
 
-// One press model for touch, mouse and pen: a short press is a tap, holding still
-// for LONG_PRESS_MS is a long press. Desktop gets the same long press as phones,
-// and right-click is routed to the same handler so there is one code path.
+// Touch and pen get a phone-style press: a short press is a tap, holding still
+// for LONG_PRESS_MS is a long press. A mouse keeps the desktop habits (click,
+// double-click, right-click menu), so this hook only reports which kind of
+// pointer made each click and leaves mouse right-clicks alone.
 
 export const LONG_PRESS_MS = 500;
 // Fingers wobble; moving further than this means the user is scrolling or dragging
 const MOVE_TOLERANCE_PX = 10;
 
+// "" when there was no pointer, e.g. a click raised from the keyboard
+export type PointerKind = "mouse" | "touch" | "pen" | "";
+
 type LongPressOptions = {
-    onTap?: () => void;
+    onTap?: (pointer: PointerKind) => void;
+    // Touch and pen only
     onLongPress: () => void;
     disabled?: boolean;
 };
@@ -27,9 +32,14 @@ export type LongPressHandlers = {
     onContextMenu: (e: MouseEvent) => void;
 };
 
-export function useLongPress({ onTap, onLongPress, disabled = false }: LongPressOptions): LongPressHandlers {
+export function useLongPress({ onTap, onLongPress, disabled = false }: LongPressOptions): {
+    handlers: LongPressHandlers;
+    // The pointer behind the latest press, for handlers this hook does not own (e.g. double-click)
+    lastPointer: () => PointerKind;
+} {
     const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const start = useRef<{ x: number; y: number } | null>(null);
+    const pointer = useRef<PointerKind>("");
     // Set when the long press fired, so the click that follows the release is ignored
     const fired = useRef(false);
 
@@ -50,9 +60,11 @@ export function useLongPress({ onTap, onLongPress, disabled = false }: LongPress
     const onPointerDown = useCallback(
         (e: PointerEvent) => {
             fired.current = false;
-            if (disabled) return;
-            // Only the primary button; right-click goes through onContextMenu
-            if (e.pointerType === "mouse" && e.button !== 0) return;
+            pointer.current = (e.pointerType as PointerKind) || "";
+            if (disabled || e.pointerType === "mouse") return;
+            // Radix context menus higher up open on a touch long press of their own;
+            // they skip events already marked handled. Does not stop click or scrolling.
+            e.preventDefault();
             start.current = { x: e.clientX, y: e.clientY };
             if (timer.current) clearTimeout(timer.current);
             timer.current = setTimeout(() => {
@@ -86,18 +98,21 @@ export function useLongPress({ onTap, onLongPress, disabled = false }: LongPress
                 e.stopPropagation();
                 return;
             }
-            if (!disabled) callbacks.current.onTap?.();
+            // A click with no pointerdown before it came from the keyboard
+            if (e.detail === 0) pointer.current = "";
+            if (!disabled) callbacks.current.onTap?.(pointer.current);
         },
         [disabled],
     );
 
     const onContextMenu = useCallback(
         (e: MouseEvent) => {
-            // Also stops the browser's own menu that a touch long press opens on Android
-            e.preventDefault();
-            e.stopPropagation();
+            // Right-click and the keyboard menu key belong to the desktop context menu
+            if (pointer.current === "mouse" || pointer.current === "") return;
             // A touch long press raises contextmenu too, before or after our timer:
-            // whichever comes first opens, the other is ignored
+            // whichever comes first opens, the other is ignored. Marking it handled
+            // also keeps the browser's and Radix's menus shut.
+            e.preventDefault();
             if (disabled || fired.current) return;
             clear();
             fired.current = true;
@@ -106,14 +121,19 @@ export function useLongPress({ onTap, onLongPress, disabled = false }: LongPress
         [clear, disabled],
     );
 
+    const lastPointer = useCallback(() => pointer.current, []);
+
     return {
-        onPointerDown,
-        onPointerMove,
-        onPointerUp,
-        onPointerCancel: clear,
-        onPointerLeave: clear,
-        onClick,
-        onContextMenu,
+        handlers: {
+            onPointerDown,
+            onPointerMove,
+            onPointerUp,
+            onPointerCancel: clear,
+            onPointerLeave: clear,
+            onClick,
+            onContextMenu,
+        },
+        lastPointer,
     };
 }
 
