@@ -5,7 +5,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { FileManagerTopBar } from "@/components/file-manager/FileManagerTopBar";
 import { FileManagerSidebarNav } from "@/components/file-manager/FileManagerSidebarNav";
-import { FileManagerToolbar } from "@/components/file-manager/FileManagerToolbar";
+import { Crumb, FileManagerToolbar } from "@/components/file-manager/FileManagerToolbar";
+import { PasteBar } from "@/components/file-manager/PasteBar";
 import { FileManagerGrid } from "@/components/file-manager/FileManagerGrid";
 import { FileManagerPreviewPanel } from "@/components/file-manager/FileManagerPreviewPanel";
 import { FileActionSheet } from "@/components/file-manager/FileActionSheet";
@@ -92,6 +93,8 @@ export default function FileManagerPage() {
     handlePaste,
     handleCut,
     handleCopy,
+    clipboard,
+    clearClipboard,
   } = useFileManager();
 
   const handleOpenTerminal = () => {
@@ -185,6 +188,26 @@ export default function FileManagerPage() {
   // The sheet's file as it is now in the list (e.g. after starring it)
   const sheetFile = sheet ? visibleFiles.find((f) => f.path === sheet.file.path) ?? sheet.file : null
   const sheetActions = sheetFile ? getFileActions(sheetFile, actionHandlers) : []
+
+  function handleSelectFolder(folderId: string) {
+    const params = new URLSearchParams(searchParams ?? "");
+    if (params.has("path")) {
+      params.delete("path");
+      router.push(`${pathname}?${params.toString()}`);
+    }
+    setSelectedFolder(folderId);
+    setPage(1);
+  }
+
+  // "All files / alice / pics": the root view, then each folder of the open path
+  const pathParts = (urlPath ?? "").split("/").filter(Boolean)
+  const crumbs: Crumb[] = [
+    { label: currentFolderLabel, onClick: () => handleOpenDirectory("") },
+    ...pathParts.map((part, i) => ({
+      label: part,
+      onClick: () => handleOpenDirectory(pathParts.slice(0, i + 1).join("/")),
+    })),
+  ]
 
   return (
     <Suspense fallback={<p>Loading...</p>}>
@@ -313,27 +336,20 @@ export default function FileManagerPage() {
               onOpenTerminal={handleOpenTerminal}
               currentPath={urlPath ?? ""}
               onUploaded={refetchFiles}
+              nav={{ selectedFolder, onSelectFolder: handleSelectFolder }}
             />
 
             <main className="flex flex-1 overflow-hidden">
               <FileManagerSidebarNav
                 selectedFolder={selectedFolder}
-                onSelectFolder={(folderId) => {
-                  const params = new URLSearchParams(searchParams ?? "");
-                  if (params.has("path")) {
-                    params.delete("path");
-                    router.push(`${pathname}?${params.toString()}`);
-                  }
-                  setSelectedFolder(folderId);
-                  setPage(1);
-                }}
+                onSelectFolder={handleSelectFolder}
               />
 
               <section className="flex flex-1 overflow-hidden">
 
                 <div className="flex-1 flex flex-col">
                   <FileManagerToolbar
-                    title={currentFolderLabel}
+                    crumbs={crumbs}
                     visibleCount={visibleFiles.length}
                     listError={listError}
                     meta={meta}
@@ -376,6 +392,8 @@ export default function FileManagerPage() {
                 />
               </section>
             </main>
+
+            <PasteBar clipboard={clipboard} onPaste={handlePaste} onCancel={clearClipboard} />
 
             <FileActionSheet
               key={sheet?.key}

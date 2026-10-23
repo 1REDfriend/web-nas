@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect, ChangeEvent } from "react";
+import { useState, useRef, useEffect, useCallback, ChangeEvent } from "react";
 import { Upload, X, File as FileIcon, Folder, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
     Dialog,
     DialogContent,
@@ -21,15 +22,32 @@ interface UploadFileManagerProps {
     currentPath?: string;
     onUploaded?: () => void;
     enableGlobalDrop?: boolean;
+    // Optional outside control, e.g. the mobile "+" button; uncontrolled when omitted
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+    triggerClassName?: string;
 }
 
 export function UploadFileManager({
     currentPath = "/",
     onUploaded,
     enableGlobalDrop = true,
+    open: openProp,
+    onOpenChange,
+    triggerClassName,
 }: UploadFileManagerProps) {
     // --- State ---
-    const [open, setOpen] = useState(false);
+    const [openState, setOpenState] = useState(false);
+    const open = openProp ?? openState;
+    // Stable, so the window drop listener below can call it
+    const onOpenChangeRef = useRef(onOpenChange);
+    useEffect(() => {
+        onOpenChangeRef.current = onOpenChange;
+    });
+    const setOpen = useCallback((value: boolean) => {
+        setOpenState(value);
+        onOpenChangeRef.current?.(value);
+    }, []);
     const [files, setFiles] = useState<File[]>([]);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
@@ -237,7 +255,7 @@ export function UploadFileManager({
             window.removeEventListener("dragover", handleDragOver);
             window.removeEventListener("drop", handleDrop);
         };
-    }, [enableGlobalDrop, scanFiles]);
+    }, [enableGlobalDrop, scanFiles, setOpen]);
 
 
     return (
@@ -263,7 +281,7 @@ export function UploadFileManager({
                 }
             }}>
                 <DialogTrigger asChild>
-                    <Button variant="outline" size="icon" className="relative shrink-0">
+                    <Button variant="outline" size="icon" className={cn("relative shrink-0", triggerClassName)}>
                         <Upload className="w-4 h-4" />
                         {isUploading && (
                             <span className="absolute -top-1 -right-1 flex h-3 w-3">

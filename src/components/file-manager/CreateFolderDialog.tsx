@@ -18,14 +18,24 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createFolderApi } from "@/lib/api/folder/create.service"
+import { cn } from "@/lib/utils"
 
 interface CreateFolderDialogProps {
     currentPath: string;
     onSuccess?: () => void;
+    // Optional outside control, e.g. the mobile "+" button; uncontrolled when omitted
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+    triggerClassName?: string;
 }
 
-export function CreateFolderDialog({ onSuccess }: CreateFolderDialogProps) {
-    const [open, setOpen] = useState(false)
+export function CreateFolderDialog({ onSuccess, open: openProp, onOpenChange, triggerClassName }: CreateFolderDialogProps) {
+    const [openState, setOpenState] = useState(false)
+    const open = openProp ?? openState
+    const setOpen = (value: boolean) => {
+        setOpenState(value)
+        onOpenChange?.(value)
+    }
     const [folderName, setFolderName] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const router = useRouter()
@@ -76,7 +86,7 @@ export function CreateFolderDialog({ onSuccess }: CreateFolderDialogProps) {
         <Suspense>
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogTrigger asChild>
-                    <Button variant="outline" className="gap-2">
+                    <Button variant="outline" className={cn("gap-2", triggerClassName)}>
                         <FolderPlus size={16} />
                         New Folder
                     </Button>

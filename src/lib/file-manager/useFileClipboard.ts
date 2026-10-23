@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 type ClipboardAction = "move" | "copy";
 
-type ClipboardItem = {
+export type ClipboardItem = {
     files: FileItem[];
     action: ClipboardAction;
 };
@@ -19,6 +19,8 @@ type UseFileClipboardParams = {
 };
 
 type UseFileClipboardResult = {
+    clipboard: ClipboardItem | null;
+    clearClipboard: () => void;
     handleCut: (file: FileItem) => void;
     handleCopy: (file: FileItem) => void;
     handlePaste: () => Promise<void>;
@@ -67,9 +69,17 @@ export function useFileClipboard({
         }
     }, [clipboard, urlPath, refetchFiles]);
 
+    const clearClipboard = useCallback(() => {
+        setClipboard(null);
+        toast.dismiss("clipboard-toast");
+    }, []);
+
     const handleAddToClipboard = useCallback(
         (filesToClip: FileItem[], action: ClipboardAction) => {
             setClipboard({ files: filesToClip, action });
+
+            // Touch screens have no Ctrl+V: the page shows a "Paste here" bar instead
+            if (window.matchMedia("(pointer: coarse)").matches) return;
 
             toast.message(
                 action === "move" ? "Ready to Move" : "Copied to Clipboard",
@@ -79,15 +89,12 @@ export function useFileClipboard({
                     duration: Infinity,
                     action: {
                         label: "Cancel",
-                        onClick: () => {
-                            setClipboard(null);
-                            toast.dismiss("clipboard-toast");
-                        },
+                        onClick: clearClipboard,
                     },
                 }
             );
         },
-        []
+        [clearClipboard]
     );
 
     const handleCut = (file: FileItem) => handleAddToClipboard([file], "move");
@@ -121,6 +128,8 @@ export function useFileClipboard({
     }, [clipboard, handlePaste]);
 
     return {
+        clipboard,
+        clearClipboard,
         handleCut,
         handleCopy,
         handlePaste,

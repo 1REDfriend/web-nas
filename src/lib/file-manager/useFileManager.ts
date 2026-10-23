@@ -87,7 +87,7 @@ export function useFileManager() {
     }
 
     // --- clipboard hook (uses refetchFiles & urlPath) ---
-    const { handleCut, handleCopy, handlePaste } = useFileClipboard({
+    const { clipboard, clearClipboard, handleCut, handleCopy, handlePaste } = useFileClipboard({
         urlPath,
         refetchFiles,
     });
@@ -359,5 +359,7 @@ export function useFileManager() {
         handleCut,
         handleCopy,
         handlePaste,
+        clipboard,
+        clearClipboard,
     };
 }

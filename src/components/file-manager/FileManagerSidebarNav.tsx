@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { FOLDERS } from "./config";
 import { RootPathSettingsDialog } from "./RootPathSettingsDialog";
-import { useEffect, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { fetchStorage } from "@/lib/api/system/storage.service";
 import prettyBytes from "pretty-bytes";
 import { SharelinkRoute } from "./SharelinkRoute";
@@ -12,14 +12,26 @@ import { RuleRole } from "@/lib/security/file-actions";
 import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-type FileManagerSidebarNavProps = {
+export type FileManagerSidebarNavProps = {
     selectedFolder: string;
     onSelectFolder: (folderId: string) => void;
+    // Extra rows at the end of the Setting group (e.g. the terminal in the mobile drawer)
+    extraSettings?: ReactNode;
 };
 
-export function FileManagerSidebarNav({
+// The desktop sidebar; phones get the same content in MobileNavDrawer
+export function FileManagerSidebarNav(props: FileManagerSidebarNavProps) {
+    return (
+        <aside className="hidden md:flex flex-col w-60 border-r border-white/10 bg-slate-950/60">
+            <SidebarNavContent {...props} />
+        </aside>
+    );
+}
+
+export function SidebarNavContent({
     selectedFolder,
     onSelectFolder,
+    extraSettings,
 }: FileManagerSidebarNavProps) {
     const [total, setTotal] = useState(0);
     // const [free, setFree] = useState(0);
@@ -59,7 +71,7 @@ export function FileManagerSidebarNav({
     }, [])
 
     return (
-        <aside className="hidden md:flex flex-col w-60 border-r border-white/10 bg-slate-950/60">
+        <>
             <div className="p-4">
                 <p className="text-xs font-semibold uppercase text-slate-500 mb-2">
                     Navigation
@@ -95,6 +107,7 @@ export function FileManagerSidebarNav({
                     <SharelinkRoute/>
                     <RootPathSettingsDialog />
                     {role === "ADMIN" && <PathRuleSettingsDialog />}
+                    {extraSettings}
                     <Button variant={"ghost"} className="w-full justify-start gap-2" onClick={handleLogout}>
                         <LogOut className="w-4 h-4" />
                         <span>Log out</span>
@@ -122,6 +135,6 @@ export function FileManagerSidebarNav({
                     </p>
                 </div>
             </div>
-        </aside>
+        </>
     );
 }
