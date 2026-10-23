@@ -17,6 +17,8 @@ import { logerror } from "@/lib/logger";
 import { PathMapSetting } from "./PathMapSetting";
 import { useRouter } from "next/navigation";
 import { UserManageSetting } from "./UserManageSetting";
+import { fetchCurrentRole } from "@/lib/api/admin/path-rule.service";
+import { RuleRole } from "@/lib/security/file-actions";
 
 type ImportResponse = {
     success?: boolean;
@@ -30,6 +32,11 @@ export function RootPathSettingsDialog() {
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [currentRootPath, setCurrentRootPath] = useState<string | null>(null);
+    // Checked each time the dialog opens. Everything but Change Password is
+    // ADMIN-only on the server; until the role is known nothing admin-only is
+    // shown or fetched, so other users never see a "Forbidden" error.
+    const [role, setRole] = useState<RuleRole | null>(null);
+    const isAdmin = role === "ADMIN";
 
     const route = useRouter()
 
@@ -76,7 +83,7 @@ export function RootPathSettingsDialog() {
     }
 
     return (
-        <Dialog>
+        <Dialog onOpenChange={(open) => open && fetchCurrentRole().then(setRole)}>
             <DialogTrigger asChild>
                 <Button variant={"ghost"} className="w-full justify-start gap-2 ">
                     <Settings className="w-4 h-4" />
@@ -91,8 +98,14 @@ export function RootPathSettingsDialog() {
                         <DialogHeader>
                             <DialogTitle className="text-rose-500">Settings</DialogTitle>
                             <DialogDescription className="text-slate-400">
-                                Set up <span className="font-mono text-xs">rootPath</span> for
-                                File management system
+                                {isAdmin ? (
+                                    <>
+                                        Set up <span className="font-mono text-xs">rootPath</span> for
+                                        File management system
+                                    </>
+                                ) : (
+                                    "Your account"
+                                )}
                             </DialogDescription>
                         </DialogHeader>
 
@@ -105,75 +118,83 @@ export function RootPathSettingsDialog() {
                                 <LogIn /> Change Password!
                             </Button>
 
-                            <Button
-                                onClick={() => {
-                                    route.push("/admin/user/create")
-                                }}
-                            >
-                                <UserPlus /> Add User
-                            </Button>
+                            {isAdmin && (
+                                <Button
+                                    onClick={() => {
+                                        route.push("/admin/user/create")
+                                    }}
+                                >
+                                    <UserPlus /> Add User
+                                </Button>
+                            )}
                         </div>
 
-                        <form className="space-y-4 mt-2" onSubmit={handleSubmit}>
-                            <div className="space-y-2">
-                                <Label htmlFor="rootPath">Add Root Path</Label>
-                                <Input
-                                    id="rootPath"
-                                    placeholder="For example, D:\\Projects or /home/user/files"
-                                    value={rootPath}
-                                    onChange={(e) => setRootPath(e.target.value)}
-                                />
-                                <p className="text-[11px] text-slate-500">
-                                    body sent:{" "}
-                                    <code className="font-mono">{`{ rootPath: "..." }`}</code>
-                                </p>
-                            </div>
+                        {isAdmin && (
+                            <form className="space-y-4 mt-2" onSubmit={handleSubmit}>
+                                <div className="space-y-2">
+                                    <Label htmlFor="rootPath">Add Root Path</Label>
+                                    <Input
+                                        id="rootPath"
+                                        placeholder="For example, D:\\Projects or /home/user/files"
+                                        value={rootPath}
+                                        onChange={(e) => setRootPath(e.target.value)}
+                                    />
+                                    <p className="text-[11px] text-slate-500">
+                                        body sent:{" "}
+                                        <code className="font-mono">{`{ rootPath: "..." }`}</code>
+                                    </p>
+                                </div>
 
-                            <div>
-                                {errorMsg && (
-                                    <p className="text-xs text-red-400">{errorMsg}</p>
-                                )}
-                            </div>
-
-                            {successMsg && (
-                                <div className="text-xs text-emerald-400 space-y-1">
-                                    <p>{successMsg}</p>
-                                    {currentRootPath && (
-                                        <p className="text-slate-300">
-                                            Use the current rootPath:{" "}
-                                            <span className="font-mono text-[11px]">
-                                                {currentRootPath}
-                                            </span>
-                                        </p>
+                                <div>
+                                    {errorMsg && (
+                                        <p className="text-xs text-red-400">{errorMsg}</p>
                                     )}
                                 </div>
-                            )}
 
-                            <div className="flex justify-end">
-                                <Button type="submit" disabled={loading}>
-                                    {loading ? "Recording..." : "Add rootPath"}
-                                </Button>
-                            </div>
-                        </form>
+                                {successMsg && (
+                                    <div className="text-xs text-emerald-400 space-y-1">
+                                        <p>{successMsg}</p>
+                                        {currentRootPath && (
+                                            <p className="text-slate-300">
+                                                Use the current rootPath:{" "}
+                                                <span className="font-mono text-[11px]">
+                                                    {currentRootPath}
+                                                </span>
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+
+                                <div className="flex justify-end">
+                                    <Button type="submit" disabled={loading}>
+                                        {loading ? "Recording..." : "Add rootPath"}
+                                    </Button>
+                                </div>
+                            </form>
+                        )}
                     </section>
 
                     {/* <Separator className="bg-white/5" /> */}
 
-                    <section className="min-w-0 space-y-4">
-                        <p className="font-bold text-lg text-rose-500">User Management</p>
-                        <div className="bg-slate-900/30 p-2 rounded-lg border border-white/5">
-                            <UserManageSetting />
-                        </div>
-                    </section>
+                    {isAdmin && (
+                        <>
+                            <section className="min-w-0 space-y-4">
+                                <p className="font-bold text-lg text-rose-500">User Management</p>
+                                <div className="bg-slate-900/30 p-2 rounded-lg border border-white/5">
+                                    <UserManageSetting />
+                                </div>
+                            </section>
 
-                    {/* <Separator className="bg-white/5" /> */}
+                            {/* <Separator className="bg-white/5" /> */}
 
-                    <section className="min-w-0 space-y-4">
-                        <p className="font-bold text-lg text-rose-500">Import Management</p>
-                        <div className="bg-slate-900/30 p-2 rounded-lg border border-white/5">
-                            <PathMapSetting />
-                        </div>
-                    </section>
+                            <section className="min-w-0 space-y-4">
+                                <p className="font-bold text-lg text-rose-500">Import Management</p>
+                                <div className="bg-slate-900/30 p-2 rounded-lg border border-white/5">
+                                    <PathMapSetting />
+                                </div>
+                            </section>
+                        </>
+                    )}
                 </section>
             </DialogContent>
         </Dialog>
