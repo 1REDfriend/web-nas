@@ -256,9 +256,13 @@ export default function FileManagerPage() {
               <DialogTitle>Share File</DialogTitle>
             </DialogHeader>
 
-            <div className="flex py-4 justify-center items-center space-x-5">
-              <span>File : <span className="bg-primary/80 px-2 py-1 rounded-sm">{shareFile?.path}</span></span>
-              <div className="flex flex-col gap-3">
+            {/* Stacked on phones; one row from sm up */}
+            <div className="flex flex-col gap-4 py-2 sm:flex-row sm:items-end sm:gap-5">
+              <div className="min-w-0 flex-1 space-y-2">
+                <Label className="px-1">File</Label>
+                <p className="break-all rounded-sm bg-primary/80 px-2 py-1 text-sm">{shareFile?.path}</p>
+              </div>
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="date-picker" className="px-1">
                   Expired Date
                 </Label>
@@ -267,7 +271,7 @@ export default function FileManagerPage() {
                     <Button
                       variant="outline"
                       id="date-picker"
-                      className="w-32 justify-between font-normal"
+                      className="w-full sm:w-32 justify-between font-normal"
                     >
                       {date ? date.toLocaleDateString() : "Select date"}
                       <ChevronDownIcon />
@@ -295,15 +299,15 @@ export default function FileManagerPage() {
                 </Popover>
               </div>
               {shareFile?.type === 'directory' && (
-                <div className=" space-y-2">
-                  <Label>
-                    Recursive?
-                  </Label>
-                  <Input
+                <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
+                  <input
                     type="checkbox"
-                    onChange={e => setRecursive(e.target?.checked)}
+                    checked={recursive}
+                    onChange={e => setRecursive(e.target.checked)}
+                    className="h-5 w-5 accent-red-600"
                   />
-                </div>
+                  Recursive?
+                </label>
               )}
             </div>
 

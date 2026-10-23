@@ -20,12 +20,14 @@ type FileActionSheetProps = {
     // Open with the details already expanded (a tap on a file, rather than a long press).
     // Read once: give the sheet a new `key` each time it opens.
     defaultShowInfo?: boolean;
+    // See FileDetails
+    inTrash?: boolean;
 };
 
 // What a long press, right-click or the ⋮ button opens: the file's name and
 // summary on top, its details one tap away, then every action as a big row.
 // Slides up from the bottom on phones, sits in the middle on wider screens.
-export function FileActionSheet({ file, open, onOpenChange, actions, preview, mediaSrc, defaultShowInfo = false }: FileActionSheetProps) {
+export function FileActionSheet({ file, open, onOpenChange, actions, preview, mediaSrc, defaultShowInfo = false, inTrash }: FileActionSheetProps) {
     const [showInfo, setShowInfo] = useState(defaultShowInfo);
 
     function runAction(action: FileAction) {
@@ -94,7 +96,7 @@ export function FileActionSheet({ file, open, onOpenChange, actions, preview, me
                                 </button>
                                 {showInfo && (
                                     <div className="px-4 pb-3 pt-1">
-                                        <FileDetails file={file} preview={preview} mediaSrc={mediaSrc} hideSummary />
+                                        <FileDetails file={file} preview={preview} mediaSrc={mediaSrc} inTrash={inTrash} hideSummary />
                                     </div>
                                 )}
 

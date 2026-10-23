@@ -38,9 +38,9 @@ type ActionSpec = Omit<FileAction, "run">;
 // Desktop menus offer it for when the side panel is hidden; the action sheet has its own
 const INFO: ActionSpec = { id: "info", label: "Info", icon: Info };
 
-function specsFor(file: FileItem): ActionSpec[] {
+function specsFor(file: FileItem, inTrash: boolean): ActionSpec[] {
     // Trash items can only be restored or deleted for good
-    if (isTrashItem(file)) {
+    if (inTrash) {
         return [
             INFO,
             { id: "restore", label: "Restore", icon: ArchiveRestore, groupStart: true },
@@ -64,12 +64,14 @@ function specsFor(file: FileItem): ActionSpec[] {
 
 // Actions available for `file`, in menu order. An action is left out when no
 // handler is given for it, or when `only` is set and does not name it.
+// `inTrash` is false on share pages, whose paths are relative to the shared folder.
 export function getFileActions(
     file: FileItem,
     handlers: FileActionHandlers,
     only?: readonly FileActionId[],
+    inTrash: boolean = isTrashItem(file),
 ): FileAction[] {
-    return specsFor(file)
+    return specsFor(file, inTrash)
         .filter((spec) => handlers[spec.id] && (!only || only.includes(spec.id)))
         .map((spec) => ({ ...spec, run: () => handlers[spec.id]!(file) }));
 }

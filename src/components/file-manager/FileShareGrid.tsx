@@ -1,26 +1,14 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import ptb from 'pretty-bytes'
-import { File as FileIcon, Folder, DownloadCloudIcon, InfoIcon, Eye } from "lucide-react";
+import { useState } from "react";
+import { DownloadCloudIcon } from "lucide-react";
 import { FileItem } from "./config";
 import { publicShareDownloadUrl } from "@/lib/api/user/share";
-
-// Import Shadcn Context Menu
-import {
-    ContextMenu,
-    ContextMenuContent,
-    ContextMenuItem,
-    ContextMenuTrigger,
-    ContextMenuShortcut,
-} from "@/components/ui/context-menu";
-import { useRef, useState } from "react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
-import { Label } from "../ui/label";
-import prettyBytes from "pretty-bytes";
 import { Button } from "../ui/button";
 import { mediaTypeOf, shareRawUrl, shareThumbnailUrl } from "@/lib/file-manager/media";
+import { getFileActions } from "@/lib/file-manager/fileActions";
 import { MediaPreview } from "./MediaPreview";
-import { Thumbnail } from "./Thumbnail";
+import { FileManagerGrid } from "./FileManagerGrid";
+import { FileActionSheet } from "./FileActionSheet";
 
 type FileShareGridProps = {
     files: FileItem[];
@@ -31,6 +19,9 @@ type FileShareGridProps = {
     ShareLinkID: string,
 };
 
+// A share link's files for visitors: the same list, sheet and menus as the
+// file manager, with only what a visitor may do (Info, Download).
+// Paths are relative to the shared folder; there is no trash here.
 export function FileShareGrid({
     files,
     activeFilePath,
@@ -38,196 +29,94 @@ export function FileShareGrid({
     onSelectFile,
     onOpenDirectory,
     ShareLinkID,
-
 }: FileShareGridProps) {
-    const lastTapRef = useRef(0);
-
-    const [infoOpen, setInfoOpen] = useState(false);
-    // Image, video or audio file shown in the preview dialog
+    // Image, video or audio file shown in the large preview dialog (mouse click)
     const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
     const previewMedia = previewFile ? mediaTypeOf(previewFile.name) : null;
-    const [infoData, setInfoData] = useState<FileItem>();
 
-    async function onInfo(file: FileItem) {
-        setInfoData(file)
-        setInfoOpen(true)
+    // Same pattern as the file manager page: new key per open, keep the file while it animates out
+    const [sheet, setSheet] = useState<{ file: FileItem; showInfo: boolean; key: number } | null>(null);
+    const [sheetOpen, setSheetOpen] = useState(false);
+
+    function openSheet(file: FileItem, showInfo: boolean) {
+        onSelectFile(file.path);
+        setSheet((prev) => ({ file, showInfo, key: (prev?.key ?? 0) + 1 }));
+        setSheetOpen(true);
     }
 
-    function onDownload(id: string, file: FileItem) {
+    function onDownload(file: FileItem) {
         // A plain link lets the browser stream the file to disk instead of buffering it
         const a = document.createElement("a");
-        a.href = publicShareDownloadUrl(id, file.path);
+        a.href = publicShareDownloadUrl(ShareLinkID, file.path);
         a.download = file.name;
         document.body.appendChild(a);
         a.click();
         a.remove();
     }
 
+    const isDirectory = (file: FileItem) => file.type === "directory";
+
+    const actionsFor = (file: FileItem, withInfo: boolean) =>
+        getFileActions(
+            file,
+            { download: onDownload, ...(withInfo && { info: (f: FileItem) => openSheet(f, true) }) },
+            undefined,
+            false,
+        );
+
     return (
-        <ScrollArea className="flex-1 overflow-y-scroll">
-            <div className="p-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                {listLoading && (
-                    <div className="col-span-full flex justify-center py-10 text-sm text-slate-400">
-                        Loading file...
-                    </div>
-                )}
+        <>
+            <FileManagerGrid
+                files={files}
+                activeFilePath={activeFilePath}
+                listLoading={listLoading}
+                onSelect={(file) => {
+                    onSelectFile(file.path);
+                    // Visitors have no preview panel: a click on media opens it straight away
+                    if (!isDirectory(file) && mediaTypeOf(file.name)) setPreviewFile(file);
+                }}
+                onOpen={(file) => isDirectory(file) && onOpenDirectory(file.path)}
+                onTouchTap={(file) => (isDirectory(file) ? onOpenDirectory(file.path) : openSheet(file, true))}
+                onOpenSheet={(file) => openSheet(file, false)}
+                menuActionsFor={(file) => actionsFor(file, true)}
+                thumbnailSrc={(file) => shareThumbnailUrl(ShareLinkID, file.path)}
+                isTrash={() => false}
+            />
 
-                {!listLoading && files &&
-                    files.map((file) => {
-                        const isActive = activeFilePath === file.path;
-                        const isDirectory = file.type === "directory";
-                        const media = isDirectory ? null : mediaTypeOf(file.name);
+            <FileActionSheet
+                key={sheet?.key}
+                file={sheet?.file ?? null}
+                open={sheetOpen}
+                onOpenChange={setSheetOpen}
+                actions={sheet ? actionsFor(sheet.file, false) : []}
+                defaultShowInfo={sheet?.showInfo}
+                mediaSrc={sheet ? shareRawUrl(ShareLinkID, sheet.file.path) : undefined}
+                inTrash={false}
+            />
 
-                        return (
-                            <ContextMenu key={file.path || file.id}>
-                                <ContextMenuTrigger asChild>
-                                    <Card
-                                        className={`cursor-pointer border-white/10 bg-slate-900/70 hover:bg-slate-800/80 transition ${isActive ? "ring-1 ring-red-500/60" : ""
-                                            }`}
-                                        onClick={() => {
-                                            onSelectFile(file.path);
-                                            // Visitors have no preview panel: open media straight away
-                                            if (media) setPreviewFile(file);
-                                        }}
-                                        draggable={"true"}
-                                        onDoubleClick={(e) => {
-                                            e.stopPropagation();
-                                            if (isDirectory) {
-                                                onOpenDirectory(file.path);
-                                            }
-                                        }}
-
-                                        onTouchEnd={(e) => {
-                                            const now = Date.now();
-                                            const DOUBLE_TAP_DELAY = 300;
-
-                                            if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-
-                                                if (isDirectory) {
-                                                    onOpenDirectory(file.path);
-                                                }
-                                            } else {
-                                                lastTapRef.current = now;
-                                            }
-                                        }}
-                                    >
-                                        {media?.kind === "image" && (
-                                            <Thumbnail src={shareThumbnailUrl(ShareLinkID, file.path)} name={file.name} className="-mt-6 -mb-2 h-28 rounded-t-xl" />
-                                        )}
-                                        <CardHeader className="pb-2 flex flex-row items-start justify-between gap-2">
-                                            <div className="flex items-center gap-2 select-none">
-                                                <div className="w-8 h-8 rounded-md bg-red-500/20 flex items-center justify-center">
-                                                    {isDirectory ? (
-                                                        <Folder className="w-4 h-4 text-red-400" />
-                                                    ) : (
-                                                        <FileIcon className="w-4 h-4 text-red-200" />
-                                                    )}
-                                                </div>
-                                                <div className="flex flex-col">
-                                                    <CardTitle className="text-sm truncate max-w-32">
-                                                        {file.name}
-                                                    </CardTitle>
-                                                    <span className="text-[11px] text-slate-500 max-w-32">
-                                                        {file.type || "File"}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </CardHeader>
-                                        <CardContent className="pt-0 text-xs text-slate-400 space-y-1 select-none">
-                                            {file.size && <p>Size: {ptb(Number(file.size))}</p>}
-                                            {file.updatedAt && <p>Updated: {file.updatedAt}</p>}
-                                        </CardContent>
-                                    </Card>
-                                </ContextMenuTrigger>
-
-                                <ContextMenuContent className="min-w-[220px] rounded-xl border border-slate-800/80 bg-slate-900/95 backdrop-blur-md shadow-xl shadow-black/40 py-1">
-                                    {media && (
-                                        <ContextMenuItem
-                                            inset
-                                            onClick={() => setPreviewFile(file)}
-                                            className="flex items-center gap-2 text-slate-100 focus:bg-slate-800/80"
-                                        >
-                                            <Eye className="h-3.5 w-3.5 text-slate-400" />
-                                            <span>Preview</span>
-                                        </ContextMenuItem>
-                                    )}
-
-                                    <ContextMenuItem
-                                        inset
-                                        onClick={() => onInfo?.(file)}
-                                        className="flex items-center gap-2 text-slate-100 focus:bg-slate-800/80"
-                                    >
-                                        <InfoIcon className="h-3.5 w-3.5 text-slate-400" />
-                                        <span>Info</span>
-                                        <ContextMenuShortcut className="ml-auto text-xs text-slate-500"></ContextMenuShortcut>
-                                    </ContextMenuItem>
-
-                                    <ContextMenuItem
-                                        inset
-                                        onClick={() => onDownload?.(ShareLinkID ,file)}
-                                        className="flex items-center gap-2 text-slate-100 focus:bg-slate-800/80"
-                                    >
-                                        <DownloadCloudIcon className="h-3.5 w-3.5 text-slate-400" />
-                                        <span>Download</span>
-                                        <ContextMenuShortcut className="ml-auto text-xs text-slate-500"></ContextMenuShortcut>
-                                    </ContextMenuItem>
-
-                                </ContextMenuContent>
-                            </ContextMenu>
-                        );
-                    })}
-
-                <Dialog open={!!previewFile} onOpenChange={(open) => !open && setPreviewFile(null)}>
-                    <DialogContent className="sm:max-w-3xl">
-                        <DialogHeader>
-                            <DialogTitle className="truncate">{previewFile?.name}</DialogTitle>
-                        </DialogHeader>
-                        {previewFile && previewMedia && (
-                            <MediaPreview
-                                key={previewFile.path}
-                                src={shareRawUrl(ShareLinkID, previewFile.path)}
-                                name={previewFile.name}
-                                kind={previewMedia.kind}
-                            />
+            <Dialog open={!!previewFile} onOpenChange={(open) => !open && setPreviewFile(null)}>
+                <DialogContent className="sm:max-w-3xl">
+                    <DialogHeader>
+                        <DialogTitle className="truncate">{previewFile?.name}</DialogTitle>
+                    </DialogHeader>
+                    {previewFile && previewMedia && (
+                        <MediaPreview
+                            key={previewFile.path}
+                            src={shareRawUrl(ShareLinkID, previewFile.path)}
+                            name={previewFile.name}
+                            kind={previewMedia.kind}
+                        />
+                    )}
+                    <DialogFooter>
+                        {previewFile && (
+                            <Button variant="outline" className="gap-2" onClick={() => onDownload(previewFile)}>
+                                <DownloadCloudIcon className="h-4 w-4" />
+                                Download
+                            </Button>
                         )}
-                        <DialogFooter>
-                            {previewFile && (
-                                <Button variant="outline" className="gap-2" onClick={() => onDownload(ShareLinkID, previewFile)}>
-                                    <DownloadCloudIcon className="h-4 w-4" />
-                                    Download
-                                </Button>
-                            )}
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-
-                <Dialog open={infoOpen} onOpenChange={() => setInfoOpen(false)}>
-                    <DialogContent>
-                        <DialogHeader className=" text-wrap">
-                            <DialogTitle>Info {infoData?.name}</DialogTitle>
-                        </DialogHeader>
-                        <section className=" flex flex-col space-y-2">
-                            <Label>Path : {infoData?.path}</Label>
-                            <Label>Type : {infoData?.type}</Label>
-                            <Label>Size : {prettyBytes(Number(infoData?.size ?? 0))}</Label>
-                        </section>
-                        <DialogFooter>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-
-                {!listLoading && files.length < 1 && (
-                    <div className="col-span-full flex flex-col items-center justify-center py-16 text-center text-slate-500">
-                        <Folder className="w-10 h-10 mb-3 text-slate-600" />
-                        <p className="text-sm font-medium">No files found</p>
-                        <p className="text-xs text-slate-500 mt-1">
-                            Try changing your search term or selecting a different folder 😄
-                        </p>
-                    </div>
-                )}
-            </div>
-        </ScrollArea>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }

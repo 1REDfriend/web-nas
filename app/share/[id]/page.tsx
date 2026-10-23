@@ -4,6 +4,7 @@ import { FileManagerTopBar } from "@/components/file-manager/FileManagerTopBar"
 import { FileShareGrid } from "@/components/file-manager/FileShareGrid"
 import { Button } from "@/components/ui/button"
 import { fetchPublicShare, publicShareDownloadUrl, PublicShareResponse } from "@/lib/api/user/share"
+import { formatDate } from "@/lib/file-manager/format"
 import { ArrowUp, DownloadCloud, Link2Off } from "lucide-react"
 import { useParams } from "next/navigation"
 import { useEffect, useState } from "react"
@@ -60,10 +61,10 @@ export default function ShareFilePage() {
                         </div>
                     ) : (
                         <>
-                            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-6 py-3">
+                            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-white/10 px-3 py-2 sm:px-6 sm:py-3">
                                 <div className="flex items-center gap-2 min-w-0">
                                     {subPath !== "/" && (
-                                        <Button size="icon" variant="ghost" onClick={() => setSubPath(parentOf(subPath))}>
+                                        <Button size="icon" variant="ghost" className="h-11 w-11 sm:h-9 sm:w-9" aria-label="Up one folder" onClick={() => setSubPath(parentOf(subPath))}>
                                             <ArrowUp className="w-4 h-4" />
                                         </Button>
                                     )}
@@ -75,14 +76,14 @@ export default function ShareFilePage() {
                                 <div className="flex items-center gap-3">
                                     {share?.expireAt && (
                                         <span className="text-xs text-slate-500">
-                                            Expires {new Date(share.expireAt).toLocaleString()}
+                                            Expires {formatDate(share.expireAt)}
                                         </span>
                                     )}
                                     {share?.isDirectory && (
                                         <Button asChild size="sm" variant="outline" className="gap-2">
-                                            <a href={publicShareDownloadUrl(shareId, subPath)}>
+                                            <a href={publicShareDownloadUrl(shareId, subPath)} aria-label="Download all">
                                                 <DownloadCloud className="w-4 h-4" />
-                                                Download all
+                                                <span className="hidden sm:inline">Download all</span>
                                             </a>
                                         </Button>
                                     )}

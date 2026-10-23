@@ -21,6 +21,8 @@ type FileDetailsProps = {
     mediaSrc?: string;
     // Leave out the icon/type/size header when the surrounding UI already shows it
     hideSummary?: boolean;
+    // False on share pages, whose paths are relative to the shared folder
+    inTrash?: boolean;
 };
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -33,9 +35,8 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 // Everything we know about one file: type, size, dates, location and a preview.
 // Shown in the desktop side panel and in the action sheet on small screens.
-export function FileDetails({ file, preview, mediaSrc, hideSummary = false }: FileDetailsProps) {
+export function FileDetails({ file, preview, mediaSrc, hideSummary = false, inTrash = isTrashItem(file) }: FileDetailsProps) {
     const isDirectory = file.type === "directory";
-    const inTrash = isTrashItem(file);
     const media = !isDirectory ? mediaTypeOf(file.name) : null;
     const size = formatSize(file.size) ?? formatSize(preview?.size);
 

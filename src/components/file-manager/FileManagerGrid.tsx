@@ -36,9 +36,13 @@ type FileManagerGridProps = {
     onOpenSheet: (file: FileItem) => void;
     // Items for the right-click and ⋮ menus
     menuActionsFor: (file: FileItem) => FileAction[];
-    onToggleStar: (file: FileItem) => void;
+    // No star button when omitted (share pages)
+    onToggleStar?: (file: FileItem) => void;
     // Search results come from many folders: show which one each is in
     showLocation?: boolean;
+    // Share pages serve thumbnails from their own endpoint and have no trash
+    thumbnailSrc?: (file: FileItem) => string;
+    isTrash?: (file: FileItem) => boolean;
 };
 
 export function FileManagerGrid({
@@ -113,11 +117,13 @@ function FileTile({
     onOpenSheet,
     menuActionsFor,
     onToggleStar,
+    thumbnailSrc = (f) => thumbnailUrl(f.path),
+    isTrash = isTrashItem,
 }: FileTileProps) {
     const [contextOpen, setContextOpen] = useState(false);
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const isDirectory = file.type === "directory";
-    const inTrash = isTrashItem(file);
+    const inTrash = isTrash(file);
     const showThumb = !isDirectory && !inTrash && mediaTypeOf(file.name)?.kind === "image";
 
     const { handlers: press, lastPointer } = useLongPress({
@@ -177,7 +183,7 @@ function FileTile({
                     {/* Preview: small square on phones, a banner on cards */}
                     <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg sm:h-28 sm:w-full sm:rounded-none">
                         {showThumb ? (
-                            <Thumbnail src={thumbnailUrl(file.path)} name={file.name} className="h-full w-full" fallback={icon} />
+                            <Thumbnail src={thumbnailSrc(file)} name={file.name} className="h-full w-full" fallback={icon} />
                         ) : (
                             icon
                         )}
@@ -201,7 +207,7 @@ function FileTile({
                             )}
                         </div>
 
-                        {!inTrash && (
+                        {!inTrash && onToggleStar && (
                             <button
                                 type="button"
                                 aria-label={file.isStarred ? "Remove star" : "Add star"}
