@@ -2,7 +2,7 @@ import fs from "fs-extra";
 import { Readable } from "stream";
 import { NextResponse } from "next/server";
 import { mediaTypeOf } from "@/lib/file-manager/media";
-import { MAX_THUMB_SOURCE_BYTES, ThumbnailError, getThumbnail } from "@/lib/service/thumbnails";
+import { MAX_THUMB_SOURCE_BYTES, ThumbnailError, getThumbnail, isThumbSize } from "@/lib/service/thumbnails";
 
 // Shared by the logged-in routes (/api/files/raw, /thumb) and the share-link
 // routes, so both apply exactly the same type allowlist and limits. Callers
@@ -80,8 +80,14 @@ export async function createMediaResponse(request: Request, physicalPath: string
     return new Response(body, { status: 200, headers });
 }
 
-// Serves a cached WebP thumbnail of an allowlisted image
+// Serves a cached WebP thumbnail of an allowlisted image. `?size=` picks one of
+// THUMB_SIZES (default "small"); anything else is refused.
 export async function createThumbnailResponse(request: Request, physicalPath: string): Promise<Response> {
+    const size = new URL(request.url).searchParams.get("size") ?? "small";
+    if (!isThumbSize(size)) {
+        return jsonError("Unknown thumbnail size", 400);
+    }
+
     if (mediaTypeOf(physicalPath)?.kind !== "image") {
         return jsonError("Thumbnails are only made for images", 415);
     }
@@ -96,7 +102,7 @@ export async function createThumbnailResponse(request: Request, physicalPath: st
 
     let thumb: { file: string; etag: string };
     try {
-        thumb = await getThumbnail(physicalPath, stat);
+        thumb = await getThumbnail(physicalPath, stat, size);
     } catch (err: unknown) {
         // Unsupported or broken image: the grid falls back to an icon
         if (err instanceof ThumbnailError) return jsonError("Cannot make a thumbnail for this image", 422);

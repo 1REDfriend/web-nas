@@ -9,8 +9,10 @@ import { getFileActions } from "@/lib/file-manager/fileActions";
 import { MediaPreview } from "./MediaPreview";
 import { FileManagerGrid } from "./FileManagerGrid";
 import { FileActionSheet } from "./FileActionSheet";
+import type { ViewMode } from "@/lib/file-manager/useViewMode";
 
 type FileShareGridProps = {
+    view: ViewMode;
     files: FileItem[];
     activeFilePath: string | null;
     listLoading: boolean;
@@ -23,6 +25,7 @@ type FileShareGridProps = {
 // file manager, with only what a visitor may do (Info, Download).
 // Paths are relative to the shared folder; there is no trash here.
 export function FileShareGrid({
+    view,
     files,
     activeFilePath,
     listLoading,
@@ -67,6 +70,7 @@ export function FileShareGrid({
     return (
         <>
             <FileManagerGrid
+                view={view}
                 files={files}
                 activeFilePath={activeFilePath}
                 listLoading={listLoading}
@@ -79,7 +83,7 @@ export function FileShareGrid({
                 onTouchTap={(file) => (isDirectory(file) ? onOpenDirectory(file.path) : openSheet(file, true))}
                 onOpenSheet={(file) => openSheet(file, false)}
                 menuActionsFor={(file) => actionsFor(file, true)}
-                thumbnailSrc={(file) => shareThumbnailUrl(ShareLinkID, file.path)}
+                thumbnailSrc={(file, size) => shareThumbnailUrl(ShareLinkID, file.path, size)}
                 isTrash={() => false}
             />
 

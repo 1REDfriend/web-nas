@@ -2,6 +2,8 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { ArrowUp, ChevronRight, DownloadCloud, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ViewModeMenu } from "./ViewModeMenu";
+import type { ViewMode } from "@/lib/file-manager/useViewMode";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -31,6 +33,8 @@ type FileManagerToolbarProps = {
     onDownloadActive: () => void;
     // Only passed while the trash is open
     onEmptyTrash?: () => Promise<void>;
+    view: ViewMode;
+    onViewChange: (mode: ViewMode) => void;
 };
 
 export function FileManagerToolbar({
@@ -46,6 +50,8 @@ export function FileManagerToolbar({
     onNextPage,
     onDownloadActive,
     onEmptyTrash,
+    view,
+    onViewChange,
 }: FileManagerToolbarProps) {
     const [confirmEmpty, setConfirmEmpty] = useState(false);
     const [emptying, setEmptying] = useState(false);
@@ -108,6 +114,7 @@ export function FileManagerToolbar({
                 )}
             </div>
             <div className="flex shrink-0 items-center gap-2">
+                <ViewModeMenu value={view} onChange={onViewChange} />
                 {meta && (
                     // Phones only show the pager when there is more than one page
                     <div className={cn("items-center gap-2 text-xs text-slate-400 sm:mr-2", totalPages > 1 ? "flex" : "hidden sm:flex")}>

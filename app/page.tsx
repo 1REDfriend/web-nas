@@ -7,6 +7,7 @@ import { FileManagerTopBar } from "@/components/file-manager/FileManagerTopBar";
 import { FileManagerSidebarNav } from "@/components/file-manager/FileManagerSidebarNav";
 import { Crumb, FileManagerToolbar } from "@/components/file-manager/FileManagerToolbar";
 import { PasteBar } from "@/components/file-manager/PasteBar";
+import { useViewMode } from "@/lib/file-manager/useViewMode";
 import { FileManagerGrid } from "@/components/file-manager/FileManagerGrid";
 import { FileManagerPreviewPanel } from "@/components/file-manager/FileManagerPreviewPanel";
 import { FileActionSheet } from "@/components/file-manager/FileActionSheet";
@@ -40,6 +41,7 @@ import { toast } from "sonner";
 
 export default function FileManagerPage() {
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
+  const [view, setView] = useViewMode();
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -354,6 +356,8 @@ export default function FileManagerPage() {
                 <div className="flex-1 flex flex-col">
                   <FileManagerToolbar
                     crumbs={crumbs}
+                    view={view}
+                    onViewChange={setView}
                     visibleCount={visibleFiles.length}
                     listError={listError}
                     meta={meta}
@@ -370,6 +374,7 @@ export default function FileManagerPage() {
                   />
 
                   <FileManagerGrid
+                    view={view}
                     files={visibleFiles}
                     activeFilePath={activeFilePath}
                     listLoading={listLoading}

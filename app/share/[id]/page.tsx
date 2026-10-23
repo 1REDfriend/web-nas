@@ -5,6 +5,8 @@ import { FileShareGrid } from "@/components/file-manager/FileShareGrid"
 import { Button } from "@/components/ui/button"
 import { fetchPublicShare, publicShareDownloadUrl, PublicShareResponse } from "@/lib/api/user/share"
 import { formatDate } from "@/lib/file-manager/format"
+import { useViewMode } from "@/lib/file-manager/useViewMode"
+import { ViewModeMenu } from "@/components/file-manager/ViewModeMenu"
 import { ArrowUp, DownloadCloud, Link2Off } from "lucide-react"
 import { useParams } from "next/navigation"
 import { useEffect, useState } from "react"
@@ -25,6 +27,7 @@ export default function ShareFilePage() {
     const [isLoading, setIsloading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [selectFile, setSelectFile] = useState('')
+    const [view, setView] = useViewMode()
 
     useEffect(() => {
         if (!shareId) return
@@ -74,6 +77,7 @@ export default function ShareFilePage() {
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-3">
+                                    <ViewModeMenu value={view} onChange={setView} />
                                     {share?.expireAt && (
                                         <span className="text-xs text-slate-500">
                                             Expires {formatDate(share.expireAt)}
@@ -92,6 +96,7 @@ export default function ShareFilePage() {
 
                             <div className="flex flex-1 overflow-hidden">
                                 <FileShareGrid
+                                    view={view}
                                     files={fileData}
                                     activeFilePath={selectFile}
                                     ShareLinkID={shareId}

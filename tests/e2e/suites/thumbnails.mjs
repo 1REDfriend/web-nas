@@ -30,8 +30,8 @@ async function login(username) {
     });
     return res.headers.get("set-cookie").split(";")[0];
 }
-async function thumb(cookie, file, extra = {}) {
-    const res = await fetch(`${BASE_URL}/api/files/thumb?${new URLSearchParams({ file })}`, {
+async function thumb(cookie, file, extra = {}, query = {}) {
+    const res = await fetch(`${BASE_URL}/api/files/thumb?${new URLSearchParams({ file, ...query })}`, {
         headers: { ...(cookie ? { Cookie: cookie } : {}), ...extra },
     });
     return { status: res.status, headers: res.headers, buf: Buffer.from(await res.arrayBuffer()) };
@@ -49,6 +49,7 @@ function bombPng(width, height) {
 const dir = path.join(ROOT, "alice", "photos");
 fs.mkdirSync(dir, { recursive: true });
 await sharp({ create: { width: 2000, height: 1500, channels: 3, background: "#3366cc" } }).jpeg().toFile(path.join(dir, "big.jpg"));
+await sharp({ create: { width: 2000, height: 1000, channels: 3, background: "#33cc66" } }).jpeg().toFile(path.join(dir, "wide.jpg"));
 for (let i = 0; i < 12; i++) {
     await sharp({ create: { width: 400, height: 300, channels: 3, background: { r: i * 20, g: 80, b: 120 } } }).png().toFile(path.join(dir, `p${i}.png`));
 }
@@ -80,6 +81,26 @@ check("edited image gets a new thumbnail", r.status === 200 && r.headers.get("et
 
 const many = await Promise.all(Array.from({ length: 12 }, (_, i) => thumb(alice, `/alice/photos/p${i}.png`)));
 check("12 thumbnails at once all succeed", many.every((x) => x.status === 200), many.map((x) => x.status).join(","));
+
+// --- large size (large-icons view) ---
+r = await thumb(alice, "/alice/photos/wide.jpg", {}, { size: "large" });
+const large = r.status === 200 ? await sharp(r.buf).metadata() : {};
+check("large thumbnail generated", r.status === 200 && r.headers.get("content-type") === "image/webp", `${r.status}`);
+check("large keeps the image's shape, at most 800px", large.width === 800 && large.height === 400, `${large.width}x${large.height}`);
+const largeEtag = r.headers.get("etag");
+r = await thumb(alice, "/alice/photos/wide.jpg");
+const small = r.status === 200 ? await sharp(r.buf).metadata() : {};
+check("small stays a 256px square", small.width === 256 && small.height === 256, `${small.width}x${small.height}`);
+check("small and large are cached separately", r.headers.get("etag") !== largeEtag, `${r.headers.get("etag")} vs ${largeEtag}`);
+r = await thumb(alice, "/alice/photos/p0.png", {}, { size: "large" });
+const notEnlarged = r.status === 200 ? await sharp(r.buf).metadata() : {};
+check("large never enlarges a small image", notEnlarged.width === 400 && notEnlarged.height === 300, `${notEnlarged.width}x${notEnlarged.height}`);
+for (const size of ["huge", "1024", ""]) {
+    r = await thumb(alice, "/alice/photos/wide.jpg", {}, { size });
+    check(`size=${JSON.stringify(size)} -> 400`, r.status === 400, `${r.status}`);
+}
+r = await thumb(bob, "/alice/photos/wide.jpg", {}, { size: "large" });
+check("large: other user -> 403", r.status === 403, `${r.status}`);
 
 // --- refused inputs ---
 for (const [file, status] of [["/alice/doc.txt", 415], ["/alice/photos/logo.svg", 415], ["/alice/photos/broken.jpg", 422], ["/alice/photos/bomb.png", 422], ["/alice/photos/huge.jpg", 413]]) {

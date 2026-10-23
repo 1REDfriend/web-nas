@@ -9,7 +9,18 @@ import { ENV } from "@/lib/ENV";
 // a new thumbnail. Generation is limited so a folder full of photos cannot
 // tie up the CPU, and pixel limits stop decompression bombs.
 
-const THUMB_SIZE = 256;
+// Only these sizes exist, so requests cannot fill the cache with arbitrary ones.
+// "small" is a square crop for list rows and grid cards; "large" keeps the
+// image's shape for the large-icons view.
+export const THUMB_SIZES = {
+    small: { width: 256, height: 256, fit: "cover" },
+    large: { width: 800, height: 800, fit: "inside" },
+} as const;
+export type ThumbSize = keyof typeof THUMB_SIZES;
+
+export function isThumbSize(value: string): value is ThumbSize {
+    return Object.hasOwn(THUMB_SIZES, value);
+}
 export const MAX_THUMB_SOURCE_BYTES = 50 * 1024 * 1024;
 const MAX_INPUT_PIXELS = 100_000_000;
 const MAX_CONCURRENT = 3;
@@ -44,15 +55,18 @@ function thumbsDir() {
     return path.resolve(ENV.STORAGE_INTERNAL, "thumbs");
 }
 
-export function thumbnailKey(physicalPath: string, stat: fs.Stats): string {
-    return createHash("sha256").update(`${physicalPath}\0${stat.size}\0${stat.mtimeMs}`).digest("hex");
+export function thumbnailKey(physicalPath: string, stat: fs.Stats, size: ThumbSize = "small"): string {
+    // "small" keeps its original key so thumbnails already on disk stay valid
+    const sizePart = size === "small" ? "" : `\0${size}`;
+    return createHash("sha256").update(`${physicalPath}\0${stat.size}\0${stat.mtimeMs}${sizePart}`).digest("hex");
 }
 
-async function generate(physicalPath: string, target: string): Promise<string> {
+async function generate(physicalPath: string, target: string, size: ThumbSize): Promise<string> {
+    const { width, height, fit } = THUMB_SIZES[size];
     const buffer = await withSlot(() =>
         sharp(physicalPath, { limitInputPixels: MAX_INPUT_PIXELS })
             .rotate() // respect EXIF orientation
-            .resize(THUMB_SIZE, THUMB_SIZE, { fit: "cover", withoutEnlargement: true })
+            .resize(width, height, { fit, withoutEnlargement: true })
             .webp({ quality: 70 })
             .toBuffer()
     ).catch((err: unknown) => {
@@ -68,8 +82,12 @@ async function generate(physicalPath: string, target: string): Promise<string> {
 }
 
 // Returns the path of a cached thumbnail, creating it if needed
-export async function getThumbnail(physicalPath: string, stat: fs.Stats): Promise<{ file: string; etag: string }> {
-    const key = thumbnailKey(physicalPath, stat);
+export async function getThumbnail(
+    physicalPath: string,
+    stat: fs.Stats,
+    size: ThumbSize = "small",
+): Promise<{ file: string; etag: string }> {
+    const key = thumbnailKey(physicalPath, stat, size);
     const target = path.join(thumbsDir(), key.slice(0, 2), `${key}.webp`);
     const etag = `"${key.slice(0, 32)}"`;
 
@@ -77,7 +95,7 @@ export async function getThumbnail(physicalPath: string, stat: fs.Stats): Promis
 
     let pending = inFlight.get(key);
     if (!pending) {
-        pending = generate(physicalPath, target).finally(() => inFlight.delete(key));
+        pending = generate(physicalPath, target, size).finally(() => inFlight.delete(key));
         inFlight.set(key, pending);
     }
     return { file: await pending, etag };

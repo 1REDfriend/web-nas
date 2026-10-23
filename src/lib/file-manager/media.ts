@@ -46,8 +46,15 @@ export function rawFileUrl(path: string): string {
     return `/api/files/raw?${new URLSearchParams({ file: path }).toString()}`;
 }
 
-export function thumbnailUrl(path: string): string {
-    return `/api/files/thumb?${new URLSearchParams({ file: path }).toString()}`;
+// "large" is for the large-icons view; must match THUMB_SIZES on the server
+export type ThumbSize = "small" | "large";
+
+function sizeParam(size: ThumbSize): Record<string, string> {
+    return size === "small" ? {} : { size };
+}
+
+export function thumbnailUrl(path: string, size: ThumbSize = "small"): string {
+    return `/api/files/thumb?${new URLSearchParams({ file: path, ...sizeParam(size) }).toString()}`;
 }
 
 // Share-link versions (public, no login). `subPath` is relative to the shared root.
@@ -55,6 +62,6 @@ export function shareRawUrl(shareId: string, subPath: string): string {
     return `/api/public/share/${encodeURIComponent(shareId)}/raw?${new URLSearchParams({ path: subPath }).toString()}`;
 }
 
-export function shareThumbnailUrl(shareId: string, subPath: string): string {
-    return `/api/public/share/${encodeURIComponent(shareId)}/thumb?${new URLSearchParams({ path: subPath }).toString()}`;
+export function shareThumbnailUrl(shareId: string, subPath: string, size: ThumbSize = "small"): string {
+    return `/api/public/share/${encodeURIComponent(shareId)}/thumb?${new URLSearchParams({ path: subPath, ...sizeParam(size) }).toString()}`;
 }
