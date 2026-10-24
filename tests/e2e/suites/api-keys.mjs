@@ -178,6 +178,8 @@ try {
     check("21st bad key from that address -> 429", r.status === 429 && r.json?.code === "RATE_LIMITED", show(r));
     r = await call("GET", "/api/v1/me", { key: alice.key });
     check("other addresses are not affected", r.status === 200, show(r));
+    r = await call("GET", "/api/v1/me", { key: alice.key, ip });
+    check("a valid key from the blocked address still works", r.status === 200, show(r));
 } finally {
     await prisma.$disconnect();
 }

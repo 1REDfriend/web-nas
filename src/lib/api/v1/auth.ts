@@ -41,14 +41,15 @@ export function hasBearer(authorization: string | null | undefined): authorizati
 }
 
 async function authenticateApiKey(authorization: string, ip: string): Promise<V1AuthResult> {
-    const limits = badKeyLimits(ip);
-    const wait = retryAfterSeconds(limits);
-    if (wait > 0) {
-        return { ok: false, status: 429, code: "RATE_LIMITED", message: "Too many invalid API keys. Try again later.", retryAfter: wait };
-    }
-
+    // The bad-key limit only answers keys that turn out to be wrong: behind a tunnel many
+    // clients can share one address, and a flood of junk keys must not lock out valid ones
     const principal = await verifyApiKey(apiKeyFromAuthorization(authorization), ip);
     if (!principal) {
+        const limits = badKeyLimits(ip);
+        const wait = retryAfterSeconds(limits);
+        if (wait > 0) {
+            return { ok: false, status: 429, code: "RATE_LIMITED", message: "Too many invalid API keys. Try again later.", retryAfter: wait };
+        }
         recordAttempt(limits);
         logwarn(`[API] rejected an invalid or expired key from ${ip}`);
         return { ok: false, status: 401, code: "INVALID_API_KEY", message: "Invalid or expired API key." };
