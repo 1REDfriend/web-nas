@@ -177,6 +177,11 @@ curl -T report.pdf -H "Authorization: Bearer $KEY" "$NAS/api/v1/drops/raw?name=r
 
 The answer has `url` (a page to hand to people) and `downloadUrl` (for `curl`/`wget`), plus `expiresAt`. Lifetime starts when the upload finishes.
 
+The page at `url` needs no login. It shows the name, size and time left, previews images, video and audio, and has a Download button. Every download is counted; a link that expired, ran out of downloads or was removed answers `404`.
+
+- A drop **without** a download limit can be resumed (`Range`) and previewed.
+- A drop **with** a download limit is always sent whole and is never previewed, so nobody can fetch it without it being counted.
+
 - ADMIN sets the default lifetime (24 hours), the longest lifetime (7 days) and a quota per user (10 GB of live drops) in `PUT /api/admin/drops`.
 - Drops are kept in one drop folder, `NAS_HOST_DIR/drops` with Docker. An ADMIN can pick another one; the drops already stored move there in the background. The new folder must be empty, missing, or an old drop folder, and nobody can open it from the file manager.
 - GUEST accounts cannot create drops.

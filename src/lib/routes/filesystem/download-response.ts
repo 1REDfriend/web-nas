@@ -10,6 +10,8 @@ type DownloadOptions = {
     topLevelFilesOnly?: boolean;
     // Value of the request's Range header; files then answer 206 / 416 (folders ignore it)
     rangeHeader?: string | null;
+    // Name to send instead of the file's own (also picks the Content-Type)
+    fileName?: string;
 };
 
 function contentDisposition(fileName: string) {
@@ -23,8 +25,10 @@ export async function createDownloadResponse(physicalPath: string, options: Down
     const headers = new Headers();
 
     if (stats.isFile()) {
-        headers.set("Content-Type", mime.lookup(physicalPath) || "application/octet-stream");
-        headers.set("Content-Disposition", contentDisposition(path.basename(physicalPath)));
+        const fileName = options.fileName ?? path.basename(physicalPath);
+        headers.set("Content-Type", mime.lookup(fileName) || "application/octet-stream");
+        headers.set("Content-Disposition", contentDisposition(fileName));
+        headers.set("X-Content-Type-Options", "nosniff");
 
         if (options.rangeHeader !== undefined) {
             headers.set("Accept-Ranges", "bytes");

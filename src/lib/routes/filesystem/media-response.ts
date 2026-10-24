@@ -13,9 +13,10 @@ function jsonError(message: string, status: number) {
     return NextResponse.json({ error: message }, { status });
 }
 
-// Streams an allowlisted image, video or audio file inline, with Range support
-export async function createMediaResponse(request: Request, physicalPath: string): Promise<Response> {
-    const media = mediaTypeOf(physicalPath);
+// Streams an allowlisted image, video or audio file inline, with Range support.
+// `typeName` decides the type when the file on disk has no meaningful name.
+export async function createMediaResponse(request: Request, physicalPath: string, typeName = physicalPath): Promise<Response> {
+    const media = mediaTypeOf(typeName);
     if (!media) {
         return jsonError("This file type cannot be previewed. Download it instead.", 415);
     }
