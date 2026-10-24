@@ -36,6 +36,8 @@ and setup your envorument , `npm install && npx prisma generate` , etc...
 
 If you use cloudflare. You should `Disable TLS` on cloudflare zero trush
 
+Run `cloudflared` on the Docker host and point the tunnel at `https://localhost:5491`. Caddy then takes the visitor's address from `Cf-Connecting-IP`, so login and API limits count each visitor on their own. It trusts that header only from Docker and loopback addresses (see `CaddyFile`); widen `trusted_proxies` there if cloudflared runs somewhere else.
+
 ## ENV
 
 DATABASE_URL="file:./main.sqlite" => Docker overrides this to `/app/data/main.sqlite`

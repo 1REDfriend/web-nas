@@ -1,3 +1,13 @@
+{
+    servers {
+        # cloudflared on the host reaches Caddy through the Docker gateway, so every
+        # request looks like it comes from 172.x. Trust Cf-Connecting-IP only from
+        # there (and loopback); LAN clients connect directly and cannot spoof it.
+        trusted_proxies static 172.16.0.0/12 127.0.0.0/8 ::1
+        client_ip_headers Cf-Connecting-IP
+    }
+}
+
 :7255 {
     tls internal {
         on_demand
@@ -30,5 +40,9 @@
         max_size 100GB
     }
 
-    reverse_proxy webnas:3000
+    # The app rate-limits by the first X-Forwarded-For entry; send only the real
+    # client address so a client cannot pick its own by sending that header
+    reverse_proxy webnas:3000 {
+        header_up X-Forwarded-For {client_ip}
+    }
 }
