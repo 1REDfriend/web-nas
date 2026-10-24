@@ -10,6 +10,9 @@ import { AccessUser, AuthorizedPath, FileAccessError, authorizeNewEntry } from "
 // file (never into memory); saving authorizes the target and moves the temp file there.
 
 export const DEFAULT_MAX_UPLOAD_BYTES = 100 * 1024 * 1024 * 1024;
+// formidable raises this (not biggerThanMaxFileSize) when the total passes the cap first;
+// its TypeScript types leave the code out
+const BIGGER_THAN_TOTAL_MAX_FILE_SIZE = (formidableErrors as unknown as Record<string, number>).biggerThanTotalMaxFileSize;
 
 export type ParsedUpload = {
     // First value of a text field, if sent
@@ -29,11 +32,11 @@ export async function parseUploadForm(
     { maxFileSize = DEFAULT_MAX_UPLOAD_BYTES, fileField = "file" }: { maxFileSize?: number; fileField?: string } = {}
 ): Promise<ParsedUpload> {
     const { fields, files } = await new Promise<{ fields: formidable.Fields; files: formidable.Files }>((resolve, reject) => {
-        const form = formidable({ keepExtensions: true, maxFileSize });
+        const form = formidable({ keepExtensions: true, maxFileSize, maxTotalFileSize: maxFileSize });
 
         form.parse(req, (err, fields, files) => {
             if (err) {
-                if (err.code === formidableErrors.biggerThanMaxFileSize) {
+                if (err.code === formidableErrors.biggerThanMaxFileSize || err.code === BIGGER_THAN_TOTAL_MAX_FILE_SIZE) {
                     return reject(new FileAccessError("File size exceeds limit", 413));
                 }
                 if (err.code === formidableErrors.maxFieldsSizeExceeded) {

@@ -23,6 +23,8 @@ export const ENV = ({
         .split(",")
         .map((p) => p.trim())
         .filter(Boolean),
+    // Requests per minute one API key may make (each key counted on its own)
+    API_KEY_RATE_LIMIT: Math.max(1, Number.parseInt(process.env.API_KEY_RATE_LIMIT || "", 10) || 120),
 })
 
 // default setting

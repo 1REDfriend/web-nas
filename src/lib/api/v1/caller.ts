@@ -13,6 +13,7 @@ import { FileAction } from "@/lib/security/file-actions";
 import { requireInsideKeyRoot, requireScope } from "@/lib/security/api-key";
 import { API_SCOPES, ApiScope, parseScopes } from "@/lib/security/api-key-format";
 import { xUserPayload } from "@/lib/api/user/x-user-payload";
+import { DEFAULT_MAX_UPLOAD_BYTES } from "@/lib/service/upload-service";
 
 // Who is calling an /api/v1 route, and the path checks every v1 route goes through.
 // Authentication itself happened earlier (proxy.ts or authenticateV1()).
@@ -21,6 +22,9 @@ export type ApiCaller = {
     username: string;
     via: "session" | "apikey";
     keyId: string | null;
+    keyPrefix: string | null;
+    // Per-key upload cap; null = server default
+    maxUploadBytes: number | null;
     scopes: ApiScope[];
     // Virtual path the API key is locked to; null = no extra limit
     rootPath: string | null;
@@ -39,6 +43,8 @@ export async function callerFromPayload(payload: UserJwtPayload | null): Promise
             username: payload.username,
             via: "apikey",
             keyId: payload.keyId,
+            keyPrefix: payload.keyPrefix ?? null,
+            maxUploadBytes: payload.maxUploadBytes ? Number(payload.maxUploadBytes) : null,
             scopes: parseScopes(payload.scopes ?? []),
             rootPath: payload.keyRoot ?? null,
         };
@@ -50,6 +56,8 @@ export async function callerFromPayload(payload: UserJwtPayload | null): Promise
         username: payload.username,
         via: "session",
         keyId: null,
+        keyPrefix: null,
+        maxUploadBytes: null,
         scopes: [...API_SCOPES],
         rootPath: null,
     };
@@ -64,9 +72,14 @@ export function requireCallerScope(caller: ApiCaller, scope: ApiScope) {
     requireScope(caller, scope);
 }
 
-// Short label for logs: the key id, or "session"
+// Short label for logs: the key prefix shown in the UI (wnas_<prefix>_...) and its owner
 export function callerLabel(caller: ApiCaller): string {
-    return caller.keyId ? `key:${caller.keyId}` : `session:${caller.username}`;
+    return caller.keyId ? `key:${caller.keyPrefix ?? caller.keyId} (${caller.username})` : `session:${caller.username}`;
+}
+
+// Largest upload this caller may send
+export function uploadLimitFor(caller: ApiCaller): number {
+    return caller.maxUploadBytes === null ? DEFAULT_MAX_UPLOAD_BYTES : Math.min(caller.maxUploadBytes, DEFAULT_MAX_UPLOAD_BYTES);
 }
 
 // Real path of the key's folder, so a symlink inside it cannot lead somewhere else

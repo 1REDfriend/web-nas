@@ -2,6 +2,8 @@ import type { UserJwtPayload } from "@/interfaces/userJwtpayload";
 import { verifySessionToken } from "@/lib/security/session";
 import { canUseApiKeys, verifyApiKey } from "@/lib/security/api-key";
 import { apiKeyFromAuthorization } from "@/lib/security/api-key-format";
+import { ENV } from "@/lib/ENV";
+import { logwarn } from "@/lib/logger";
 import { LimitRule, recordAttempt, retryAfterSeconds } from "@/lib/security/rate-limit";
 import { ApiErrorCode, apiError } from "./response";
 
@@ -13,6 +15,7 @@ import { ApiErrorCode, apiError } from "./response";
 
 const BAD_KEY_WINDOW_MS = 15 * 60 * 1000;
 const BAD_KEY_LIMIT = 20;
+const KEY_WINDOW_MS = 60 * 1000;
 
 export type V1AuthInput = {
     authorization: string | null | undefined;
@@ -26,6 +29,11 @@ export type V1AuthResult =
 
 function badKeyLimits(ip: string): LimitRule[] {
     return [{ key: `apikey-fail:ip:${ip}`, limit: BAD_KEY_LIMIT, windowMs: BAD_KEY_WINDOW_MS }];
+}
+
+// Every request with a valid key counts, so one leaked or runaway key cannot flood the server
+function keyLimits(keyId: string): LimitRule[] {
+    return [{ key: `apikey-use:${keyId}`, limit: ENV.API_KEY_RATE_LIMIT, windowMs: KEY_WINDOW_MS }];
 }
 
 export function hasBearer(authorization: string | null | undefined): authorization is string {
@@ -42,6 +50,7 @@ async function authenticateApiKey(authorization: string, ip: string): Promise<V1
     const principal = await verifyApiKey(apiKeyFromAuthorization(authorization), ip);
     if (!principal) {
         recordAttempt(limits);
+        logwarn(`[API] rejected an invalid or expired key from ${ip}`);
         return { ok: false, status: 401, code: "INVALID_API_KEY", message: "Invalid or expired API key." };
     }
     if (!canUseApiKeys(principal.role)) {
@@ -51,6 +60,19 @@ async function authenticateApiKey(authorization: string, ip: string): Promise<V1
         return { ok: false, status: 403, code: "PASSWORD_CHANGE_REQUIRED", message: "The key owner must change their password first." };
     }
 
+    const useLimits = keyLimits(principal.keyId);
+    const keyWait = retryAfterSeconds(useLimits);
+    if (keyWait > 0) {
+        return {
+            ok: false,
+            status: 429,
+            code: "RATE_LIMITED",
+            message: `This API key is limited to ${ENV.API_KEY_RATE_LIMIT} requests per minute.`,
+            retryAfter: keyWait,
+        };
+    }
+    recordAttempt(useLimits);
+
     return {
         ok: true,
         payload: {
@@ -59,6 +81,8 @@ async function authenticateApiKey(authorization: string, ip: string): Promise<V1
             role: principal.role,
             via: "apikey",
             keyId: principal.keyId,
+            keyPrefix: principal.prefix,
+            maxUploadBytes: principal.maxUploadBytes === null ? null : principal.maxUploadBytes.toString(),
             scopes: principal.scopes,
             keyRoot: principal.rootPath,
         },

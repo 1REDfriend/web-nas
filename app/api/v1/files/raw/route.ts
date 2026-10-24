@@ -5,11 +5,10 @@ import fs from "fs-extra";
 import { Readable, Transform } from "stream";
 import { pipeline } from "stream/promises";
 import type { ReadableStream as NodeReadableStream } from "stream/web";
-import { boolParam } from "@/lib/api/v1/caller";
+import { boolParam, uploadLimitFor } from "@/lib/api/v1/caller";
 import { apiError, apiErrorFromException, apiOk } from "@/lib/api/v1/response";
 import { authenticateUpload, preflightUpload, saveForCaller, UploadRequest } from "@/lib/api/v1/upload";
 import { v1AuthErrorResponse } from "@/lib/api/v1/auth";
-import { DEFAULT_MAX_UPLOAD_BYTES } from "@/lib/service/upload-service";
 import { FileAccessError, normalizeVirtualPath } from "@/lib/security/path-guard";
 
 // PUT /api/v1/files/raw?path=/folder/file.txt[&overwrite=1][&mkdirs=0]  (scope: upload)
@@ -50,7 +49,7 @@ export async function PUT(request: Request) {
 
         await preflightUpload(caller, upload);
 
-        const maxBytes = DEFAULT_MAX_UPLOAD_BYTES;
+        const maxBytes = uploadLimitFor(caller);
         const declared = Number(request.headers.get("content-length"));
         if (Number.isFinite(declared) && declared > maxBytes) {
             return apiError(413, "PAYLOAD_TOO_LARGE", "File size exceeds limit");

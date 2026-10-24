@@ -11,6 +11,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_EXPIRY_DAYS = 3650;
 // Active keys per user, so a script gone wrong cannot fill the table
 const MAX_ACTIVE_KEYS = 20;
+const MB = 1024 * 1024;
+// 100 GB, the server-wide upload cap
+const MAX_UPLOAD_MB = 100 * 1024;
 
 function keyStatus(key: { revokedAt: Date | null; expiresAt: Date | null }, now: number) {
     if (key.revokedAt) return "revoked";
@@ -64,6 +67,15 @@ export async function POST(request: Request) {
             expiresAt = new Date(Date.now() + days * DAY_MS);
         }
 
+        let maxUploadBytes: bigint | null = null;
+        if (body.maxUploadMB !== undefined && body.maxUploadMB !== null) {
+            const mb = Number(body.maxUploadMB);
+            if (!Number.isInteger(mb) || mb < 1 || mb > MAX_UPLOAD_MB) {
+                return NextResponse.json({ error: `Upload limit must be 1 to ${MAX_UPLOAD_MB} MB, or none` }, { status: 400 });
+            }
+            maxUploadBytes = BigInt(mb) * BigInt(MB);
+        }
+
         // The key's folder must be one its owner can open today
         let rootPath: string | null = null;
         if (typeof body.rootPath === "string" && body.rootPath.trim() && body.rootPath.trim() !== "/") {
@@ -88,6 +100,7 @@ export async function POST(request: Request) {
             scopes,
             rootPath,
             expiresAt,
+            maxUploadBytes,
         });
 
         log(`[API KEY] created ${key.id} (${key.prefix}) for user ${user.id}`);
@@ -99,6 +112,7 @@ export async function POST(request: Request) {
                     prefix: key.prefix,
                     scopes: parseScopes(key.scopes),
                     rootPath: key.rootPath,
+                    maxUploadBytes: key.maxUploadBytes === null ? null : key.maxUploadBytes.toString(),
                     expiresAt: key.expiresAt,
                     createdAt: key.createdAt,
                 },

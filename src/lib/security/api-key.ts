@@ -29,6 +29,7 @@ export function canUseApiKeys(role: Role): boolean {
 
 export type ApiKeyPrincipal = {
     keyId: string;
+    prefix: string;
     userId: string;
     username: string;
     role: Role;
@@ -131,6 +132,7 @@ export async function verifyApiKey(raw: string | null | undefined, clientIp?: st
 
     return {
         keyId: key.id,
+        prefix: key.prefix,
         userId: key.user.id,
         username: key.user.username,
         role: key.user.role,

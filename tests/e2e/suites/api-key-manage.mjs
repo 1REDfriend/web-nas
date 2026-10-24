@@ -73,16 +73,22 @@ try {
     check("expiresInDays sets the expiry", days > 29.9 && days <= 30, String(days));
     const firstId = r.json?.key?.id;
 
+    r = await create(alice, { name: "capped", scopes: ["upload"], maxUploadMB: 10 });
+    check("maxUploadMB sets the key's upload cap", r.status === 201 && r.json?.key?.maxUploadBytes === String(10 * 1024 * 1024), show(r));
+    r = await call("GET", "/api/v1/me", { key: r.json?.secret });
+    check("the cap reaches /api/v1", r.json?.data?.key?.maxUploadBytes === String(10 * 1024 * 1024), show(r));
+
     r = await call("GET", "/api/v1/me", { key: secret });
     check("the new key works on /api/v1", r.status === 200 && r.json?.data?.user?.username === "e2e_alice" && r.json?.data?.rootPath === "/alice/uploads", show(r));
 
     r = await call("GET", "/api/user/api-keys", { cookie: alice });
-    const listed = r.json?.keys?.[0];
+    const listed = r.json?.keys?.find((k) => k.id === firstId);
     check("list shows the key as active", r.status === 200 && listed?.id === firstId && listed?.status === "active" && listed?.lastUsedAt, show(r));
     check("list never includes the secret or its hash", !r.text.includes(secret.slice(14)) && !r.text.includes("keyHash") && !r.text.includes("key_hash"), "");
 
     r = await create(alice, { name: "forever", scopes: ["read"] });
-    check("no expiry and no folder are allowed", r.status === 201 && r.json?.key?.expiresAt === null && r.json?.key?.rootPath === null, show(r));
+    check("no expiry, folder or upload cap are allowed",
+        r.status === 201 && r.json?.key?.expiresAt === null && r.json?.key?.rootPath === null && r.json?.key?.maxUploadBytes === null, show(r));
     const foreverSecret = r.json?.secret;
     const foreverId = r.json?.key?.id;
 
@@ -107,6 +113,10 @@ try {
     }
     r = await call("POST", "/api/user/api-keys", { cookie: alice });
     check("no body -> 400", r.status === 400, show(r));
+    for (const bad of [0, -5, 2.5, 102401, "big"]) {
+        r = await create(alice, { name: "cap", scopes: ["upload"], maxUploadMB: bad });
+        check(`maxUploadMB ${JSON.stringify(bad)} -> 400`, r.status === 400, show(r));
+    }
 
     // --- who may manage keys ---
     r = await call("GET", "/api/user/api-keys");
@@ -144,7 +154,7 @@ try {
     // --- revoke all ---
     const extra = (await create(alice, { name: "extra", scopes: ["list"] })).json?.secret;
     r = await call("POST", "/api/user/api-keys/revoke-all", { cookie: alice });
-    check("revoke all reports how many", r.status === 200 && r.json?.revoked === 2, show(r));
+    check("revoke all reports how many", r.status === 200 && r.json?.revoked === 3, show(r));
     r = await call("GET", "/api/v1/me", { key: foreverSecret });
     const r2 = await call("GET", "/api/v1/me", { key: extra });
     check("every key stops working", r.status === 401 && r2.status === 401, `${r.status} ${r2.status}`);

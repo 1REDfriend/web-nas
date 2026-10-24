@@ -30,6 +30,7 @@ const GROUPS = [
     ["share-media"],
     ["api-keys"],
     ["api-key-manage"],
+    ["api-limits"],
     ["upload"],
     ["api-files"],
 ];

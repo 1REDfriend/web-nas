@@ -1,7 +1,7 @@
 import path from 'path';
 import { NextApiRequest, NextApiResponse } from 'next';
 import { logerror } from '@/lib/logger';
-import { boolParam } from '@/lib/api/v1/caller';
+import { boolParam, uploadLimitFor } from '@/lib/api/v1/caller';
 import { authenticateUpload, preflightUpload, saveForCaller, UploadRequest } from '@/lib/api/v1/upload';
 import { ParsedUpload, parseUploadForm, uploadFileName } from '@/lib/service/upload-service';
 import { FileAccessError } from '@/lib/security/path-guard';
@@ -68,7 +68,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             });
         }
 
-        upload = await parseUploadForm(req);
+        upload = await parseUploadForm(req, { maxFileSize: uploadLimitFor(caller) });
         const file = upload.file;
         if (!file) return sendError(res, 400, 'BAD_REQUEST', 'No file uploaded (field "file")');
 

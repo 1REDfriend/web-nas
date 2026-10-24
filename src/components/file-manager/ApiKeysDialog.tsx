@@ -43,12 +43,26 @@ const SCOPE_HELP: Record<ApiScope, string> = {
     delete: "Move files to the trash",
 };
 
+const UPLOAD_LIMIT_OPTIONS = [
+    { value: "none", label: "Server default" },
+    { value: "10", label: "10 MB" },
+    { value: "100", label: "100 MB" },
+    { value: "1024", label: "1 GB" },
+    { value: "10240", label: "10 GB" },
+];
+
 const EXPIRY_OPTIONS = [
     { value: "30", label: "30 days" },
     { value: "90", label: "90 days" },
     { value: "365", label: "1 year" },
     { value: "never", label: "Never" },
 ];
+
+function formatBytes(value: string | null) {
+    if (value === null) return "Server default";
+    const mb = Number(value) / (1024 * 1024);
+    return mb >= 1024 ? `${+(mb / 1024).toFixed(1)} GB` : `${+mb.toFixed(1)} MB`;
+}
 
 function formatDate(value: string | null) {
     return value ? new Date(value).toLocaleString() : "—";
@@ -133,6 +147,7 @@ function CreateKeyForm({ onCreated }: { onCreated: (created: CreatedApiKey) => v
     const [scopes, setScopes] = useState<ApiScope[]>(["list", "read", "upload"]);
     const [rootPath, setRootPath] = useState("");
     const [expiry, setExpiry] = useState("90");
+    const [uploadLimit, setUploadLimit] = useState("none");
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -153,6 +168,7 @@ function CreateKeyForm({ onCreated }: { onCreated: (created: CreatedApiKey) => v
                 scopes,
                 rootPath: rootPath.trim() || null,
                 expiresInDays: expiry === "never" ? null : Number(expiry),
+                maxUploadMB: uploadLimit === "none" ? null : Number(uploadLimit),
             });
             setName("");
             setRootPath("");
@@ -219,6 +235,19 @@ function CreateKeyForm({ onCreated }: { onCreated: (created: CreatedApiKey) => v
                     <p className="text-[11px] text-slate-500">Empty = every folder you can open.</p>
                 </div>
                 <div className="space-y-2">
+                    <Label htmlFor="api-key-upload-limit">Largest upload</Label>
+                    <Select value={uploadLimit} onValueChange={setUploadLimit}>
+                        <SelectTrigger id="api-key-upload-limit" className="w-full">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {UPLOAD_LIMIT_OPTIONS.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="space-y-2">
                     <Label htmlFor="api-key-expiry">Expires after</Label>
                     <Select value={expiry} onValueChange={setExpiry}>
                         <SelectTrigger id="api-key-expiry" className="w-full">
@@ -273,6 +302,7 @@ function KeyCard({ apiKey, onRevoke }: { apiKey: ApiKeyInfo; onRevoke: (key: Api
                 <div className="flex gap-1"><dt className="text-slate-500">Folder:</dt><dd className="min-w-0 truncate font-mono">{apiKey.rootPath ?? "All your folders"}</dd></div>
                 <div className="flex gap-1"><dt className="text-slate-500">Expires:</dt><dd>{apiKey.expiresAt ? formatDate(apiKey.expiresAt) : "Never"}</dd></div>
                 <div className="flex gap-1"><dt className="text-slate-500">Last used:</dt><dd>{apiKey.lastUsedAt ? `${formatDate(apiKey.lastUsedAt)}${apiKey.lastUsedIp ? ` from ${apiKey.lastUsedIp}` : ""}` : "Never"}</dd></div>
+                <div className="flex gap-1"><dt className="text-slate-500">Largest upload:</dt><dd>{formatBytes(apiKey.maxUploadBytes)}</dd></div>
                 <div className="flex gap-1"><dt className="text-slate-500">Created:</dt><dd>{formatDate(apiKey.createdAt)}</dd></div>
             </dl>
         </li>

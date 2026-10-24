@@ -22,10 +22,11 @@ export type CreateApiKeyBody = {
     scopes: ApiScope[];
     rootPath: string | null;
     expiresInDays: number | null;
+    maxUploadMB: number | null;
 };
 
 export type CreatedApiKey = {
-    key: Pick<ApiKeyInfo, "id" | "name" | "prefix" | "scopes" | "rootPath" | "expiresAt" | "createdAt">;
+    key: Pick<ApiKeyInfo, "id" | "name" | "prefix" | "scopes" | "rootPath" | "maxUploadBytes" | "expiresAt" | "createdAt">;
     // The full key: shown once, never stored by the server
     secret: string;
 };
