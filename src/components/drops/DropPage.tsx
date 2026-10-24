@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Clock, Download, FileIcon, Link2Off, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MediaPreview } from "@/components/file-manager/MediaPreview";
-import { formatDate, formatSize } from "@/lib/file-manager/format";
+import { formatDate, formatSize, formatTimeLeft } from "@/lib/file-manager/format";
 import { MediaKind } from "@/lib/file-manager/media";
 
 type PublicDrop = {
@@ -15,17 +15,6 @@ type PublicDrop = {
     downloadsLeft: number | null;
     preview: MediaKind | null;
 };
-
-const relative = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
-
-// "in 5 hours", "in 3 days", ...
-function timeLeft(expiresAt: string, now: number): string {
-    const minutes = Math.max(0, Math.round((new Date(expiresAt).getTime() - now) / 60000));
-    if (minutes < 60) return relative.format(minutes, "minute");
-    const hours = Math.round(minutes / 60);
-    if (hours < 48) return relative.format(hours, "hour");
-    return relative.format(Math.round(hours / 24), "day");
-}
 
 function dropApi(id: string, part = "") {
     return `/api/public/drops/${encodeURIComponent(id)}${part}`;
@@ -99,7 +88,7 @@ export function DropPage({ id }: { id: string }) {
                         <div className="space-y-1 text-sm text-slate-400">
                             <p className="flex items-center gap-2" title={formatDate(drop.expiresAt)}>
                                 <Clock className="h-4 w-4" />
-                                Expires {timeLeft(drop.expiresAt, now)}
+                                Expires {formatTimeLeft(drop.expiresAt, now)}
                             </p>
                             {drop.downloadsLeft !== null && (
                                 <p>

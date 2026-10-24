@@ -2,11 +2,12 @@
 
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
-import { Check, Copy, KeyRound, Plus, Trash2 } from "lucide-react";
+import { Check, KeyRound, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { CopyButton } from "./CopyButton";
 import {
     Dialog,
     DialogContent,
@@ -67,38 +68,6 @@ function formatBytes(value: string | null) {
 
 function formatDate(value: string | null) {
     return value ? new Date(value).toLocaleString() : "—";
-}
-
-async function copyText(text: string) {
-    try {
-        await navigator.clipboard.writeText(text);
-        return true;
-    } catch {
-        return false;
-    }
-}
-
-function CopyButton({ text, label }: { text: string; label: string }) {
-    const [copied, setCopied] = useState(false);
-    return (
-        <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            className="shrink-0 gap-1"
-            onClick={async () => {
-                if (await copyText(text)) {
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 1500);
-                } else {
-                    toast.error("Copy failed. Select the text and copy it by hand.");
-                }
-            }}
-        >
-            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-            {copied ? "Copied" : label}
-        </Button>
-    );
 }
 
 function NewKeyPanel({ created, onDone }: { created: CreatedApiKey; onDone: () => void }) {

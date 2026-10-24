@@ -64,13 +64,17 @@ export async function parseDropOptions(raw: RawDropOptions): Promise<DropOptions
     };
 }
 
+// Bytes in the user's drops that still count against the quota, and the quota itself (null = none)
+export async function dropUsage(userId: string): Promise<{ usedBytes: number; limitBytes: number | null }> {
+    const { quotaMB } = await getDropLimits();
+    const used = await prisma.drop.aggregate({ where: { userId, deletedAt: null }, _sum: { size: true } });
+    return { usedBytes: Number(used._sum.size ?? 0), limitBytes: quotaMB === 0 ? null : quotaMB * 1024 * 1024 };
+}
+
 // Bytes the user may still put in drops; Infinity when there is no quota
 export async function remainingDropQuota(userId: string): Promise<number> {
-    const { quotaMB } = await getDropLimits();
-    if (quotaMB === 0) return Infinity;
-
-    const used = await prisma.drop.aggregate({ where: { userId, deletedAt: null }, _sum: { size: true } });
-    return Math.max(0, quotaMB * 1024 * 1024 - Number(used._sum.size ?? 0));
+    const { usedBytes, limitBytes } = await dropUsage(userId);
+    return limitBytes === null ? Infinity : Math.max(0, limitBytes - usedBytes);
 }
 
 // Records the drop first, then makes its folder: the sweeper only removes folders no live row owns

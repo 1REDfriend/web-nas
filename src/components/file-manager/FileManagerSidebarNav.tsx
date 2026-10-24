@@ -8,6 +8,7 @@ import prettyBytes from "pretty-bytes";
 import { SharelinkRoute } from "./SharelinkRoute";
 import { PathRuleSettingsDialog } from "./PathRuleSettingsDialog";
 import { ApiKeysDialog } from "./ApiKeysDialog";
+import { DropsDialog } from "./DropsDialog";
 import { fetchCurrentRole } from "@/lib/api/admin/path-rule.service";
 import { RuleRole } from "@/lib/security/file-actions";
 import { LogOut } from "lucide-react";
@@ -107,6 +108,7 @@ export function SidebarNavContent({
                     {/* ใช้ component popup แทนปุ่มเดิม */}
                     <SharelinkRoute/>
                     <RootPathSettingsDialog />
+                    {(role === "ADMIN" || role === "USER") && <DropsDialog isAdmin={role === "ADMIN"} />}
                     {(role === "ADMIN" || role === "USER") && <ApiKeysDialog />}
                     {role === "ADMIN" && <PathRuleSettingsDialog />}
                     {extraSettings}

@@ -1,10 +1,12 @@
 import { callerLabel, getApiCaller } from "@/lib/api/v1/caller";
 import { apiError, apiErrorFromException, apiOk } from "@/lib/api/v1/response";
 import { assertCanDrop, publicOrigin, toApiDrop } from "@/lib/api/v1/drops";
-import { findDrop, listDrops, removeDrop } from "@/lib/drops/drops";
+import { dropUsage, findDrop, listDrops, removeDrop } from "@/lib/drops/drops";
+import { getDropLimits } from "@/lib/drops/settings";
 import { log } from "@/lib/logger";
 
-// GET    /api/v1/drops          the user's drops that can still be downloaded  (scope: drop)
+// GET    /api/v1/drops          the user's drops that can still be downloaded, the lifetimes
+//                               they may pick and their quota  (scope: drop)
 // GET    /api/v1/drops?id=...   one of them
 // DELETE /api/v1/drops?id=...   stop sharing it now; the file is deleted shortly after
 // Uploads: PUT /api/v1/drops/raw and POST /api/v1/drops/upload
@@ -24,8 +26,16 @@ export async function GET(request: Request) {
             return apiOk(toApiDrop(drop, origin));
         }
 
-        const drops = await listDrops(caller.user.id);
-        return apiOk({ drops: drops.map((drop) => toApiDrop(drop, origin)) });
+        const [drops, limits, usage] = await Promise.all([
+            listDrops(caller.user.id),
+            getDropLimits(),
+            dropUsage(caller.user.id),
+        ]);
+        return apiOk({
+            drops: drops.map((drop) => toApiDrop(drop, origin)),
+            limits: { defaultHours: limits.defaultHours, maxHours: limits.maxHours },
+            quota: usage,
+        });
     } catch (err: unknown) {
         return apiErrorFromException(err, "drops list");
     }

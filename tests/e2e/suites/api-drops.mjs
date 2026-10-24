@@ -238,6 +238,8 @@ try {
     check("list shows alice's live drops", r.status === 200 && listed.includes(mp.id) && listed.length === 4, show(r));
     check("list hides expired and used-up drops", !listed.includes(expiredId) && !listed.includes(usedUpId), listed.join(","));
     check("list hides other users' drops", !listed.includes(bobDrop.id), "");
+    check("list tells the lifetimes allowed and the quota",
+        r.json?.data?.limits?.defaultHours === 24 && r.json?.data?.limits?.maxHours === 168 && r.json?.data?.quota?.limitBytes === null && r.json?.data?.quota?.usedBytes > 0, show(r));
     check("newest first", listed[0] !== undefined && listed.indexOf(mp.id) > 0, listed.join(","));
 
     r = await call("GET", `/api/v1/drops?id=${mp.id}`, { key: aliceKey });
