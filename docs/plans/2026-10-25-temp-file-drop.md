@@ -116,6 +116,9 @@ model Drop {
      ย้ายโฟลเดอร์พร้อมย้ายไฟล์, โฟลเดอร์ฝากไฟล์ถูกล็อกใน path-guard, suite `drops-admin`
    - ตอนอัปโหลด (ขั้น 2) ต้องสร้างแถวก่อน (`completedAt = null`) แล้วค่อยเขียนไฟล์ ตัวกวาดถือว่าแถวที่ยังไม่เสร็จเกิน 24 ชม. คือของค้าง
 2. API `/api/v1/drops` (สร้าง รายการ ลบ) + scope `drop` + โควตา + test
+   - **เสร็จ 2026-10-25:** อัปโหลดอยู่ที่ `PUT /api/v1/drops/raw` และ `POST /api/v1/drops/upload` (เลี่ยง proxy.ts แบบเดียวกับ files)
+     ดู/ลบใช้ `?id=` แทน path แบบ `/:id` · ลบ = ตั้งให้หมดอายุทันที แล้วตัวกวาดลบไฟล์
+     ลิงก์ในคำตอบใช้ `PUBLIC_URL` ถ้าตั้งไว้ ไม่งั้นใช้ Host / X-Forwarded-Proto · suite `api-drops`
 3. หน้า `/d/<id>` และการโหลดสาธารณะ + test
 4. หน้าเว็บ Drops ของเจ้าของ + ฝากผ่านหน้าเว็บ + การตั้งค่า ADMIN
 5. README + deploy ขึ้น radxa + ลองจริงผ่าน `nas.supaxit.com`

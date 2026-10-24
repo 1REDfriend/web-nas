@@ -12,7 +12,7 @@ const PREFIX_BYTES = 4;
 const SECRET_BYTES = 32;
 const API_KEY_PATTERN = /^wnas_([0-9a-f]{8})_([A-Za-z0-9_-]{43})$/;
 
-export const API_SCOPES = ["list", "read", "upload", "delete"] as const;
+export const API_SCOPES = ["list", "read", "upload", "delete", "drop"] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
 
 export type GeneratedApiKey = { fullKey: string; prefix: string; keyHash: string };

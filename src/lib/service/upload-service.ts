@@ -29,15 +29,27 @@ function first<T>(value: T | T[] | undefined): T | undefined {
 
 export async function parseUploadForm(
     req: IncomingMessage,
-    { maxFileSize = DEFAULT_MAX_UPLOAD_BYTES, fileField = "file" }: { maxFileSize?: number; fileField?: string } = {}
+    {
+        maxFileSize = DEFAULT_MAX_UPLOAD_BYTES,
+        fileField = "file",
+        uploadDir,
+        sizeMessage = "File size exceeds limit",
+    }: {
+        maxFileSize?: number;
+        fileField?: string;
+        // Where temp files are written (default: the OS temp folder); use the final disk to skip a copy
+        uploadDir?: string;
+        // Message for the 413 when the cap is passed
+        sizeMessage?: string;
+    } = {}
 ): Promise<ParsedUpload> {
     const { fields, files } = await new Promise<{ fields: formidable.Fields; files: formidable.Files }>((resolve, reject) => {
-        const form = formidable({ keepExtensions: true, maxFileSize, maxTotalFileSize: maxFileSize });
+        const form = formidable({ keepExtensions: true, maxFileSize, maxTotalFileSize: maxFileSize, ...(uploadDir ? { uploadDir } : {}) });
 
         form.parse(req, (err, fields, files) => {
             if (err) {
                 if (err.code === formidableErrors.biggerThanMaxFileSize || err.code === BIGGER_THAN_TOTAL_MAX_FILE_SIZE) {
-                    return reject(new FileAccessError("File size exceeds limit", 413));
+                    return reject(new FileAccessError(sizeMessage, 413));
                 }
                 if (err.code === formidableErrors.maxFieldsSizeExceeded) {
                     return reject(new FileAccessError("File size exceeds limit", 403));

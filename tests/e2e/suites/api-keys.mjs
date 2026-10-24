@@ -142,7 +142,7 @@ try {
     // --- cookies on /api/v1 ---
     r = await call("GET", "/api/v1/me", { cookie: aliceCookie });
     check("browser session works on /api/v1", r.status === 200 && r.json?.data?.via === "session", show(r));
-    check("browser session gets every scope", JSON.stringify(r.json?.data?.scopes) === '["list","read","upload","delete"]', show(r));
+    check("browser session gets every scope", JSON.stringify(r.json?.data?.scopes) === '["list","read","upload","delete","drop"]', show(r));
     check("browser session has no key", r.json?.data?.key === null && r.json?.data?.rootPath === null, show(r));
     r = await call("GET", "/api/v1/me", { cookie: aliceCookie, key: "wnas_bad" });
     check("bad key does not fall back to the cookie", r.status === 401 && r.json?.code === "INVALID_API_KEY", show(r));

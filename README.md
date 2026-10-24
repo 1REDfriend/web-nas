@@ -68,6 +68,12 @@ WEBNAS_PORT="5491" / WEBSSH_PORT="7255" => host ports published by Caddy
 
 API_KEY_RATE_LIMIT="120" => optional, requests per minute each API key may make (see [API](#api))
 
+PUBLIC_URL="" => optional address people use to reach the app (e.g. `https://nas.example.com`), used for the links in API answers; empty = taken from the request
+
+DROPS_DEFAULT_DIR="" => folder for [drops](#drops-temporary-files-by-link) until an admin picks another one; empty = `<STORAGE_INTERNAL>/drops`. Docker sets it to `NAS_HOST_DIR/drops`
+
+DROPS_SWEEP_SECONDS="300" => how often expired drops are deleted
+
 > **NOTE** the web terminal (port 7255) is ADMIN-only: Caddy checks the file manager login before every request. Open it on the same host name as the file manager, or set `COOKIE_DOMAIN`, otherwise the browser does not send the login cookie and the terminal answers 401.
 
 ## Docker
@@ -99,7 +105,7 @@ Other programs and servers can store and fetch files through `/api/v1` with an A
 
 In the web UI open **API Keys** in the sidebar (ADMIN and USER accounts) and create a key. Choose:
 
-- **Permissions**: `list` (folders and file details), `read` (download), `upload` (upload and create folders), `delete` (move to trash)
+- **Permissions**: `list` (folders and file details), `read` (download), `upload` (upload and create folders), `delete` (move to trash), `drop` (share temporary files by link, see [Drops](#drops-temporary-files-by-link))
 - **Only this folder** (optional): the key cannot reach anything outside it, symlinks included
 - **Largest upload** and **Expires after**
 
@@ -126,6 +132,15 @@ Keys work only on `/api/v1`; every other route needs a browser login.
 | POST | `/api/v1/folders` | `upload` | JSON `{ "path": "/folder/new" }`, creates parents too |
 | DELETE | `/api/v1/files?path=/folder/file` | `delete` | moves it to the owner's trash (restorable from the web UI) |
 
+Drops (see [below](#drops-temporary-files-by-link)):
+
+| Method | Path | Permission | Notes |
+|---|---|---|---|
+| PUT | `/api/v1/drops/raw?name=report.pdf` | `drop` | the body is the file; optional `expiresIn` (`30m`, `24h`, `7d`) and `maxDownloads` |
+| POST | `/api/v1/drops/upload` | `drop` | multipart: `file`, optional `name`, `expiresIn`, `maxDownloads` |
+| GET | `/api/v1/drops` | `drop` | your drops that can still be downloaded; `?id=` for one |
+| DELETE | `/api/v1/drops?id=...` | `drop` | stop sharing now; the file is deleted shortly after |
+
 Responses are JSON: `{ "ok": true, "data": ... }` or `{ "ok": false, "error": "...", "code": "..." }`, except downloads. Codes: `BAD_REQUEST`, `UNAUTHORIZED`, `INVALID_API_KEY`, `API_KEY_NOT_ALLOWED`, `PASSWORD_CHANGE_REQUIRED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `PAYLOAD_TOO_LARGE`, `RATE_LIMITED`, `INTERNAL`.
 
 ### Examples
@@ -151,6 +166,20 @@ curl -X DELETE -H "Authorization: Bearer $KEY" "$NAS/api/v1/files?path=/mnt/back
 - Behind Cloudflare, a single request body is capped by your Cloudflare plan (100 MB on Free), whatever the key allows.
 
 Uploads stream straight to disk; they do not pass through `proxy.ts`, which would hold the whole body in memory.
+
+### Drops (temporary files by link)
+
+A drop is a file that anyone with its link can download until it expires, or until it has been downloaded `maxDownloads` times. Then it is deleted on its own.
+
+```
+curl -T report.pdf -H "Authorization: Bearer $KEY" "$NAS/api/v1/drops/raw?name=report.pdf&expiresIn=24h&maxDownloads=3"
+```
+
+The answer has `url` (a page to hand to people) and `downloadUrl` (for `curl`/`wget`), plus `expiresAt`. Lifetime starts when the upload finishes.
+
+- ADMIN sets the default lifetime (24 hours), the longest lifetime (7 days) and a quota per user (10 GB of live drops) in `PUT /api/admin/drops`.
+- Drops are kept in one drop folder, `NAS_HOST_DIR/drops` with Docker. An ADMIN can pick another one; the drops already stored move there in the background. The new folder must be empty, missing, or an old drop folder, and nobody can open it from the file manager.
+- GUEST accounts cannot create drops.
 
 ## Tests
 

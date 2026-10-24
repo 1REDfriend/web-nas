@@ -34,6 +34,7 @@ const GROUPS = [
     ["upload"],
     ["api-files"],
     ["drops-admin"],
+    ["api-drops"],
 ];
 
 function startServer(env) {

@@ -28,6 +28,9 @@ export const ENV = ({
     // Folder that holds temporary drops until an admin picks another one;
     // empty = "<STORAGE_INTERNAL>/drops". Docker points it at the mounted disk.
     DROPS_DEFAULT_DIR: process.env.DROPS_DEFAULT_DIR || "",
+    // Public address of the app for links in API responses (e.g. "https://nas.example.com");
+    // empty = taken from the request's Host and X-Forwarded-Proto headers
+    PUBLIC_URL: (process.env.PUBLIC_URL || "").replace(/\/+$/, ""),
     // How often expired drops are deleted (seconds)
     DROPS_SWEEP_SECONDS: Math.max(1, Number.parseInt(process.env.DROPS_SWEEP_SECONDS || "", 10) || 300),
 })

@@ -41,6 +41,7 @@ const SCOPE_HELP: Record<ApiScope, string> = {
     read: "Download files",
     upload: "Upload files and create folders",
     delete: "Move files to the trash",
+    drop: "Share temporary files by link",
 };
 
 const UPLOAD_LIMIT_OPTIONS = [

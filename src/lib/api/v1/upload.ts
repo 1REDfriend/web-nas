@@ -1,5 +1,6 @@
 import path from "path";
 import fs from "fs-extra";
+import { Transform } from "stream";
 import { log } from "@/lib/logger";
 import { recordRecent } from "@/lib/service/tracked-paths";
 import { saveUploadedFile } from "@/lib/service/upload-service";
@@ -78,4 +79,16 @@ export async function saveForCaller(caller: ApiCaller, request: UploadRequest, t
     log(`[API] ${callerLabel(caller)} upload ${target.virtualPath} (${size} bytes${overwritten ? ", replaced" : ""})`);
     await recordRecent(caller.user.id, target.virtualPath, "uploaded");
     return { path: target.virtualPath, size, overwritten };
+}
+
+// Counts bytes on the way through and stops the stream past the cap
+export function byteLimit(maxBytes: number, message = "File size exceeds limit") {
+    let seen = 0;
+    return new Transform({
+        transform(chunk: Buffer, _encoding, callback) {
+            seen += chunk.length;
+            if (seen > maxBytes) return callback(new FileAccessError(message, 413));
+            callback(null, chunk);
+        },
+    });
 }

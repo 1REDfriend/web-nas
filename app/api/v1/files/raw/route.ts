@@ -2,30 +2,18 @@ import os from "os";
 import path from "path";
 import crypto from "crypto";
 import fs from "fs-extra";
-import { Readable, Transform } from "stream";
+import { Readable } from "stream";
 import { pipeline } from "stream/promises";
 import type { ReadableStream as NodeReadableStream } from "stream/web";
 import { boolParam, uploadLimitFor } from "@/lib/api/v1/caller";
 import { apiError, apiErrorFromException, apiOk } from "@/lib/api/v1/response";
-import { authenticateUpload, preflightUpload, saveForCaller, UploadRequest } from "@/lib/api/v1/upload";
+import { authenticateUpload, byteLimit, preflightUpload, saveForCaller, UploadRequest } from "@/lib/api/v1/upload";
 import { v1AuthErrorResponse } from "@/lib/api/v1/auth";
-import { FileAccessError, normalizeVirtualPath } from "@/lib/security/path-guard";
+import { normalizeVirtualPath } from "@/lib/security/path-guard";
 
 // PUT /api/v1/files/raw?path=/folder/file.txt[&overwrite=1][&mkdirs=0]  (scope: upload)
 // The request body is the file itself, e.g. curl --data-binary @file.
 // Not behind proxy.ts (see src/lib/api/v1/upload.ts): the body is streamed straight to disk.
-
-// Counts bytes on the way through and stops the stream past the cap
-function sizeLimit(maxBytes: number) {
-    let seen = 0;
-    return new Transform({
-        transform(chunk: Buffer, _encoding, callback) {
-            seen += chunk.length;
-            if (seen > maxBytes) return callback(new FileAccessError("File size exceeds limit", 413));
-            callback(null, chunk);
-        },
-    });
-}
 
 export async function PUT(request: Request) {
     const auth = await authenticateUpload(request.headers);
@@ -58,7 +46,7 @@ export async function PUT(request: Request) {
         const source = request.body
             ? Readable.fromWeb(request.body as unknown as NodeReadableStream<Uint8Array>)
             : Readable.from([]);
-        await pipeline(source, sizeLimit(maxBytes), fs.createWriteStream(tempPath));
+        await pipeline(source, byteLimit(maxBytes), fs.createWriteStream(tempPath));
 
         const saved = await saveForCaller(caller, upload, tempPath);
         return apiOk(saved, { status: saved.overwritten ? 200 : 201 });
