@@ -28,6 +28,7 @@ const GROUPS = [
     ["empty-trash"],
     ["thumbnails"],
     ["share-media"],
+    ["api-keys"],
 ];
 
 function startServer(env) {

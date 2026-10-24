@@ -22,6 +22,11 @@ const LAST_USED_REFRESH_MS = 60 * 1000;
 // A new prefix collides with an existing one about once in 4 billion keys
 const CREATE_ATTEMPTS = 3;
 
+// GUEST accounts cannot create or use API keys
+export function canUseApiKeys(role: Role): boolean {
+    return role === "ADMIN" || role === "USER";
+}
+
 export type ApiKeyPrincipal = {
     keyId: string;
     userId: string;

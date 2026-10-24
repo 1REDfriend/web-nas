@@ -140,7 +140,10 @@ suite ใหม่ใน `tests/e2e/suites/` (รันด้วย `run-all.mjs
   (ส่วนที่ไม่แตะ DB, มี unit test `npm run test:unit`) และ `src/lib/security/api-key.ts` (ส่วนที่แตะ DB)
 - ขั้น 4 ต้องระวัง: `requireInsideKeyRoot` เช็คแค่ path ตามตัวอักษร ถ้าใน rootPath มี symlink ชี้ออกไปที่อื่น
   จะหลุดได้ ต้องเช็คซ้ำด้วย physical path ที่ `authorizePath` คืนมา (realpath ของ rootPath)
-- `verifyApiKey` ยังไม่มี test ที่ยิง DB จริง จะได้ test ผ่าน e2e ในขั้น 2
+- ขั้น 2 เสร็จ: `proxy.ts` รับ key เฉพาะ `/api/v1/*`, `GET /api/v1/me`, รูปแบบคำตอบกลาง `src/lib/api/v1/response.ts`,
+  ผู้เรียก `src/lib/api/v1/caller.ts` (ใช้ใน route ของ v1 ทุกตัว), e2e suite `api-keys` (39 checks)
+- พฤติกรรมที่ตัดสินใจระหว่างทำ: ส่ง `Bearer` มาที่ `/api/v1` แล้ว key ผิด จะได้ 401 ทันที ไม่ถอยไปใช้ cookie;
+  key ของ GUEST และของคนที่ต้องเปลี่ยนรหัสผ่าน ได้ 403; key ผิดเกิน 20 ครั้งต่อ IP ใน 15 นาที ได้ 429
 - ปัญหาเดิมที่เจอ (ไม่เกี่ยวกับงานนี้): `prisma migrate deploy` บน DB เปล่าพังที่ `20261009000000_trash_original_path`
   เพราะ migration init ไม่มีตาราง `trash_schedule` ตัว Docker ใช้ `db push` เลยไม่กระทบ แต่คำแนะนำใน README
   ที่ให้ใช้ `migrate deploy` กับ DB ใหม่ใช้ไม่ได้
