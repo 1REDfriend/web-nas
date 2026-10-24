@@ -32,6 +32,7 @@ model User {
   trashShedule TrashShedule[]
   shareLink ShareLink[]
   recentItems RecentItem[]
+  apiKeys ApiKey[]
 
   @@map("users")
 }
@@ -145,4 +146,27 @@ model RecentItem {
   @@unique([userId, path], name: "idx_recent_user_path")
   @@index([userId, usedAt], name: "idx_recent_user_used_at")
   @@map("recent_items")
+}
+
+// Key for calling /api/v1 from another program. Only the sha256 of the key is stored.
+model ApiKey {
+  id             String    @id @default(cuid())
+  name           String
+  prefix         String    @unique                        // public part of the key, used to look it up and shown in the UI
+  keyHash        String    @unique @map("key_hash")       // sha256 of the full key
+  scopes         String                                    // comma-separated ApiScope list
+  rootPath       String?   @map("root_path")              // virtual path the key is locked to; null = everything the owner can reach
+  maxUploadBytes BigInt?   @map("max_upload_bytes")       // per-key upload size cap; null = server default
+
+  lastUsedAt     DateTime? @map("last_used_at")
+  lastUsedIp     String?   @map("last_used_ip")
+  expiresAt      DateTime? @map("expires_at")
+  revokedAt      DateTime? @map("revoked_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String    @map("user_id")
+
+  @@index([userId], name: "idx_api_key_user_id")
+  @@map("api_keys")
 }
