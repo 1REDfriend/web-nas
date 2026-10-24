@@ -148,6 +148,12 @@ suite ใหม่ใน `tests/e2e/suites/` (รันด้วย `run-all.mjs
   เพราะ migration init ไม่มีตาราง `trash_schedule` ตัว Docker ใช้ `db push` เลยไม่กระทบ แต่คำแนะนำใน README
   ที่ให้ใช้ `migrate deploy` กับ DB ใหม่ใช้ไม่ได้
 
+- ขั้น 3 เสร็จ: `src/lib/service/upload-service.ts` (`parseUploadForm`, `saveUploadedFile`) ใช้แทนโค้ดใน
+  `pages/api/files/upload.ts` มี e2e suite `upload` ล็อกพฤติกรรมเดิมไว้ (รันผ่านกับโค้ดเก่าก่อนย้าย)
+  `saveUploadedFile` รองรับ `overwrite` (วางไฟล์ข้างๆ แล้ว rename ทับ) และ `assertTarget` สำหรับเช็คโฟลเดอร์ของ key
+  แต่หน้าเว็บยังไม่ได้ใช้ `overwrite` จึงยังไม่มี test ต้องเขียน test ตอนทำขั้น 4
+- เปลี่ยนเล็กน้อย: ไฟล์ใหญ่เกินเพดานตอบ 413 (เดิมตกไปเป็น 500), temp file ที่ไม่ได้ใช้ถูกลบทุกครั้ง
+
 ## ลำดับการทำ (แต่ละข้อ commit ได้แยกกัน)
 
 1. Prisma model + migration + `api-key.ts` + unit test ฝั่งสร้าง/ตรวจ key

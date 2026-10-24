@@ -35,5 +35,6 @@ Needs `npm install` and `npx prisma generate` first. The test server listens on 
 | `thumbnails` | thumbnail generation, cache, decompression bombs, permissions |
 | `share-media` | media preview and thumbnails through share links |
 | `api-keys` | API keys on `/api/v1`: bad, revoked and expired keys, keys rejected outside `/api/v1`, forged headers, GUEST and password-change owners, bad-key rate limit |
+| `upload` | browser upload route: success, name clash, large binary, missing folders, bad names, permissions |
 
 A suite prints one `PASS`/`FAIL` line per check and exits non-zero if any check fails; the runner shows the full output of failing suites only.

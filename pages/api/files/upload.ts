@@ -1,15 +1,8 @@
-import fs from 'fs-extra';
-import formidable, { errors as formidableErrors } from 'formidable';
 import { NextApiRequest, NextApiResponse } from 'next';
-import path from 'path';
 import { log, logerror } from '@/lib/logger';
 import { recordRecent } from '@/lib/service/tracked-paths';
-import {
-    AuthorizedPath,
-    FileAccessError,
-    authorizeNewEntry,
-    getAccessUser,
-} from '@/lib/security/path-guard';
+import { ParsedUpload, parseUploadForm, saveUploadedFile } from '@/lib/service/upload-service';
+import { FileAccessError, getAccessUser } from '@/lib/security/path-guard';
 
 export const config = {
     api: {
@@ -17,17 +10,8 @@ export const config = {
     },
 };
 
-async function ensureUploadDirExists(currentPath: fs.PathLike) {
-    try {
-        await fs.promises.mkdir(currentPath, { recursive: true });
-    } catch (error: unknown) {
-        logerror("[Error creating upload directory] :" + error);
-        throw new Error("Internal Error: Could not create directory");
-    }
-};
-
 async function getUserFromRequest(req: NextApiRequest) {
-    // Set by middleware.ts after the JWT has been verified
+    // Set by proxy.ts after the session has been verified
     const raw = req.headers['x-user-payload'];
     if (typeof raw !== 'string') return null;
 
@@ -53,61 +37,27 @@ export default async function handler(
         return res.status(401).json({ error: 'Unauthorized' });
     }
 
+    let upload: ParsedUpload | null = null;
     try {
-        const data = await new Promise<{ fields: formidable.Fields; files: formidable.Files }>((resolve, reject) => {
-            const form = formidable({
-                keepExtensions: true,
-                maxFileSize: 100 * 1024 * 1024 * 1024,
-            });
+        upload = await parseUploadForm(req);
 
-            form.parse(req, (err, fields, files) => {
-                if (err) {
-                    if (err.code === formidableErrors.maxFieldsSizeExceeded) {
-                        return reject({ status: 403, message: "File size exceeds limit" });
-                    }
-                    logerror("[Upload Failed] : " + err);
-                    return reject({ status: 500, message: "Upload Unknow Error" });
-                }
-                resolve({ fields, files });
-            });
-        });
-
-        const currentPathField = Array.isArray(data.fields.currentPath)
-            ? data.fields.currentPath[0]
-            : data.fields.currentPath;
-
-        const uploadedFile = Array.isArray(data.files.file)
-            ? data.files.file[0]
-            : data.files.file;
+        const currentPath = upload.field('currentPath');
+        const uploadedFile = upload.file;
 
         if (!uploadedFile) {
             return res.status(400).json({ error: 'No file uploaded' });
         }
 
-        const tempPath = uploadedFile.filepath;
-
-        if (!currentPathField) {
-            await fs.remove(tempPath);
+        if (!currentPath) {
             return res.status(404).json({ error: 'No Path uploaded' });
         }
 
-        let target: AuthorizedPath;
-        try {
-            // Browsers may send "dir/name" for folder uploads; only the last segment is the file name
-            const originalName = (uploadedFile.originalFilename || 'unknown_file').replace(/\\/g, '/');
-            target = await authorizeNewEntry(user, currentPathField, path.posix.basename(originalName));
-        } catch (err: unknown) {
-            await fs.remove(tempPath);
-            throw err;
-        }
-
-        if (await fs.pathExists(target.physicalPath)) {
-            await fs.remove(tempPath);
-            return res.status(409).json({ error: 'A file with that name already exists' });
-        }
-
-        await ensureUploadDirExists(path.dirname(target.physicalPath));
-        await fs.move(tempPath, target.physicalPath);
+        const target = await saveUploadedFile({
+            user,
+            dir: currentPath,
+            fileName: uploadedFile.originalFilename,
+            tempPath: uploadedFile.filepath,
+        });
 
         log("[UPLOAD] : " + target.virtualPath)
         await recordRecent(user.id, target.virtualPath, "uploaded");
@@ -118,14 +68,8 @@ export default async function handler(
 
     } catch (error: unknown) {
         if (error instanceof FileAccessError) {
+            if (error.status >= 500) logerror('[Error saving file] :' + error.message);
             return res.status(error.status).json({ error: error.message });
-        }
-
-        if (typeof error === 'object' && error !== null && 'status' in error && 'message' in error) {
-
-            const customError = error as { status: number; message: string };
-            logerror('[Error saving file] :' + customError.message);
-            return res.status(customError.status).json({ error: customError.message });
         }
 
         if (error instanceof Error) {
@@ -135,5 +79,7 @@ export default async function handler(
 
         logerror('[Error saving file] :' + String(error));
         return res.status(500).json({ error: 'An unknown error occurred' });
+    } finally {
+        await upload?.cleanup();
     }
 }

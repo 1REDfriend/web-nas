@@ -29,6 +29,7 @@ const GROUPS = [
     ["thumbnails"],
     ["share-media"],
     ["api-keys"],
+    ["upload"],
 ];
 
 function startServer(env) {
