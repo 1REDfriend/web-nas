@@ -166,6 +166,12 @@ suite ใหม่ใน `tests/e2e/suites/` (รันด้วย `run-all.mjs
   (ไม่รับ API key, ไม่เชื่อ `x-user-payload`) วัดซ้ำด้วยไฟล์ 300MB: เดิม +299MB เหลือ +6MB
   และลด `proxyClientMaxBodySize` จาก 100GB เหลือ 10mb เพราะ route ที่เหลือหลัง proxy รับแค่ JSON เล็ก ๆ
 
+- ขั้น 6 เสร็จ: ปุ่ม "API Keys" ใน sidebar (ADMIN/USER, มือถืออยู่ใน drawer) เปิด `ApiKeysDialog`
+  สร้าง key (ชื่อ, สิทธิ์, โฟลเดอร์, วันหมดอายุ 30/90/365/ไม่หมด) โชว์ key เต็มครั้งเดียวพร้อมปุ่ม copy และตัวอย่าง curl
+  ดูรายการ, Revoke ทีละอัน, Revoke all; API ฝั่ง server `/api/user/api-keys` (ใช้ cookie เท่านั้น) และ e2e suite `api-key-manage`
+  - โฟลเดอร์ของ key ต้องเป็นโฟลเดอร์ที่มีอยู่จริงและเจ้าของเปิดได้ตอนสร้าง, key ที่ยังใช้งานได้ไม่เกิน 20 อันต่อคน
+  - ยังไม่ทำ: หน้า admin ดู key ของทุกคน, ตั้งเพดานขนาดอัปโหลดต่อ key (ขั้น 5)
+
 ## ลำดับการทำ (แต่ละข้อ commit ได้แยกกัน)
 
 1. Prisma model + migration + `api-key.ts` + unit test ฝั่งสร้าง/ตรวจ key

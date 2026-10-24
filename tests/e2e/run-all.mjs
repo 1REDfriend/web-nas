@@ -29,6 +29,7 @@ const GROUPS = [
     ["thumbnails"],
     ["share-media"],
     ["api-keys"],
+    ["api-key-manage"],
     ["upload"],
     ["api-files"],
 ];

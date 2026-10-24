@@ -35,6 +35,7 @@ Needs `npm install` and `npx prisma generate` first. The test server listens on 
 | `thumbnails` | thumbnail generation, cache, decompression bombs, permissions |
 | `share-media` | media preview and thumbnails through share links |
 | `api-keys` | API keys on `/api/v1`: bad, revoked and expired keys, keys rejected outside `/api/v1`, forged headers, GUEST and password-change owners, bad-key rate limit |
+| `api-key-manage` | creating, listing and revoking keys from a browser session: validation, owners only, GUEST and API keys refused, active-key limit |
 | `api-files` | `/api/v1` list, stat, download (Range, zip), raw and multipart upload, folders, delete; scopes, folder-locked keys, symlinks out of the key folder, auth on the routes that skip `proxy.ts` |
 | `upload` | browser upload route: success, name clash, large binary, missing folders, bad names, permissions |
 
