@@ -1,11 +1,11 @@
 import path from "path";
 import fs from "fs-extra";
 import { log } from "@/lib/logger";
-import { ENV } from "@/lib/ENV";
 import { recordRecent } from "@/lib/service/tracked-paths";
 import { saveUploadedFile } from "@/lib/service/upload-service";
 import { AuthorizedPath, FileAccessError, authorizeNewEntry } from "@/lib/security/path-guard";
 import { getClientIp } from "@/lib/security/rate-limit";
+import { sessionTokenFromCookieHeader } from "@/lib/security/session";
 import { ApiCaller, assertCallerTarget, callerFromPayload, callerLabel, requireCallerScope } from "./caller";
 import { V1AuthResult, authenticateV1 } from "./auth";
 
@@ -16,19 +16,10 @@ export type UploadAuth =
     | { ok: true; caller: ApiCaller }
     | Extract<V1AuthResult, { ok: false }>;
 
-function readCookie(cookieHeader: string | null, name: string): string | undefined {
-    if (!cookieHeader) return undefined;
-    for (const part of cookieHeader.split(";")) {
-        const eq = part.indexOf("=");
-        if (eq > 0 && part.slice(0, eq).trim() === name) return part.slice(eq + 1).trim();
-    }
-    return undefined;
-}
-
 export async function authenticateUpload(headers: Headers): Promise<UploadAuth> {
     const result = await authenticateV1({
         authorization: headers.get("authorization"),
-        sessionToken: readCookie(headers.get("cookie"), ENV.TOKEN_COOKIE),
+        sessionToken: sessionTokenFromCookieHeader(headers.get("cookie")),
         ip: getClientIp({ headers }),
     });
     if (!result.ok) return result;

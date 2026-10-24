@@ -67,6 +67,16 @@ export async function createSession(user: { id: string; username: string }, user
     return { token, expiresAt };
 }
 
+// The session token from a raw Cookie header, for routes that bypass proxy.ts
+export function sessionTokenFromCookieHeader(cookieHeader: string | null | undefined): string | undefined {
+    if (!cookieHeader) return undefined;
+    for (const part of cookieHeader.split(";")) {
+        const eq = part.indexOf("=");
+        if (eq > 0 && part.slice(0, eq).trim() === ENV.TOKEN_COOKIE) return part.slice(eq + 1).trim();
+    }
+    return undefined;
+}
+
 export async function verifySessionToken(token: string | undefined | null): Promise<SessionUser | null> {
     if (!token) return null;
 

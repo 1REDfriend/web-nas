@@ -162,7 +162,9 @@ suite ใหม่ใน `tests/e2e/suites/` (รันด้วย `run-all.mjs
   - ทั้ง 2 route อัปโหลดไม่ผ่าน `proxy.ts` (ตั้ง matcher ไว้) เพราะ proxy เก็บ body ทั้งก้อนไว้ใน RAM
     วัดจริงด้วยไฟล์ 300MB: route ของ API ใช้ RAM เพิ่ม ~35-48MB ส่วน `/api/files/upload` ของหน้าเว็บ (ผ่าน proxy) +272MB
     route พวกนี้ตรวจตัวตนเองด้วย `authenticateV1()` และไม่เชื่อ `x-user-payload`
-- เรื่องเดิมที่ยังค้าง: อัปโหลดจากหน้าเว็บยังกิน RAM เท่าขนาดไฟล์ (ดูตัวเลขด้านบน) แก้ได้ด้วยวิธีเดียวกัน
+- แก้แล้ว: อัปโหลดจากหน้าเว็บ (`/api/files/upload`) ก็ไม่ผ่าน `proxy.ts` แล้ว ตรวจ cookie เองด้วย `verifySessionToken`
+  (ไม่รับ API key, ไม่เชื่อ `x-user-payload`) วัดซ้ำด้วยไฟล์ 300MB: เดิม +299MB เหลือ +6MB
+  และลด `proxyClientMaxBodySize` จาก 100GB เหลือ 10mb เพราะ route ที่เหลือหลัง proxy รับแค่ JSON เล็ก ๆ
 
 ## ลำดับการทำ (แต่ละข้อ commit ได้แยกกัน)
 
