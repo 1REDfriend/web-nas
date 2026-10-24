@@ -64,6 +64,8 @@ PUID="1000" / PGID="1000" => host user the app runs as; it can only change files
 
 WEBNAS_PORT="5491" / WEBSSH_PORT="7255" => host ports published by Caddy
 
+API_KEY_RATE_LIMIT="120" => optional, requests per minute each API key may make (see [API](#api))
+
 > **NOTE** the web terminal (port 7255) is ADMIN-only: Caddy checks the file manager login before every request. Open it on the same host name as the file manager, or set `COOKIE_DOMAIN`, otherwise the browser does not send the login cookie and the terminal answers 401.
 
 ## Docker
@@ -87,9 +89,70 @@ docker compose up -d --build
 
 Keep the old files until everything works. Folder assignments outside `NAS_HOST_DIR` show as Offline until that folder is mounted too.
 
+## API
+
+Other programs and servers can store and fetch files through `/api/v1` with an API key.
+
+### Getting a key
+
+In the web UI open **API Keys** in the sidebar (ADMIN and USER accounts) and create a key. Choose:
+
+- **Permissions**: `list` (folders and file details), `read` (download), `upload` (upload and create folders), `delete` (move to trash)
+- **Only this folder** (optional): the key cannot reach anything outside it, symlinks included
+- **Largest upload** and **Expires after**
+
+The full key (`wnas_<prefix>_<secret>`) is shown once. Only its hash is stored; if you lose it, revoke it and create a new one. A key never gets more than its owner has: folder assignments and Protected Folders rules still apply.
+
+Send it on every request:
+
+```
+Authorization: Bearer wnas_xxxxxxxx_...
+```
+
+Keys work only on `/api/v1`; every other route needs a browser login.
+
+### Endpoints
+
+| Method | Path | Permission | Notes |
+|---|---|---|---|
+| GET | `/api/v1/me` | – | the key's owner, permissions, folder and limits |
+| GET | `/api/v1/files?path=/folder` | `list` | folder contents; `page`, `limit` (max 1000), `sort=name\|size\|modified`, `order=asc\|desc`. Without `path`: the key's folder, or your assigned folders |
+| GET | `/api/v1/files/stat?path=/folder/file` | `list` | one file or folder |
+| GET | `/api/v1/files/download?path=/folder/file` | `read` | supports `Range`; a folder comes as a zip (not for folder-locked keys) |
+| PUT | `/api/v1/files/raw?path=/folder/file` | `upload` | the body is the file; `overwrite=1` to replace, `mkdirs=0` to require the folder to exist |
+| POST | `/api/v1/files/upload` | `upload` | multipart: `file`, `path` (folder), optional `name`, `overwrite`, `mkdirs` |
+| POST | `/api/v1/folders` | `upload` | JSON `{ "path": "/folder/new" }`, creates parents too |
+| DELETE | `/api/v1/files?path=/folder/file` | `delete` | moves it to the owner's trash (restorable from the web UI) |
+
+Responses are JSON: `{ "ok": true, "data": ... }` or `{ "ok": false, "error": "...", "code": "..." }`, except downloads. Codes: `BAD_REQUEST`, `UNAUTHORIZED`, `INVALID_API_KEY`, `API_KEY_NOT_ALLOWED`, `PASSWORD_CHANGE_REQUIRED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `PAYLOAD_TOO_LARGE`, `RATE_LIMITED`, `INTERNAL`.
+
+### Examples
+
+```
+KEY=wnas_xxxxxxxx_...
+NAS=https://nas.example.com
+
+curl -H "Authorization: Bearer $KEY" "$NAS/api/v1/me"
+curl -H "Authorization: Bearer $KEY" "$NAS/api/v1/files?path=/mnt/backup"
+curl -T report.pdf -H "Authorization: Bearer $KEY" "$NAS/api/v1/files/raw?path=/mnt/backup/report.pdf"
+curl -F path=/mnt/backup -F file=@photo.jpg -H "Authorization: Bearer $KEY" "$NAS/api/v1/files/upload"
+curl -o report.pdf -H "Authorization: Bearer $KEY" "$NAS/api/v1/files/download?path=/mnt/backup/report.pdf"
+curl -X POST -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" -d '{"path":"/mnt/backup/2026"}' "$NAS/api/v1/folders"
+curl -X DELETE -H "Authorization: Bearer $KEY" "$NAS/api/v1/files?path=/mnt/backup/report.pdf"
+```
+
+### Limits
+
+- Each key may make `API_KEY_RATE_LIMIT` requests a minute (default 120); after that it gets `429` with `Retry-After`.
+- Uploads stop at the key's **Largest upload** (or the server cap of 100 GB) with `413`; nothing is left behind.
+- Too many invalid keys from one address get `429` for 15 minutes. Valid keys are never blocked by this.
+- Behind Cloudflare, a single request body is capped by your Cloudflare plan (100 MB on Free), whatever the key allows.
+
+Uploads stream straight to disk; they do not pass through `proxy.ts`, which would hold the whole body in memory.
+
 ## Tests
 
-`npm run test:e2e` runs the end-to-end suites against a throwaway server, database and storage tree; see [tests/e2e/README.md](tests/e2e/README.md).
+`npm run test:e2e` runs the end-to-end suites against a throwaway server, database and storage tree; see [tests/e2e/README.md](tests/e2e/README.md). `npm run test:unit` runs the unit tests in `tests/unit`.
 
 ## Protected Folders
 
