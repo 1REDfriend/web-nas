@@ -30,6 +30,7 @@ const GROUPS = [
     ["share-media"],
     ["api-keys"],
     ["upload"],
+    ["api-files"],
 ];
 
 function startServer(env) {

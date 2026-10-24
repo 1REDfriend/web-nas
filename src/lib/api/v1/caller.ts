@@ -1,9 +1,21 @@
-import { AccessUser, getAccessUser } from "@/lib/security/path-guard";
+import type { UserJwtPayload } from "@/interfaces/userJwtpayload";
+import {
+    AccessUser,
+    AuthorizeOptions,
+    AuthorizedPath,
+    FileAccessError,
+    authorizePath,
+    getAccessUser,
+    isInside,
+    isTrashPath,
+} from "@/lib/security/path-guard";
+import { FileAction } from "@/lib/security/file-actions";
+import { requireInsideKeyRoot, requireScope } from "@/lib/security/api-key";
 import { API_SCOPES, ApiScope, parseScopes } from "@/lib/security/api-key-format";
 import { xUserPayload } from "@/lib/api/user/x-user-payload";
 
-// Who is calling an /api/v1 route. proxy.ts has already checked the API key or
-// session; this only reads what it passed on.
+// Who is calling an /api/v1 route, and the path checks every v1 route goes through.
+// Authentication itself happened earlier (proxy.ts or authenticateV1()).
 export type ApiCaller = {
     user: AccessUser;
     username: string;
@@ -14,8 +26,7 @@ export type ApiCaller = {
     rootPath: string | null;
 };
 
-export async function getApiCaller(): Promise<ApiCaller | null> {
-    const payload = await xUserPayload();
+export async function callerFromPayload(payload: UserJwtPayload | null): Promise<ApiCaller | null> {
     if (!payload) return null;
 
     const user = await getAccessUser(payload.sub);
@@ -42,4 +53,65 @@ export async function getApiCaller(): Promise<ApiCaller | null> {
         scopes: [...API_SCOPES],
         rootPath: null,
     };
+}
+
+// For routes behind proxy.ts, which passes the checked identity in x-user-payload
+export async function getApiCaller(): Promise<ApiCaller | null> {
+    return callerFromPayload(await xUserPayload());
+}
+
+export function requireCallerScope(caller: ApiCaller, scope: ApiScope) {
+    requireScope(caller, scope);
+}
+
+// Short label for logs: the key id, or "session"
+export function callerLabel(caller: ApiCaller): string {
+    return caller.keyId ? `key:${caller.keyId}` : `session:${caller.username}`;
+}
+
+// Real path of the key's folder, so a symlink inside it cannot lead somewhere else
+async function keyRootPhysical(caller: ApiCaller & { rootPath: string }): Promise<string> {
+    return (await authorizePath(caller.user, caller.rootPath, "VIEW")).physicalPath;
+}
+
+// Checks an already authorized target against the key's folder lock (by real path)
+// and keeps the API out of the browser-only trash view.
+// allowKeyRoot = false: the key's folder itself is off limits (deleting it, creating it).
+export async function assertCallerTarget(caller: ApiCaller, target: AuthorizedPath, allowKeyRoot = true) {
+    if (isTrashPath(target.virtualPath)) {
+        throw new FileAccessError("The trash is not available through the API", 400);
+    }
+    if (caller.rootPath === null) return;
+
+    const { rootPath } = caller;
+    requireInsideKeyRoot(caller, target.virtualPath);
+    const root = await keyRootPhysical({ ...caller, rootPath });
+    if (!isInside(target.physicalPath, root) || (!allowKeyRoot && target.physicalPath === root)) {
+        throw new FileAccessError("This API key cannot reach that path", 403);
+    }
+}
+
+export async function authorizeForCaller(
+    caller: ApiCaller,
+    rawPath: unknown,
+    action: FileAction,
+    options: AuthorizeOptions & { allowKeyRoot?: boolean } = {}
+): Promise<AuthorizedPath> {
+    if (isTrashPath(rawPath)) {
+        throw new FileAccessError("The trash is not available through the API", 400);
+    }
+    if (caller.rootPath !== null && typeof rawPath === "string") {
+        // Fail fast with a clear message before touching the disk
+        requireInsideKeyRoot(caller, rawPath);
+    }
+
+    const target = await authorizePath(caller.user, rawPath, action, options);
+    await assertCallerTarget(caller, target, options.allowKeyRoot ?? true);
+    return target;
+}
+
+// Reads ?flag=1 / true / yes
+export function boolParam(value: string | null | undefined, fallback: boolean): boolean {
+    if (value === null || value === undefined || value === "") return fallback;
+    return ["1", "true", "yes"].includes(value.toLowerCase());
 }

@@ -51,7 +51,7 @@ export function resetLimits(keys: string[]) {
     for (const key of keys) buckets.delete(key);
 }
 
-export function getClientIp(request: Request): string {
+export function getClientIp(request: { headers: Headers }): string {
     const forwarded = request.headers.get("x-forwarded-for");
     if (forwarded) return forwarded.split(",")[0].trim();
     return request.headers.get("x-real-ip") ?? "unknown";

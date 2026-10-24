@@ -3,10 +3,13 @@ import path from "path";
 import { Readable } from "stream";
 import mime from "mime-types";
 import archiver from "archiver";
+import { parseRange } from "./range";
 
 type DownloadOptions = {
     // Zip only the files directly inside the folder (non-recursive shares)
     topLevelFilesOnly?: boolean;
+    // Value of the request's Range header; files then answer 206 / 416 (folders ignore it)
+    rangeHeader?: string | null;
 };
 
 function contentDisposition(fileName: string) {
@@ -22,6 +25,22 @@ export async function createDownloadResponse(physicalPath: string, options: Down
     if (stats.isFile()) {
         headers.set("Content-Type", mime.lookup(physicalPath) || "application/octet-stream");
         headers.set("Content-Disposition", contentDisposition(path.basename(physicalPath)));
+
+        if (options.rangeHeader !== undefined) {
+            headers.set("Accept-Ranges", "bytes");
+            const range = parseRange(options.rangeHeader, stats.size);
+            if (range === null) {
+                headers.set("Content-Range", `bytes */${stats.size}`);
+                return new Response(null, { status: 416, headers });
+            }
+            if (range) {
+                headers.set("Content-Range", `bytes ${range.start}-${range.end}/${stats.size}`);
+                headers.set("Content-Length", String(range.end - range.start + 1));
+                const partial = Readable.toWeb(fs.createReadStream(physicalPath, range)) as ReadableStream<Uint8Array>;
+                return new Response(partial, { status: 206, headers });
+            }
+        }
+
         headers.set("Content-Length", stats.size.toString());
 
         const body = Readable.toWeb(fs.createReadStream(physicalPath)) as ReadableStream<Uint8Array>;

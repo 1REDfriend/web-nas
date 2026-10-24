@@ -2,39 +2,12 @@ import fs from "fs-extra";
 import { Readable } from "stream";
 import { NextResponse } from "next/server";
 import { mediaTypeOf } from "@/lib/file-manager/media";
+import { parseRange } from "./range";
 import { MAX_THUMB_SOURCE_BYTES, ThumbnailError, getThumbnail, isThumbSize } from "@/lib/service/thumbnails";
 
 // Shared by the logged-in routes (/api/files/raw, /thumb) and the share-link
 // routes, so both apply exactly the same type allowlist and limits. Callers
 // must authorize the path first.
-
-type ByteRange = { start: number; end: number };
-
-// Parses a single "bytes=" range. undefined = no/ignored header, null = unsatisfiable.
-function parseRange(header: string | null, size: number): ByteRange | null | undefined {
-    if (!header) return undefined;
-
-    const match = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
-    // Multiple ranges or another unit: serve the whole file instead
-    if (!match || (!match[1] && !match[2])) return undefined;
-
-    let start: number;
-    let end: number;
-
-    if (!match[1]) {
-        // "bytes=-500" means the last 500 bytes
-        const suffix = Number(match[2]);
-        if (suffix === 0) return null;
-        start = Math.max(size - suffix, 0);
-        end = size - 1;
-    } else {
-        start = Number(match[1]);
-        end = match[2] ? Math.min(Number(match[2]), size - 1) : size - 1;
-    }
-
-    if (start >= size || start > end) return null;
-    return { start, end };
-}
 
 function jsonError(message: string, status: number) {
     return NextResponse.json({ error: message }, { status });

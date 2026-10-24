@@ -154,6 +154,16 @@ suite ใหม่ใน `tests/e2e/suites/` (รันด้วย `run-all.mjs
   แต่หน้าเว็บยังไม่ได้ใช้ `overwrite` จึงยังไม่มี test ต้องเขียน test ตอนทำขั้น 4
 - เปลี่ยนเล็กน้อย: ไฟล์ใหญ่เกินเพดานตอบ 413 (เดิมตกไปเป็น 500), temp file ที่ไม่ได้ใช้ถูกลบทุกครั้ง
 
+- ขั้น 4 เสร็จ: `GET/DELETE /api/v1/files`, `GET /api/v1/files/stat`, `GET /api/v1/files/download`,
+  `PUT /api/v1/files/raw`, `POST /api/v1/files/upload`, `POST /api/v1/folders` และ e2e suite `api-files`
+  - เช็คโฟลเดอร์ของ key ด้วย path จริงบนดิสก์ (`assertCallerTarget` ใน `src/lib/api/v1/caller.ts`) symlink ออกนอกโฟลเดอร์จึงถูกปฏิเสธ
+  - key ที่ล็อกโฟลเดอร์ไว้ดาวน์โหลดโฟลเดอร์เป็น zip ไม่ได้ (zip อาจตาม link ออกไปนอกโฟลเดอร์) ดาวน์โหลดได้ทีละไฟล์
+  - key ลบหรือเขียนทับโฟลเดอร์ของตัวเองไม่ได้ และ API ไม่เปิดถังขยะ (`/trash`)
+  - ทั้ง 2 route อัปโหลดไม่ผ่าน `proxy.ts` (ตั้ง matcher ไว้) เพราะ proxy เก็บ body ทั้งก้อนไว้ใน RAM
+    วัดจริงด้วยไฟล์ 300MB: route ของ API ใช้ RAM เพิ่ม ~35-48MB ส่วน `/api/files/upload` ของหน้าเว็บ (ผ่าน proxy) +272MB
+    route พวกนี้ตรวจตัวตนเองด้วย `authenticateV1()` และไม่เชื่อ `x-user-payload`
+- เรื่องเดิมที่ยังค้าง: อัปโหลดจากหน้าเว็บยังกิน RAM เท่าขนาดไฟล์ (ดูตัวเลขด้านบน) แก้ได้ด้วยวิธีเดียวกัน
+
 ## ลำดับการทำ (แต่ละข้อ commit ได้แยกกัน)
 
 1. Prisma model + migration + `api-key.ts` + unit test ฝั่งสร้าง/ตรวจ key
