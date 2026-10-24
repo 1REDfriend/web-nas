@@ -38,6 +38,7 @@ Needs `npm install` and `npx prisma generate` first. The test server listens on 
 | `api-key-manage` | creating, listing and revoking keys from a browser session: validation, owners only, GUEST and API keys refused, active-key limit |
 | `api-limits` | per-key limits: requests per minute (also on the upload routes) and upload size cap for raw, chunked and multipart uploads |
 | `api-files` | `/api/v1` list, stat, download (Range, zip), raw and multipart upload, folders, delete; scopes, folder-locked keys, symlinks out of the key folder, auth on the routes that skip `proxy.ts` |
+| `drops-admin` | drop settings (ADMIN only, limit and folder checks), the expiry sweeper (expired, used-up, abandoned and leftover drops), moving drops when the drop folder changes, drop folder locked in the file manager |
 | `upload` | browser upload route: success, name clash, large binary, missing folders, bad names, permissions |
 
 A suite prints one `PASS`/`FAIL` line per check and exits non-zero if any check fails; the runner shows the full output of failing suites only.

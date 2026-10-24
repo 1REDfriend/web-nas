@@ -7,6 +7,7 @@ import { ENV } from "@/lib/ENV";
 import { xUserPayload } from "@/lib/api/user/x-user-payload";
 import { DESTRUCTIVE_ACTIONS, FileAction, WRITE_ACTIONS, parseActions } from "./file-actions";
 import { getPathRulesForRole } from "./path-rules";
+import { getDropBases } from "@/lib/drops/locations";
 
 // Single entry point for every file-system permission check.
 //
@@ -91,7 +92,7 @@ export function isInside(child: string, parent: string): boolean {
 }
 
 // Real path of the deepest existing ancestor, with the not-yet-existing tail appended
-async function realpathNearest(target: string): Promise<string> {
+export async function realpathNearest(target: string): Promise<string> {
     const missing: string[] = [];
     let current = target;
 
@@ -112,7 +113,7 @@ async function realpathNearest(target: string): Promise<string> {
     }
 }
 
-async function getStorageRoot(): Promise<string> {
+export async function getStorageRoot(): Promise<string> {
     if (!ENV.STORAGE_ROOT) {
         throw new FileAccessError("Storage is not configured", 500);
     }
@@ -132,8 +133,8 @@ export async function physicalToVirtual(physicalPath: string): Promise<string | 
     return normalizeVirtualPath(path.relative(root, resolved).split(path.sep).join("/"));
 }
 
-// Paths no role can touch, not even ADMIN, and that cannot be edited from the UI
-export async function getSystemProtectedPaths(): Promise<string[]> {
+// The app folder, internal storage and PROTECTED_PATHS
+export async function getFixedProtectedPaths(): Promise<string[]> {
     const candidates = [
         process.cwd(),
         path.resolve(ENV.STORAGE_INTERNAL),
@@ -143,7 +144,14 @@ export async function getSystemProtectedPaths(): Promise<string[]> {
     return [...new Set(resolved)];
 }
 
-async function getWritableRoots(): Promise<string[]> {
+// Paths no role can touch, not even ADMIN, and that cannot be edited from the UI.
+// Drop folders are included: only the drop service changes what is inside them.
+export async function getSystemProtectedPaths(): Promise<string[]> {
+    const drops = await Promise.all((await getDropBases()).map(realpathNearest));
+    return [...new Set([...(await getFixedProtectedPaths()), ...drops])];
+}
+
+export async function getWritableRoots(): Promise<string[]> {
     return Promise.all(ENV.STORAGE_WRITABLE_PATHS.map((p) => realpathNearest(path.resolve(p))));
 }
 

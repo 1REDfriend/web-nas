@@ -103,6 +103,8 @@ export async function resetFixtures() {
         PROTECTED_PATHS: path.join(ROOT, "appdir"),
         // Stand-ins for the mounted disk: everything else under ROOT is "container only"
         STORAGE_WRITABLE_PATHS: ["alice", "bob", "shared"].map((d) => path.join(ROOT, d)).join(","),
+        // Delete expired drops almost at once so the suites need not wait
+        DROPS_SWEEP_SECONDS: "1",
     };
 
     fs.writeFileSync(path.join(WORK, "creds.json"), JSON.stringify({ password }));

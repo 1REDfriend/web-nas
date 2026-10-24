@@ -33,6 +33,7 @@ const GROUPS = [
     ["api-limits"],
     ["upload"],
     ["api-files"],
+    ["drops-admin"],
 ];
 
 function startServer(env) {

@@ -20,6 +20,8 @@ services:
       - STORAGE_ROOT=/host_root
       # Only the mounted folder is real disk; refuse writes anywhere else under /host_root
       - STORAGE_WRITABLE_PATHS=/host_root${NAS_HOST_DIR:-/mnt}
+      # Temporary drops go on the mounted disk until an admin picks another folder
+      - DROPS_DEFAULT_DIR=/host_root${NAS_HOST_DIR:-/mnt}/drops
     networks:
       - nas-network
     restart: unless-stopped

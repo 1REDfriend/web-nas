@@ -33,6 +33,7 @@ model User {
   shareLink ShareLink[]
   recentItems RecentItem[]
   apiKeys ApiKey[]
+  drops Drop[]
 
   @@map("users")
 }
@@ -169,4 +170,28 @@ model ApiKey {
 
   @@index([userId], name: "idx_api_key_user_id")
   @@map("api_keys")
+}
+
+// Temporary file handed out by link; deleted when it expires or runs out of downloads.
+// The file lives at <baseDir>/<id>/file; the original name is only kept here.
+model Drop {
+  id           String    @id                                // random, also the public link id
+  fileName     String    @map("file_name")
+  size         BigInt    @default(0)
+  mimeType     String?   @map("mime_type")
+  baseDir      String    @map("base_dir")                   // drop folder on disk that holds this drop right now
+  expiresAt    DateTime  @map("expires_at")
+  maxDownloads Int?      @map("max_downloads")              // null = unlimited
+  downloads    Int       @default(0)
+  completedAt  DateTime? @map("completed_at")               // null while the upload is still running
+  deletedAt    DateTime? @map("deleted_at")                 // file removed; row kept a while for the owner's list
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String    @map("user_id")
+  keyId        String?   @map("key_id")                     // API key that uploaded it, if any
+
+  @@index([userId], name: "idx_drop_user_id")
+  @@index([expiresAt], name: "idx_drop_expires_at")
+  @@map("drops")
 }

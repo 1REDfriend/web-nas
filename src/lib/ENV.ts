@@ -25,6 +25,11 @@ export const ENV = ({
         .filter(Boolean),
     // Requests per minute one API key may make (each key counted on its own)
     API_KEY_RATE_LIMIT: Math.max(1, Number.parseInt(process.env.API_KEY_RATE_LIMIT || "", 10) || 120),
+    // Folder that holds temporary drops until an admin picks another one;
+    // empty = "<STORAGE_INTERNAL>/drops". Docker points it at the mounted disk.
+    DROPS_DEFAULT_DIR: process.env.DROPS_DEFAULT_DIR || "",
+    // How often expired drops are deleted (seconds)
+    DROPS_SWEEP_SECONDS: Math.max(1, Number.parseInt(process.env.DROPS_SWEEP_SECONDS || "", 10) || 300),
 })
 
 // default setting
