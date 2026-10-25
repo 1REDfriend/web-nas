@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Production image for the web-nas app (Next.js). Caddy publishes it; the
 # container itself only listens on 3000 inside the compose network.
 
@@ -6,13 +7,14 @@ WORKDIR /app
 RUN apk add --no-cache openssl
 
 FROM base AS build
-# Toolchain for native modules (bcrypt) when no prebuilt binary matches
-RUN apk add --no-cache python3 make g++
+# bcrypt and sharp ship prebuilt musl binaries for x64 and arm64, so no C toolchain.
+# Only the schema is copied before installing: postinstall runs prisma generate,
+# and source or migration changes must not invalidate the install layer.
 COPY package.json package-lock.json ./
-COPY prisma ./prisma
-RUN npm ci
+COPY prisma/schema.prisma ./prisma/schema.prisma
+RUN --mount=type=cache,target=/root/.npm npm ci
 COPY . .
-RUN npx prisma generate && npm run build
+RUN npm run build
 
 FROM base AS runner
 ENV NODE_ENV=production \
