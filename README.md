@@ -66,11 +66,13 @@ PUID="1000" / PGID="1000" => host user the app runs as; it can only change files
 
 WEBNAS_PORT="5491" / WEBSSH_PORT="7255" => host ports published by Caddy
 
+NAS_DROPS_DIR="/mnt/drops" => host folder for drops, inside `NAS_HOST_DIR`; default `NAS_HOST_DIR/drops`. The `PUID` user must be able to create it (e.g. `/mnt/sda1/drops` when `/mnt` itself belongs to root)
+
 API_KEY_RATE_LIMIT="120" => optional, requests per minute each API key may make (see [API](#api))
 
 PUBLIC_URL="" => optional address people use to reach the app (e.g. `https://nas.example.com`), used for the links in API answers; empty = taken from the request
 
-DROPS_DEFAULT_DIR="" => folder for [drops](#drops-temporary-files-by-link) until an admin picks another one; empty = `<STORAGE_INTERNAL>/drops`. Docker sets it to `NAS_HOST_DIR/drops`
+DROPS_DEFAULT_DIR="" => folder for [drops](#drops-temporary-files-by-link) until an admin picks another one; empty = `<STORAGE_INTERNAL>/drops`. Docker sets it from `NAS_DROPS_DIR`
 
 DROPS_SWEEP_SECONDS="300" => how often expired drops are deleted
 
