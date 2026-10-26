@@ -18,7 +18,7 @@ import {
     type User
 } from "@/lib/api/admin/user.service";
 
-export function UserManageSetting() {
+export function UsersSettings() {
     const [users, setUsers] = useState<User[]>([]);
     const [message, setMessage] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -66,9 +66,9 @@ export function UserManageSetting() {
     }, [loadData]);
 
     return (
-        <div className="space-y-4 p-4">
+        <div className="space-y-4">
             <div className="flex justify-between items-center">
-                <h2 className="text-lg font-semibold text-foreground">User Management</h2>
+                <p className="text-sm font-semibold text-slate-200">All users</p>
                 <Button onClick={loadData} variant="outline" size="sm" disabled={loading}>
                     Refresh
                 </Button>

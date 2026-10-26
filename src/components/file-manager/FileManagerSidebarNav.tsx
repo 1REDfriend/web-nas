@@ -1,17 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { FOLDERS } from "./config";
-import { RootPathSettingsDialog } from "./RootPathSettingsDialog";
 import { ReactNode, useEffect, useState } from "react";
 import { fetchStorage } from "@/lib/api/system/storage.service";
 import prettyBytes from "pretty-bytes";
 import { SharelinkRoute } from "./SharelinkRoute";
-import { PathRuleSettingsDialog } from "./PathRuleSettingsDialog";
-import { ApiKeysDialog } from "./ApiKeysDialog";
-import { DropsDialog } from "./DropsDialog";
-import { fetchCurrentRole } from "@/lib/api/admin/path-rule.service";
-import { RuleRole } from "@/lib/security/file-actions";
-import { LogOut } from "lucide-react";
+import { LogOut, Settings } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export type FileManagerSidebarNavProps = {
@@ -38,7 +33,6 @@ export function SidebarNavContent({
     const [total, setTotal] = useState(0);
     // const [free, setFree] = useState(0);
     const [used, setUsed] = useState(0);
-    const [role, setRole] = useState<RuleRole | null>(null);
     const router = useRouter();
 
     async function handleLogout() {
@@ -69,7 +63,6 @@ export function SidebarNavContent({
             }
         }
         storage()
-        fetchCurrentRole().then(setRole)
     }, [])
 
     return (
@@ -105,12 +98,14 @@ export function SidebarNavContent({
                     Setting
                 </p>
                 <div className="space-y-1">
-                    {/* ใช้ component popup แทนปุ่มเดิม */}
                     <SharelinkRoute/>
-                    <RootPathSettingsDialog />
-                    {(role === "ADMIN" || role === "USER") && <DropsDialog isAdmin={role === "ADMIN"} />}
-                    {(role === "ADMIN" || role === "USER") && <ApiKeysDialog />}
-                    {role === "ADMIN" && <PathRuleSettingsDialog />}
+                    {/* Profile, drops, API keys and the admin pages all live under /settings */}
+                    <Button asChild variant={"ghost"} className="w-full justify-start gap-2">
+                        <Link href="/settings">
+                            <Settings className="w-4 h-4" />
+                            <span>Settings</span>
+                        </Link>
+                    </Button>
                     {extraSettings}
                     <Button variant={"ghost"} className="w-full justify-start gap-2" onClick={handleLogout}>
                         <LogOut className="w-4 h-4" />

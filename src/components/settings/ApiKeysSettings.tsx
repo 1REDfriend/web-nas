@@ -1,21 +1,13 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Check, KeyRound, Plus, Trash2 } from "lucide-react";
+import { Check, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { CopyButton } from "./CopyButton";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog";
+import { CopyButton } from "@/components/file-manager/CopyButton";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -279,7 +271,7 @@ function KeyCard({ apiKey, onRevoke }: { apiKey: ApiKeyInfo; onRevoke: (key: Api
     );
 }
 
-export function ApiKeysDialog() {
+export function ApiKeysSettings() {
     const [keys, setKeys] = useState<ApiKeyInfo[] | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [created, setCreated] = useState<CreatedApiKey | null>(null);
@@ -288,14 +280,21 @@ export function ApiKeysDialog() {
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [revoking, setRevoking] = useState(false);
 
-    const load = useCallback(async () => {
-        setLoadError(null);
-        try {
-            setKeys(await fetchApiKeys());
-        } catch (err: unknown) {
-            setLoadError(err instanceof Error ? err.message : "Could not load your keys.");
-        }
+    // State is only set once the request settles, so this is safe to start from an effect
+    const load = useCallback(() => {
+        return fetchApiKeys()
+            .then((list) => {
+                setKeys(list);
+                setLoadError(null);
+            })
+            .catch((err: unknown) => {
+                setLoadError(err instanceof Error ? err.message : "Could not load your keys.");
+            });
     }, []);
+
+    useEffect(() => {
+        void load();
+    }, [load]);
 
     async function handleConfirmRevoke() {
         if (!confirm) return;
@@ -322,72 +321,48 @@ export function ApiKeysDialog() {
     const activeCount = keys?.filter((k) => k.status === "active").length ?? 0;
 
     return (
-        <Dialog
-            onOpenChange={(open) => {
-                if (open) void load();
-                else setCreated(null);
-            }}
-        >
-            <DialogTrigger asChild>
-                <Button variant="ghost" className="w-full justify-start gap-2">
-                    <KeyRound className="w-4 h-4" />
-                    <span>API Keys</span>
-                </Button>
-            </DialogTrigger>
+        <div className="space-y-6">
+            {created ? (
+                <NewKeyPanel created={created} onDone={() => setCreated(null)} />
+            ) : (
+                <CreateKeyForm
+                    onCreated={(result) => {
+                        setCreated(result);
+                        void load();
+                    }}
+                />
+            )}
 
-            <DialogContent className="bg-slate-950 border-white/10 text-slate-50 sm:max-w-[720px]">
-                <div className="flex max-h-[80dvh] flex-col gap-4 overflow-y-auto pr-1">
-                    <DialogHeader>
-                        <DialogTitle className="text-rose-500">API Keys</DialogTitle>
-                        <DialogDescription className="text-slate-400">
-                            Let another program or server use your files through <span className="font-mono text-xs">/api/v1</span>.
-                            A key can only do what you can, and only what you allow here.
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    {created ? (
-                        <NewKeyPanel created={created} onDone={() => setCreated(null)} />
-                    ) : (
-                        <CreateKeyForm
-                            onCreated={(result) => {
-                                setCreated(result);
-                                void load();
-                            }}
-                        />
+            <section className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-slate-200">Your keys</p>
+                    {activeCount > 0 && (
+                        <Button size="sm" variant="ghost" className="text-red-400 hover:text-red-300" onClick={() => {
+                            setConfirm("all");
+                            setConfirmOpen(true);
+                        }}>
+                            Revoke all
+                        </Button>
                     )}
-
-                    <section className="space-y-2">
-                        <div className="flex items-center justify-between gap-2">
-                            <p className="text-sm font-semibold text-slate-200">Your keys</p>
-                            {activeCount > 0 && (
-                                <Button size="sm" variant="ghost" className="text-red-400 hover:text-red-300" onClick={() => {
-                                    setConfirm("all");
-                                    setConfirmOpen(true);
-                                }}>
-                                    Revoke all
-                                </Button>
-                            )}
-                        </div>
-                        {loadError && <p className="text-xs text-red-400">{loadError}</p>}
-                        {keys === null && !loadError && <p className="text-xs text-slate-500">Loading...</p>}
-                        {keys?.length === 0 && <p className="text-xs text-slate-500">No keys yet.</p>}
-                        {keys && keys.length > 0 && (
-                            <ul className="space-y-2">
-                                {keys.map((key) => (
-                                    <KeyCard
-                                        key={key.id}
-                                        apiKey={key}
-                                        onRevoke={(target) => {
-                                            setConfirm(target);
-                                            setConfirmOpen(true);
-                                        }}
-                                    />
-                                ))}
-                            </ul>
-                        )}
-                    </section>
                 </div>
-            </DialogContent>
+                {loadError && <p className="text-xs text-red-400">{loadError}</p>}
+                {keys === null && !loadError && <p className="text-xs text-slate-500">Loading...</p>}
+                {keys?.length === 0 && <p className="text-xs text-slate-500">No keys yet.</p>}
+                {keys && keys.length > 0 && (
+                    <ul className="space-y-2">
+                        {keys.map((key) => (
+                            <KeyCard
+                                key={key.id}
+                                apiKey={key}
+                                onRevoke={(target) => {
+                                    setConfirm(target);
+                                    setConfirmOpen(true);
+                                }}
+                            />
+                        ))}
+                    </ul>
+                )}
+            </section>
 
             <AlertDialog open={confirmOpen} onOpenChange={(open) => !revoking && !open && setConfirmOpen(false)}>
                 <AlertDialogContent>
@@ -414,6 +389,6 @@ export function ApiKeysDialog() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </Dialog>
+        </div>
     );
 }

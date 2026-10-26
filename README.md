@@ -105,7 +105,7 @@ Other programs and servers can store and fetch files through `/api/v1` with an A
 
 ### Getting a key
 
-In the web UI open **API Keys** in the sidebar (ADMIN and USER accounts) and create a key. Choose:
+In the web UI open **Settings → API keys** (`/settings/api-keys`, ADMIN and USER accounts) and create a key. Choose:
 
 - **Permissions**: `list` (folders and file details), `read` (download), `upload` (upload and create folders), `delete` (move to trash), `drop` (share temporary files by link, see [Drops](#drops-temporary-files-by-link))
 - **Only this folder** (optional): the key cannot reach anything outside it, symlinks included
@@ -194,7 +194,7 @@ The page at `url` needs no login. It shows the name, size and time left, preview
 
 ## Protected Folders
 
-Admins can block actions (view, download, upload, rename, move, delete, share) on any folder per role from **Setting → Protected Folders**. Built-in rules protect OS folders (`/etc`, `/usr`, `/var`, ...) and make GUEST read-only; they can be edited, removed, or restored with **Restore defaults**.
+Admins can block actions (view, download, upload, rename, move, delete, share) on any folder per role from **Settings → Protected folders** (`/settings/admin/protected-folders`). Built-in rules protect OS folders (`/etc`, `/usr`, `/var`, ...) and make GUEST read-only; they can be edited, removed, or restored with **Restore defaults**.
 
 The app folder and `STORAGE_INTERNAL` are always locked, and so is anything in `PROTECTED_PATHS`.
 

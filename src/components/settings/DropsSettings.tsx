@@ -8,14 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog";
-import {
     AlertDialog,
     AlertDialogAction,
     AlertDialogCancel,
@@ -28,8 +20,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatDate, formatSize, formatTimeLeft } from "@/lib/file-manager/format";
 import { DropInfo, DropList, fetchDrops, removeDropRequest, uploadDrop } from "@/lib/api/user/drop.service";
-import { CopyButton } from "./CopyButton";
-import { DropSettingsPanel } from "./DropSettingsPanel";
+import { CopyButton } from "@/components/file-manager/CopyButton";
 
 const LIFETIME_CHOICES = [1, 6, 24, 72, 168, 720];
 const DOWNLOAD_LIMITS = ["none", "1", "3", "5", "10"];
@@ -244,9 +235,7 @@ function DropCard({ drop, now, onRemove }: { drop: DropInfo; now: number; onRemo
     );
 }
 
-export function DropsDialog({ isAdmin }: { isAdmin: boolean }) {
-    const [open, setOpen] = useState(false);
-    const [tab, setTab] = useState<"drops" | "settings">("drops");
+export function DropsSettings() {
     const [list, setList] = useState<DropList | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [created, setCreated] = useState<DropInfo | null>(null);
@@ -256,22 +245,25 @@ export function DropsDialog({ isAdmin }: { isAdmin: boolean }) {
     const [removing, setRemoving] = useState(false);
     const [now, setNow] = useState(() => Date.now());
 
-    const load = useCallback(async () => {
-        setLoadError(null);
-        try {
-            setList(await fetchDrops());
-            setNow(Date.now());
-        } catch (err: unknown) {
-            setLoadError(err instanceof Error ? err.message : "Could not load your drops.");
-        }
+    // State is only set once the request settles, so this is safe to start from an effect
+    const load = useCallback(() => {
+        return fetchDrops()
+            .then((data) => {
+                setList(data);
+                setNow(Date.now());
+                setLoadError(null);
+            })
+            .catch((err: unknown) => {
+                setLoadError(err instanceof Error ? err.message : "Could not load your drops.");
+            });
     }, []);
 
-    // Keep "expires in ..." and download counts current while the dialog is open
+    // Keep "expires in ..." and download counts current while the page is open
     useEffect(() => {
-        if (!open || tab !== "drops") return;
+        void load();
         const timer = setInterval(() => void load(), 30000);
         return () => clearInterval(timer);
-    }, [open, tab, load]);
+    }, [load]);
 
     async function handleConfirmRemove() {
         if (!confirm) return;
@@ -290,97 +282,44 @@ export function DropsDialog({ isAdmin }: { isAdmin: boolean }) {
     }
 
     return (
-        <Dialog
-            open={open}
-            onOpenChange={(next) => {
-                setOpen(next);
-                if (next) {
-                    setTab("drops");
-                    void load();
-                } else {
-                    setCreated(null);
-                }
-            }}
-        >
-            <DialogTrigger asChild>
-                <Button variant="ghost" className="w-full justify-start gap-2">
-                    <Send className="w-4 h-4" />
-                    <span>Drops</span>
-                </Button>
-            </DialogTrigger>
+        <div className="space-y-6">
+            {loadError && <p className="text-xs text-red-400">{loadError}</p>}
+            {list === null && !loadError && <p className="text-xs text-slate-500">Loading...</p>}
 
-            <DialogContent className="bg-slate-950 border-white/10 text-slate-50 sm:max-w-[720px]">
-                <div className="flex max-h-[80dvh] flex-col gap-4 overflow-y-auto pr-1">
-                    <DialogHeader>
-                        <DialogTitle className="text-rose-500">Drops</DialogTitle>
-                        <DialogDescription className="text-slate-400">
-                            Share a file by link for a while. When the time is up, or it has been downloaded enough times, it is deleted on its own.
-                        </DialogDescription>
-                    </DialogHeader>
+            {list && (created ? (
+                <NewDropPanel drop={created} onDone={() => setCreated(null)} />
+            ) : (
+                <UploadPanel
+                    list={list}
+                    onUploaded={(drop) => {
+                        setCreated(drop);
+                        void load();
+                    }}
+                />
+            ))}
 
-                    {isAdmin && (
-                        <div className="flex gap-1 rounded-lg bg-slate-900/60 p-1 text-sm">
-                            {(["drops", "settings"] as const).map((value) => (
-                                <button
-                                    key={value}
-                                    type="button"
-                                    aria-pressed={tab === value}
-                                    onClick={() => setTab(value)}
-                                    className={`flex-1 rounded-md px-3 py-1.5 transition-colors ${
-                                        tab === value ? "bg-slate-800 text-slate-100" : "text-slate-400 hover:text-slate-200"
-                                    }`}
-                                >
-                                    {value === "drops" ? "My drops" : "Settings"}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-
-                    {tab === "settings" ? (
-                        <DropSettingsPanel />
+            {list && (
+                <section className="space-y-2">
+                    <p className="text-sm font-semibold text-slate-200">Your drops</p>
+                    {list.drops.length === 0 ? (
+                        <p className="text-xs text-slate-500">Nothing shared right now.</p>
                     ) : (
-                        <>
-                            {loadError && <p className="text-xs text-red-400">{loadError}</p>}
-                            {list === null && !loadError && <p className="text-xs text-slate-500">Loading...</p>}
-
-                            {list && (created ? (
-                                <NewDropPanel drop={created} onDone={() => setCreated(null)} />
-                            ) : (
-                                <UploadPanel
-                                    list={list}
-                                    onUploaded={(drop) => {
-                                        setCreated(drop);
-                                        void load();
+                        <ul className="space-y-2">
+                            {list.drops.map((drop) => (
+                                <DropCard
+                                    key={drop.id}
+                                    drop={drop}
+                                    now={now}
+                                    onRemove={(target) => {
+                                        setConfirm(target);
+                                        setConfirmOpen(true);
                                     }}
                                 />
                             ))}
-
-                            {list && (
-                                <section className="space-y-2">
-                                    <p className="text-sm font-semibold text-slate-200">Your drops</p>
-                                    {list.drops.length === 0 ? (
-                                        <p className="text-xs text-slate-500">Nothing shared right now.</p>
-                                    ) : (
-                                        <ul className="space-y-2">
-                                            {list.drops.map((drop) => (
-                                                <DropCard
-                                                    key={drop.id}
-                                                    drop={drop}
-                                                    now={now}
-                                                    onRemove={(target) => {
-                                                        setConfirm(target);
-                                                        setConfirmOpen(true);
-                                                    }}
-                                                />
-                                            ))}
-                                        </ul>
-                                    )}
-                                </section>
-                            )}
-                        </>
+                        </ul>
                     )}
-                </div>
-            </DialogContent>
+                </section>
+            )}
 
             <AlertDialog open={confirmOpen} onOpenChange={(next) => !removing && !next && setConfirmOpen(false)}>
                 <AlertDialogContent>
@@ -404,6 +343,6 @@ export function DropsDialog({ isAdmin }: { isAdmin: boolean }) {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </Dialog>
+        </div>
     );
 }

@@ -1,3 +1,5 @@
+"use client";
+
 import { useCallback, useEffect, useState } from "react";
 import { Trash2 } from "lucide-react";
 
@@ -8,15 +10,15 @@ import {
     TableHead,
     TableHeader,
     TableRow,
-} from "../ui/table";
-import { Button } from "../ui/button";
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import { getImport } from "@/lib/api/admin/file.service";
 
 type PathItem = {
     id: string;
     rootPath: string;
     userId: string;
-    user?: { username: string }; // เพิ่มตรงนี้
+    user?: { username: string };
 };
 
 type GroupedData = Record<string, { 
@@ -59,7 +61,7 @@ function groupByUserId(items: PathItem[]): GroupedData {
     }, {});
 }
 
-export function PathMapSetting() {
+export function ImportedFolders() {
     const [importData, setImportData] = useState<GroupedData>({});
     const [message, setMessage] = useState<string | null>(null);
     // Starts true: the first load runs on mount

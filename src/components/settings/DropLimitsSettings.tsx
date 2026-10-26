@@ -21,7 +21,7 @@ function toForm(settings: DropSettings): Form {
 }
 
 // ADMIN only: where drops are kept and how long and how big they may be
-export function DropSettingsPanel() {
+export function DropLimitsSettings() {
     const [settings, setSettings] = useState<DropSettings | null>(null);
     const [form, setForm] = useState<Form | null>(null);
     const [error, setError] = useState<string | null>(null);
