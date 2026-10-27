@@ -3,6 +3,7 @@ import fs from "fs-extra";
 import { prisma } from "@/lib/db";
 import { ENV } from "@/lib/ENV";
 import { logerror, logwarn } from "@/lib/logger";
+import { forgetOldSenderIps } from "@/lib/inbox/receive";
 import {
     DROPS_MARKER,
     DROP_ID_RE,
@@ -11,8 +12,8 @@ import {
     invalidateDropBases,
 } from "./locations";
 
-// Background upkeep for drops: deleting expired ones and moving drops into the
-// current drop folder. Everything here runs one job at a time.
+// Background upkeep for drops (deleting expired ones, moving drops into the
+// current drop folder) and for inbox receipts. Everything here runs one job at a time.
 
 const STALE_UPLOAD_MS = 24 * 60 * 60 * 1000;   // an upload that never finished
 const KEEP_DELETED_MS = 7 * 24 * 60 * 60 * 1000; // deleted rows stay this long for the owner's list
@@ -179,6 +180,7 @@ export async function sweepDrops(now = new Date()) {
     await prisma.drop.deleteMany({ where: { deletedAt: { lte: new Date(now.getTime() - KEEP_DELETED_MS) } } });
     await moveDropsToCurrentBase();
     await deleteOrphanFolders(now);
+    await forgetOldSenderIps(now);
 }
 
 const globalForSweeper = globalThis as unknown as { dropSweeper?: NodeJS.Timeout };

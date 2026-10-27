@@ -33,18 +33,21 @@ export async function parseUploadForm(
         maxFileSize = DEFAULT_MAX_UPLOAD_BYTES,
         fileField = "file",
         uploadDir,
+        tempName,
         sizeMessage = "File size exceeds limit",
     }: {
         maxFileSize?: number;
         fileField?: string;
         // Where temp files are written (default: the OS temp folder); use the final disk to skip a copy
         uploadDir?: string;
+        // Name for each temp file (default: formidable's random name)
+        tempName?: () => string;
         // Message for the 413 when the cap is passed
         sizeMessage?: string;
     } = {}
 ): Promise<ParsedUpload> {
     const { fields, files } = await new Promise<{ fields: formidable.Fields; files: formidable.Files }>((resolve, reject) => {
-        const form = formidable({ keepExtensions: true, maxFileSize, maxTotalFileSize: maxFileSize, ...(uploadDir ? { uploadDir } : {}) });
+        const form = formidable({ keepExtensions: true, maxFileSize, maxTotalFileSize: maxFileSize, ...(uploadDir ? { uploadDir } : {}), ...(tempName ? { filename: tempName } : {}) });
 
         form.parse(req, (err, fields, files) => {
             if (err) {

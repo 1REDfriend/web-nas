@@ -36,6 +36,8 @@ const GROUPS = [
     ["drops-admin"],
     ["api-drops"],
     ["public-drops"],
+    ["inbox-manage"],
+    ["inbox-public"],
 ];
 
 function startServer(env) {

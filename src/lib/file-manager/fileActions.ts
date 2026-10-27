@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { ArchiveRestore, Copy, DownloadCloud, Info, Pencil, Scissors, Share2, Star, StarOff, Trash2 } from "lucide-react";
+import { ArchiveRestore, Copy, DownloadCloud, Inbox, Info, Pencil, Scissors, Share2, Star, StarOff, Trash2 } from "lucide-react";
 import type { FileItem } from "@/components/file-manager/config";
 
 // The one list of things a user can do to a file. The grid menu, the preview
@@ -11,6 +11,7 @@ export type FileActionId =
     | "download"
     | "star"
     | "share"
+    | "inbox"
     | "rename"
     | "copy"
     | "cut"
@@ -55,6 +56,8 @@ function specsFor(file: FileItem, inTrash: boolean): ActionSpec[] {
             ? { id: "star", label: "Remove star", icon: StarOff }
             : { id: "star", label: "Add star", icon: Star },
         { id: "share", label: "Share", icon: Share2 },
+        // Only folders can take files from an upload link
+        ...(file.type === "directory" ? [{ id: "inbox", label: "Receive files here", icon: Inbox } as ActionSpec] : []),
         { id: "rename", label: "Rename", icon: Pencil, groupStart: true },
         { id: "copy", label: "Copy", icon: Copy },
         { id: "cut", label: "Cut", icon: Scissors },

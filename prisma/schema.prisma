@@ -34,6 +34,7 @@ model User {
   recentItems RecentItem[]
   apiKeys ApiKey[]
   drops Drop[]
+  inboxes Inbox[]
 
   @@map("users")
 }
@@ -194,4 +195,52 @@ model Drop {
   @@index([userId], name: "idx_drop_user_id")
   @@index([expiresAt], name: "idx_drop_expires_at")
   @@map("drops")
+}
+
+
+// Link that lets people without an account send files into a folder of the owner's.
+// Files are saved as the owner, so the owner's folder access is checked on every upload.
+model Inbox {
+  id            String    @id                                // random, used in the link when slug is null
+  slug          String?   @unique                            // optional custom link name
+  title         String
+  description   String?
+  targetPath    String    @map("target_path")                // virtual folder in the owner's space
+  splitBySender Boolean   @default(false) @map("split_by_sender")
+  requireName   Boolean   @default(false) @map("require_name")
+  showReceived  Boolean   @default(false) @map("show_received")
+  allowedExt    String?   @map("allowed_ext")                // comma-separated, lower case, no dot; null = any
+  maxFileBytes  BigInt?   @map("max_file_bytes")             // null = server upload cap
+  maxTotalBytes BigInt?   @map("max_total_bytes")            // null = only the owner's quota
+  maxFiles      Int?      @map("max_files")                  // null = unlimited
+  passwordHash  String?   @map("password_hash")
+  usedBytes     BigInt    @default(0) @map("used_bytes")     // received plus uploads in progress
+  fileCount     Int       @default(0) @map("file_count")     // same, counted in files
+  expiresAt     DateTime? @map("expires_at")                 // null = never
+  closedAt      DateTime? @map("closed_at")                  // paused by the owner or an admin
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String    @map("user_id")
+  uploads       InboxUpload[]
+
+  @@index([userId], name: "idx_inbox_user_id")
+  @@map("inboxes")
+}
+
+// Receipt for one file sent through an inbox; the file itself lives in the owner's space
+model InboxUpload {
+  id         String   @id @default(cuid())
+  fileName   String   @map("file_name")                     // name it was saved under
+  path       String                                          // virtual path it was saved to
+  size       BigInt
+  senderName String?  @map("sender_name")
+  senderIp   String?  @map("sender_ip")                      // for abuse checks; cleared after 30 days
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  inbox      Inbox    @relation(fields: [inboxId], references: [id], onDelete: Cascade)
+  inboxId    String   @map("inbox_id")
+
+  @@index([inboxId], name: "idx_inbox_upload_inbox_id")
+  @@map("inbox_uploads")
 }

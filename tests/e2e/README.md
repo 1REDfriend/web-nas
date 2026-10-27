@@ -41,6 +41,8 @@ Needs `npm install` and `npx prisma generate` first. The test server listens on 
 | `drops-admin` | drop settings (ADMIN only, limit and folder checks), the expiry sweeper (expired, used-up, abandoned and leftover drops), moving drops when the drop folder changes, drop folder locked in the file manager |
 | `api-drops` | `/api/v1/drops` raw and multipart upload, options and their checks, `drop` scope, GUEST, upload cap and per-user quota, links, list / get / remove, nothing left behind by a refused upload |
 | `public-drops` | the public side: `/d/<id>` page (noindex), info, download counting, Range on unlimited drops only, limits never exceeded (also with parallel downloads), previews, expired / removed / used-up links |
+| `inbox-manage` | upload links for the owner and admin: who may create them, input checks, link names, owners only, pausing, admin switches (off, roles, required expiry) |
+| `inbox-public` | sending files through an upload link without login: safe names, numbered duplicates, sender folders, file types, size / count / total / quota limits (also with parallel uploads), password unlock and its rate limit, paused / expired / deleted links, owner losing the folder |
 | `upload` | browser upload route: success, name clash, large binary, missing folders, bad names, permissions |
 
 A suite prints one `PASS`/`FAIL` line per check and exits non-zero if any check fails; the runner shows the full output of failing suites only.

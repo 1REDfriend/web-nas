@@ -74,6 +74,7 @@ export async function proxy(request: NextRequest) {
 export const config = {
     // The streaming upload routes are left out: proxy buffers request bodies in memory.
     // They authenticate themselves (authenticateV1(), or the session check in
-    // pages/api/files/upload.ts) and never read x-user-payload.
-    matcher: ['/api/((?!(?:v1/(?:files|drops)/(?:upload|raw)|files/upload)(?:/|$)).*)'],
+    // pages/api/files/upload.ts) and never read x-user-payload; the public inbox
+    // upload needs no login at all.
+    matcher: ['/api/((?!(?:v1/(?:files|drops)/(?:upload|raw)|files/upload|public/inbox-upload)(?:/|$)).*)'],
 };
