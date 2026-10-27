@@ -2,14 +2,25 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Pause, Play, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { formatSize } from "@/lib/file-manager/format";
-import { DropSettings, fetchDropSettings, saveDropSettings } from "@/lib/api/user/drop.service";
+import { Badge } from "@/components/ui/badge";
+import { formatDate, formatSize } from "@/lib/file-manager/format";
+import { DropRequestSettings, DropSettings, fetchDropSettings, saveDropSettings } from "@/lib/api/user/drop.service";
+import { adminCloseDropRequest } from "@/lib/api/user/drop-request.service";
 
-type Form = { folder: string; defaultHours: string; maxHours: string; quotaGB: string };
+type Role = DropRequestSettings["roles"][number];
+const ROLES: Role[] = ["ADMIN", "USER", "GUEST"];
+
+type Form = {
+    folder: string;
+    defaultHours: string;
+    maxHours: string;
+    quotaGB: string;
+    requests: DropRequestSettings;
+};
 
 function toForm(settings: DropSettings): Form {
     return {
@@ -17,6 +28,7 @@ function toForm(settings: DropSettings): Form {
         defaultHours: String(settings.limits.defaultHours),
         maxHours: String(settings.limits.maxHours),
         quotaGB: String(Math.round((settings.limits.quotaMB / 1024) * 100) / 100),
+        requests: { ...settings.requests.settings, roles: [...settings.requests.settings.roles] },
     };
 }
 
@@ -63,6 +75,7 @@ export function DropLimitsSettings() {
             defaultHours: Number(form.defaultHours),
             maxHours: Number(form.maxHours),
             quotaMB: Math.round(Number(form.quotaGB) * 1024),
+            requests: form.requests,
         };
         if (!Number.isFinite(values.quotaMB) || values.quotaMB < 0) return setError("Quota must be a number of GB (0 = no limit).");
 
@@ -80,11 +93,24 @@ export function DropLimitsSettings() {
         }
     }
 
+    async function toggleRequest(id: string, closed: boolean) {
+        try {
+            await adminCloseDropRequest(id, closed);
+            setSettings(await fetchDropSettings());
+            toast.success(closed ? "Request link paused" : "Request link reopened");
+        } catch (err: unknown) {
+            toast.error(err instanceof Error ? err.message : "Could not change the link.");
+        }
+    }
+
     if (!settings || !form) {
         return error ? <p className="text-xs text-red-400">{error}</p> : <p className="text-xs text-slate-500">Loading...</p>;
     }
 
-    const set = (field: keyof Form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [field]: e.target.value });
+    const set = (field: Exclude<keyof Form, "requests">) => (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [field]: e.target.value });
+    const setRequests = (patch: Partial<DropRequestSettings>) => setForm({ ...form, requests: { ...form.requests, ...patch } });
+    const toggleRole = (role: Role, on: boolean) =>
+        setRequests({ roles: on ? ROLES.filter((r) => r === role || form.requests.roles.includes(r)) : form.requests.roles.filter((r) => r !== role) });
 
     return (
         <form onSubmit={handleSave} className="space-y-4">
@@ -146,6 +172,53 @@ export function DropLimitsSettings() {
                 </div>
             </div>
 
+            <fieldset className="space-y-3 rounded-lg border border-white/10 p-3">
+                <legend className="px-1 text-sm font-semibold text-slate-200">Request links</legend>
+                <p className="text-[11px] text-slate-500">
+                    Links that let people without an account send files to a user. Received files are that user&apos;s drops:
+                    they use the quota and lifetimes above.
+                </p>
+                <label htmlFor="requests-enabled" className="flex cursor-pointer items-center gap-2 text-sm text-slate-200">
+                    <input
+                        id="requests-enabled"
+                        type="checkbox"
+                        className="h-4 w-4 accent-rose-500"
+                        checked={form.requests.enabled}
+                        onChange={(e) => setRequests({ enabled: e.target.checked })}
+                    />
+                    Allow request links
+                </label>
+                <div className="space-y-1">
+                    <p className="text-xs text-slate-400">Who may create them</p>
+                    <div className="flex flex-wrap gap-4">
+                        {ROLES.map((role) => (
+                            <label key={role} htmlFor={`requests-role-${role}`} className="flex cursor-pointer items-center gap-2 text-sm text-slate-200">
+                                <input
+                                    id={`requests-role-${role}`}
+                                    type="checkbox"
+                                    className="h-4 w-4 accent-rose-500"
+                                    disabled={!form.requests.enabled}
+                                    checked={form.requests.roles.includes(role)}
+                                    onChange={(e) => toggleRole(role, e.target.checked)}
+                                />
+                                {role}
+                            </label>
+                        ))}
+                    </div>
+                </div>
+                <label htmlFor="requests-no-expiry" className="flex cursor-pointer items-center gap-2 text-sm text-slate-200">
+                    <input
+                        id="requests-no-expiry"
+                        type="checkbox"
+                        className="h-4 w-4 accent-rose-500"
+                        disabled={!form.requests.enabled}
+                        checked={form.requests.allowNoExpiry}
+                        onChange={(e) => setRequests({ allowNoExpiry: e.target.checked })}
+                    />
+                    Allow links that take files until their owner closes them
+                </label>
+            </fieldset>
+
             {error && <p className="text-xs text-red-400">{error}</p>}
 
             <div className="flex justify-end">
@@ -154,6 +227,36 @@ export function DropLimitsSettings() {
                     {saving ? "Saving..." : "Save"}
                 </Button>
             </div>
+
+            <section className="space-y-2">
+                <p className="text-sm font-semibold text-slate-200">All request links</p>
+                {settings.requests.list.length === 0 ? (
+                    <p className="text-xs text-slate-500">Nobody has made a request link yet.</p>
+                ) : (
+                    <ul className="space-y-1">
+                        {settings.requests.list.map((r) => (
+                            <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-white/10 px-2 py-1.5 text-xs">
+                                <div className="min-w-0">
+                                    <p className="flex flex-wrap items-center gap-2 text-sm text-slate-100">
+                                        <span className="break-all">{r.title}</span>
+                                        <Badge variant="outline" className="border-white/15 text-slate-400">{r.status}</Badge>
+                                    </p>
+                                    <p className="text-slate-500">
+                                        {r.owner} · {r.fileCount} file{r.fileCount === 1 ? "" : "s"}, {formatSize(r.usedBytes, true)}
+                                        {r.expiresAt ? ` · closes ${formatDate(r.expiresAt)}` : ""}
+                                    </p>
+                                </div>
+                                {r.status !== "expired" && (
+                                    <Button type="button" size="sm" variant="ghost" className="gap-1" onClick={() => void toggleRequest(r.id, r.closedAt === null)}>
+                                        {r.closedAt ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+                                        {r.closedAt ? "Reopen" : "Pause"}
+                                    </Button>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </section>
         </form>
     );
 }

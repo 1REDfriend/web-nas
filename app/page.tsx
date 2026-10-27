@@ -176,7 +176,6 @@ export default function FileManagerPage() {
     download: handleDownload,
     star: handleToggleStar,
     share: handleShare,
-    inbox: (file: FileItem) => router.push(`/settings/inboxes?path=${encodeURIComponent(file.path)}`),
     rename: onRenameClick,
     copy: handleCopy,
     cut: handleCut,

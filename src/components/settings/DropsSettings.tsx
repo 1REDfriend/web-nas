@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Clock, Download, ExternalLink, Send, Trash2, UploadCloud, X } from "lucide-react";
+import { Clock, Download, ExternalLink, Inbox, Send, Trash2, UploadCloud, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { formatDate, formatSize, formatTimeLeft } from "@/lib/file-manager/format";
 import { DropInfo, DropList, fetchDrops, removeDropRequest, uploadDrop } from "@/lib/api/user/drop.service";
 import { CopyButton } from "@/components/file-manager/CopyButton";
+import { DropRequests } from "@/components/settings/DropRequests";
 
 const LIFETIME_CHOICES = [1, 6, 24, 72, 168, 720];
 const DOWNLOAD_LIMITS = ["none", "1", "3", "5", "10"];
@@ -205,7 +206,10 @@ function DropCard({ drop, now, onRemove }: { drop: DropInfo; now: number; onRemo
             <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
                     <p className="break-all font-medium text-slate-100">{drop.name}</p>
-                    <p className="text-xs text-slate-500">{formatSize(drop.size)}</p>
+                    <p className="text-xs text-slate-500">
+                        {formatSize(drop.size)}
+                        {drop.requestId && (drop.senderName ? ` · received from ${drop.senderName}` : " · received through a request link")}
+                    </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-1">
                     <CopyButton text={drop.url} label="Copy link" />
@@ -235,7 +239,7 @@ function DropCard({ drop, now, onRemove }: { drop: DropInfo; now: number; onRemo
     );
 }
 
-export function DropsSettings() {
+function SendTab() {
     const [list, setList] = useState<DropList | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [created, setCreated] = useState<DropInfo | null>(null);
@@ -343,6 +347,39 @@ export function DropsSettings() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+        </div>
+    );
+}
+
+type Tab = "send" | "receive";
+
+export function DropsSettings({ initialTab = "send" }: { initialTab?: Tab }) {
+    const [tab, setTab] = useState<Tab>(initialTab);
+    const tabs: { id: Tab; label: string; icon: typeof Send }[] = [
+        { id: "send", label: "Send", icon: Send },
+        { id: "receive", label: "Receive", icon: Inbox },
+    ];
+
+    return (
+        <div className="space-y-4">
+            <div role="tablist" aria-label="Drops" className="inline-flex rounded-lg border border-white/10 p-0.5">
+                {tabs.map(({ id, label, icon: Icon }) => (
+                    <button
+                        key={id}
+                        type="button"
+                        role="tab"
+                        aria-selected={tab === id}
+                        onClick={() => setTab(id)}
+                        className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors ${
+                            tab === id ? "bg-white/10 text-slate-100" : "text-slate-400 hover:text-slate-200"
+                        }`}
+                    >
+                        <Icon className="h-4 w-4" />
+                        {label}
+                    </button>
+                ))}
+            </div>
+            {tab === "send" ? <SendTab /> : <DropRequests />}
         </div>
     );
 }

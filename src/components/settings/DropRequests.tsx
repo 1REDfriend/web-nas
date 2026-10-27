@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { toast } from "sonner";
-import { ChevronDown, ChevronUp, Clock, ExternalLink, Folder, Lock, Pause, Pencil, Play, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Clock, ExternalLink, Lock, Pause, Pencil, Play, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,37 +21,57 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CopyButton } from "@/components/file-manager/CopyButton";
 import { formatDate, formatSize, formatTimeLeft } from "@/lib/file-manager/format";
+import { DropInfo, removeDropRequest } from "@/lib/api/user/drop.service";
 import {
-    InboxInfo,
-    InboxInput,
-    InboxList,
-    InboxReceipt,
-    createInboxRequest,
-    deleteInboxRequest,
-    fetchInboxReceipts,
-    fetchInboxes,
-    updateInboxRequest,
-} from "@/lib/api/user/inbox.service";
+    DropRequestInfo,
+    DropRequestInput,
+    DropRequestList,
+    createDropRequest,
+    deleteDropRequest,
+    fetchDropRequests,
+    fetchReceivedDrops,
+    updateDropRequest,
+} from "@/lib/api/user/drop-request.service";
+
+// The "Receive" side of Drops: links that let people send you files. Each file
+// they send becomes one of your drops and is deleted when it expires.
 
 const MB = 1024 * 1024;
 const EXPIRY_CHOICES = ["1", "7", "30", "90", "365"];
+const KEEP_CHOICES = [24, 72, 168, 336, 720, 2160];
 const KEEP = "keep";
 const NEVER = "never";
 
-const STATUS_LABEL: Record<InboxInfo["status"], string> = { open: "Open", closed: "Paused", full: "Full", expired: "Expired" };
-const STATUS_STYLE: Record<InboxInfo["status"], string> = {
+const STATUS_LABEL: Record<DropRequestInfo["status"], string> = { open: "Open", closed: "Paused", full: "Full", expired: "Ended" };
+const STATUS_STYLE: Record<DropRequestInfo["status"], string> = {
     open: "border-emerald-500/40 text-emerald-400",
     closed: "border-amber-500/40 text-amber-300",
     full: "border-sky-500/40 text-sky-300",
     expired: "border-white/15 text-slate-500",
 };
 
+function hoursLabel(hours: number) {
+    if (hours % 24 === 0) {
+        const days = hours / 24;
+        return `${days} day${days === 1 ? "" : "s"}`;
+    }
+    return `${hours} hour${hours === 1 ? "" : "s"}`;
+}
+
+// Common choices up to the admin's longest drop lifetime, plus that maximum and the current value
+function keepOptions(maxHours: number, current: number) {
+    const hours = new Set(KEEP_CHOICES.filter((h) => h <= maxHours));
+    hours.add(maxHours);
+    if (current <= maxHours) hours.add(current);
+    return [...hours].sort((a, b) => a - b);
+}
+
 type Form = {
     title: string;
     description: string;
-    targetPath: string;
     slug: string;
     expiry: string;          // days, NEVER, or KEEP when editing
+    keepHours: string;
     maxFileMB: string;       // "" = no limit
     maxTotalGB: string;
     maxFiles: string;
@@ -60,19 +79,18 @@ type Form = {
     password: string;        // "" = keep (edit) / none (create)
     removePassword: boolean;
     requireName: boolean;
-    splitBySender: boolean;
     showReceived: boolean;
 };
 
 const mbText = (bytes: string | null, per: number) => (bytes === null ? "" : String(Math.round((Number(bytes) / per) * 100) / 100));
 
-function newForm(list: InboxList, targetPath: string): Form {
+function newForm(list: DropRequestList): Form {
     return {
         title: "",
         description: "",
-        targetPath,
         slug: "",
         expiry: String(list.defaults.expiresInDays),
+        keepHours: String(list.defaults.keepHours),
         maxFileMB: String(list.defaults.maxFileMB),
         maxTotalGB: String(list.defaults.maxTotalMB / 1024),
         maxFiles: "",
@@ -80,27 +98,25 @@ function newForm(list: InboxList, targetPath: string): Form {
         password: "",
         removePassword: false,
         requireName: false,
-        splitBySender: false,
         showReceived: false,
     };
 }
 
-function editForm(inbox: InboxInfo): Form {
+function editForm(request: DropRequestInfo): Form {
     return {
-        title: inbox.title,
-        description: inbox.description ?? "",
-        targetPath: inbox.targetPath,
-        slug: inbox.slug ?? "",
+        title: request.title,
+        description: request.description ?? "",
+        slug: request.slug ?? "",
         expiry: KEEP,
-        maxFileMB: mbText(inbox.maxFileBytes, MB),
-        maxTotalGB: mbText(inbox.maxTotalBytes, 1024 * MB),
-        maxFiles: inbox.maxFiles === null ? "" : String(inbox.maxFiles),
-        allowedExt: inbox.allowedExt ?? "",
+        keepHours: String(request.keepHours),
+        maxFileMB: mbText(request.maxFileBytes, MB),
+        maxTotalGB: mbText(request.maxTotalBytes, 1024 * MB),
+        maxFiles: request.maxFiles === null ? "" : String(request.maxFiles),
+        allowedExt: request.allowedExt ?? "",
         password: "",
         removePassword: false,
-        requireName: inbox.requireName,
-        splitBySender: inbox.splitBySender,
-        showReceived: inbox.showReceived,
+        requireName: request.requireName,
+        showReceived: request.showReceived,
     };
 }
 
@@ -111,18 +127,17 @@ function optionalNumber(value: string, label: string, scale = 1): number | null 
     return n;
 }
 
-function toInput(form: Form, editing: boolean): InboxInput {
-    const input: InboxInput = {
+function toInput(form: Form, editing: boolean): DropRequestInput {
+    const input: DropRequestInput = {
         title: form.title,
         description: form.description || null,
-        targetPath: form.targetPath,
         slug: form.slug.trim() || null,
+        keepHours: Number(form.keepHours),
         maxFileMB: optionalNumber(form.maxFileMB, "Largest file"),
         maxTotalMB: optionalNumber(form.maxTotalGB, "Total size", 1024),
         maxFiles: optionalNumber(form.maxFiles, "Number of files"),
         allowedExt: form.allowedExt.trim() || null,
         requireName: form.requireName,
-        splitBySender: form.splitBySender,
         showReceived: form.showReceived,
     };
     if (form.expiry !== KEEP) input.expiresInDays = form.expiry === NEVER ? null : Number(form.expiry);
@@ -144,20 +159,18 @@ function Check({ id, label, hint, checked, onChange }: { id: string; label: stri
     );
 }
 
-function InboxForm({
+function RequestForm({
     list,
     editing,
-    initial,
     onSaved,
     onCancel,
 }: {
-    list: InboxList;
-    editing: InboxInfo | null;
-    initial: Form;
-    onSaved: (inbox: InboxInfo) => void;
+    list: DropRequestList;
+    editing: DropRequestInfo | null;
+    onSaved: () => void;
     onCancel: () => void;
 }) {
-    const [form, setForm] = useState<Form>(initial);
+    const [form, setForm] = useState<Form>(() => (editing ? editForm(editing) : newForm(list)));
     const [error, setError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
     const set = (field: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm({ ...form, [field]: e.target.value });
@@ -165,7 +178,7 @@ function InboxForm({
     async function submit(e: React.FormEvent) {
         e.preventDefault();
         setError(null);
-        let input: InboxInput;
+        let input: DropRequestInput;
         try {
             input = toInput(form, editing !== null);
         } catch (err: unknown) {
@@ -173,7 +186,9 @@ function InboxForm({
         }
         setSaving(true);
         try {
-            onSaved(editing ? await updateInboxRequest(editing.id, input) : await createInboxRequest(input));
+            if (editing) await updateDropRequest(editing.id, input);
+            else await createDropRequest(input);
+            onSaved();
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : "Could not save.");
         } finally {
@@ -181,11 +196,11 @@ function InboxForm({
         }
     }
 
-    const id = (name: string) => `inbox-${name}`;
+    const id = (name: string) => `request-${name}`;
 
     return (
         <form onSubmit={submit} className="space-y-4 rounded-lg border border-white/5 bg-slate-900/30 p-3">
-            <p className="text-sm font-semibold text-slate-200">{editing ? `Edit "${editing.title}"` : "New upload link"}</p>
+            <p className="text-sm font-semibold text-slate-200">{editing ? `Edit "${editing.title}"` : "New request link"}</p>
 
             <div className="space-y-2">
                 <Label htmlFor={id("title")}>Title</Label>
@@ -194,11 +209,6 @@ function InboxForm({
             <div className="space-y-2">
                 <Label htmlFor={id("description")}>Note for people sending files (optional)</Label>
                 <Textarea id={id("description")} value={form.description} onChange={set("description")} maxLength={1000} rows={2} />
-            </div>
-            <div className="space-y-2">
-                <Label htmlFor={id("target")}>Save files in</Label>
-                <Input id={id("target")} value={form.targetPath} onChange={set("targetPath")} placeholder="/your-folder/Inbox" className="font-mono text-sm" required />
-                <p className="text-[11px] text-slate-500">A folder you can upload to. It is created on the first file if it does not exist.</p>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -211,7 +221,7 @@ function InboxForm({
                     <p className="text-[11px] text-slate-500">a-z, 0-9 and -. Easy to guess, so add a password.</p>
                 </div>
                 <div className="space-y-2">
-                    <Label htmlFor={id("expiry")}>Open for</Label>
+                    <Label htmlFor={id("expiry")}>Link takes files for</Label>
                     <Select value={form.expiry} onValueChange={(expiry) => setForm({ ...form, expiry })}>
                         <SelectTrigger id={id("expiry")} className="w-full">
                             <SelectValue />
@@ -219,7 +229,7 @@ function InboxForm({
                         <SelectContent>
                             {editing && (
                                 <SelectItem value={KEEP}>
-                                    {editing.expiresAt ? `Keep (until ${formatDate(editing.expiresAt)})` : "Keep (never closes)"}
+                                    {editing.expiresAt ? `Keep (until ${formatDate(editing.expiresAt)})` : "Keep (no end date)"}
                                 </SelectItem>
                             )}
                             {EXPIRY_CHOICES.map((d) => (
@@ -229,6 +239,23 @@ function InboxForm({
                         </SelectContent>
                     </Select>
                 </div>
+            </div>
+
+            <div className="space-y-2">
+                <Label htmlFor={id("keep")}>Keep each received file for</Label>
+                <Select value={form.keepHours} onValueChange={(keepHours) => setForm({ ...form, keepHours })}>
+                    <SelectTrigger id={id("keep")} className="w-full sm:w-64">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {keepOptions(list.maxKeepHours, Number(form.keepHours)).map((h) => (
+                            <SelectItem key={h} value={String(h)}>{hoursLabel(h)}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <p className="text-[11px] text-slate-500">
+                    Received files are drops: they count against your drop quota and are deleted after this time.
+                </p>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -274,13 +301,6 @@ function InboxForm({
             <div className="space-y-2">
                 <Check id={id("require-name")} label="Ask for the sender's name" checked={form.requireName} onChange={(v) => setForm({ ...form, requireName: v })} />
                 <Check
-                    id={id("split")}
-                    label="Put each sender's files in a folder with their name"
-                    hint="Senders who leave the name empty go straight into the folder."
-                    checked={form.splitBySender}
-                    onChange={(v) => setForm({ ...form, splitBySender: v })}
-                />
-                <Check
                     id={id("show-received")}
                     label="Show the names of received files on the link's page"
                     hint="Everyone with the link sees them. Files can never be downloaded from there."
@@ -299,85 +319,108 @@ function InboxForm({
     );
 }
 
-function Receipts({ inbox }: { inbox: InboxInfo }) {
-    const [uploads, setUploads] = useState<InboxReceipt[] | null>(null);
+// The drops a request received; each can be downloaded or removed like any drop
+function Received({ request, now, onChanged }: { request: DropRequestInfo; now: number; onChanged: () => void }) {
+    const [drops, setDrops] = useState<DropInfo[] | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [version, setVersion] = useState(0);
 
     useEffect(() => {
         let cancelled = false;
-        fetchInboxReceipts(inbox.id)
-            .then((data) => !cancelled && setUploads(data.uploads))
+        fetchReceivedDrops(request.id)
+            .then((data) => !cancelled && setDrops(data.received))
             .catch((err: unknown) => !cancelled && setError(err instanceof Error ? err.message : "Could not load the files."));
         return () => {
             cancelled = true;
         };
-    }, [inbox.id, inbox.fileCount]);
+    }, [request.id, request.fileCount, version]);
+
+    async function remove(drop: DropInfo) {
+        try {
+            await removeDropRequest(drop.id);
+            toast.success(`"${drop.name}" was deleted`);
+            setVersion((v) => v + 1);
+            onChanged();
+        } catch (err: unknown) {
+            toast.error(err instanceof Error ? err.message : "Could not delete the file.");
+        }
+    }
 
     if (error) return <p className="text-xs text-red-400">{error}</p>;
-    if (!uploads) return <p className="text-xs text-slate-500">Loading...</p>;
-    if (uploads.length === 0) return <p className="text-xs text-slate-500">Nothing received yet.</p>;
+    if (!drops) return <p className="text-xs text-slate-500">Loading...</p>;
 
-    const folderOf = (p: string) => p.slice(0, p.lastIndexOf("/")) || "/";
+    const live = drops.filter((d) => new Date(d.expiresAt).getTime() > now);
+    if (live.length === 0) return <p className="text-xs text-slate-500">Nothing to download right now.</p>;
 
     return (
-        <ul className="max-h-64 space-y-1 overflow-y-auto">
-            {uploads.map((u) => (
-                <li key={u.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 rounded px-1 py-0.5 text-xs hover:bg-white/5">
-                    <Link href={`/?path=${encodeURIComponent(folderOf(u.path))}`} className="min-w-0 truncate text-slate-200 hover:underline" title={u.path}>
-                        {u.name}
-                    </Link>
-                    <span className="shrink-0 text-slate-500">
-                        {formatSize(u.size, true)}
-                        {u.senderName ? ` · ${u.senderName}` : ""} · {formatDate(u.createdAt)}
-                    </span>
+        <ul className="max-h-72 space-y-1 overflow-y-auto">
+            {live.map((d) => (
+                <li key={d.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 rounded px-1 py-0.5 text-xs hover:bg-white/5">
+                    <div className="min-w-0">
+                        <p className="truncate text-slate-200" title={d.name}>{d.name}</p>
+                        <p className="text-slate-500">
+                            {formatSize(d.size, true)}
+                            {d.senderName ? ` · from ${d.senderName}` : ""} · deleted {formatTimeLeft(d.expiresAt, now)}
+                        </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                        <Button asChild size="sm" variant="ghost" className="h-7 px-2" aria-label={`Download ${d.name}`}>
+                            <a href={d.downloadUrl}>Download</a>
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:text-red-300" aria-label={`Delete ${d.name}`} onClick={() => void remove(d)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                    </div>
                 </li>
             ))}
         </ul>
     );
 }
 
-function InboxCard({
-    inbox,
+function RequestCard({
+    request,
     now,
     onEdit,
     onToggle,
     onDelete,
+    onChanged,
 }: {
-    inbox: InboxInfo;
+    request: DropRequestInfo;
     now: number;
     onEdit: () => void;
     onToggle: () => void;
     onDelete: () => void;
+    onChanged: () => void;
 }) {
     const [open, setOpen] = useState(false);
-    const usage = inbox.maxTotalBytes === null
-        ? `${formatSize(inbox.usedBytes, true)} received`
-        : `${formatSize(inbox.usedBytes, true)} of ${formatSize(inbox.maxTotalBytes, true)}`;
+    const usage = request.maxTotalBytes === null
+        ? `${formatSize(request.usedBytes, true)} received`
+        : `${formatSize(request.usedBytes, true)} of ${formatSize(request.maxTotalBytes, true)}`;
 
     return (
         <li className="space-y-2 rounded-lg border border-white/10 p-3">
             <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0 space-y-0.5">
                     <p className="flex flex-wrap items-center gap-2 break-all font-medium text-slate-100">
-                        {inbox.title}
-                        <Badge variant="outline" className={STATUS_STYLE[inbox.status]}>{STATUS_LABEL[inbox.status]}</Badge>
-                        {inbox.hasPassword && <Lock className="h-3.5 w-3.5 text-slate-400" aria-label="Has a password" />}
+                        {request.title}
+                        <Badge variant="outline" className={STATUS_STYLE[request.status]}>{STATUS_LABEL[request.status]}</Badge>
+                        {request.hasPassword && <Lock className="h-3.5 w-3.5 text-slate-400" aria-label="Has a password" />}
                     </p>
-                    <p className="break-all font-mono text-xs text-slate-500">{inbox.url}</p>
+                    <p className="break-all font-mono text-xs text-slate-500">{request.url}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-1">
-                    <CopyButton text={inbox.url} label="Copy link" />
+                    <CopyButton text={request.url} label="Copy link" />
                     <Button asChild size="sm" variant="ghost" aria-label="Open the link's page">
-                        <a href={inbox.url} target="_blank" rel="noreferrer">
+                        <a href={request.url} target="_blank" rel="noreferrer">
                             <ExternalLink className="h-4 w-4" />
                         </a>
                     </Button>
                     <Button size="sm" variant="ghost" aria-label="Edit" onClick={onEdit}>
                         <Pencil className="h-4 w-4" />
                     </Button>
-                    {inbox.status !== "expired" && (
-                        <Button size="sm" variant="ghost" aria-label={inbox.closedAt ? "Reopen" : "Pause"} title={inbox.closedAt ? "Reopen" : "Pause"} onClick={onToggle}>
-                            {inbox.closedAt ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+                    {request.status !== "expired" && (
+                        <Button size="sm" variant="ghost" aria-label={request.closedAt ? "Reopen" : "Pause"} title={request.closedAt ? "Reopen" : "Pause"} onClick={onToggle}>
+                            {request.closedAt ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
                         </Button>
                     )}
                     <Button size="sm" variant="ghost" className="text-red-400 hover:text-red-300" aria-label="Delete" onClick={onDelete}>
@@ -386,50 +429,48 @@ function InboxCard({
                 </div>
             </div>
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
-                <span className="flex items-center gap-1 font-mono">
-                    <Folder className="h-3.5 w-3.5" />
-                    {inbox.targetPath}
-                </span>
-                {inbox.expiresAt && (
-                    <span className="flex items-center gap-1" title={formatDate(inbox.expiresAt)}>
+                {request.expiresAt && (
+                    <span className="flex items-center gap-1" title={formatDate(request.expiresAt)}>
                         <Clock className="h-3.5 w-3.5" />
-                        {inbox.status === "expired" ? "Expired" : `Closes ${formatTimeLeft(inbox.expiresAt, now)}`}
+                        {request.status === "expired" ? "Ended" : `Closes ${formatTimeLeft(request.expiresAt, now)}`}
                     </span>
                 )}
                 <span>{usage}</span>
                 <span>
-                    {inbox.fileCount} file{inbox.fileCount === 1 ? "" : "s"}
-                    {inbox.maxFiles !== null ? ` of ${inbox.maxFiles}` : ""}
+                    {request.fileCount} file{request.fileCount === 1 ? "" : "s"}
+                    {request.maxFiles !== null ? ` of ${request.maxFiles}` : ""}
                 </span>
+                <span>Files kept {hoursLabel(request.keepHours)}</span>
             </div>
             <button type="button" onClick={() => setOpen(!open)} className="flex items-center gap-1 text-xs text-sky-400 hover:underline">
                 {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                 Received files
             </button>
-            {open && <Receipts inbox={inbox} />}
+            {open && <Received request={request} now={now} onChanged={onChanged} />}
         </li>
     );
 }
 
-export function InboxesSettings({ initialPath }: { initialPath?: string }) {
-    const [list, setList] = useState<InboxList | null>(null);
+export function DropRequests() {
+    const [list, setList] = useState<DropRequestList | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
-    // null = no form, "new" = create, otherwise the link being edited
-    const [formFor, setFormFor] = useState<"new" | InboxInfo | null>(initialPath ? "new" : null);
+    // null = no form, "new" = create, otherwise the request being edited
+    const [formFor, setFormFor] = useState<"new" | DropRequestInfo | null>(null);
     const [formKey, setFormKey] = useState(0);
-    const [confirm, setConfirm] = useState<InboxInfo | null>(null);
+    const [confirm, setConfirm] = useState<DropRequestInfo | null>(null);
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [removing, setRemoving] = useState(false);
     const [now, setNow] = useState(() => Date.now());
 
+    // State is only set once the request settles, so this is safe to start from an effect
     const load = useCallback(() => {
-        return fetchInboxes()
+        return fetchDropRequests()
             .then((data) => {
                 setList(data);
                 setNow(Date.now());
                 setLoadError(null);
             })
-            .catch((err: unknown) => setLoadError(err instanceof Error ? err.message : "Could not load your upload links."));
+            .catch((err: unknown) => setLoadError(err instanceof Error ? err.message : "Could not load your request links."));
     }, []);
 
     // Keep counts current while the page is open
@@ -439,15 +480,15 @@ export function InboxesSettings({ initialPath }: { initialPath?: string }) {
         return () => clearInterval(timer);
     }, [load]);
 
-    function openForm(target: "new" | InboxInfo) {
+    function openForm(target: "new" | DropRequestInfo) {
         setFormFor(target);
         setFormKey((k) => k + 1);
     }
 
-    async function toggle(inbox: InboxInfo) {
+    async function toggle(request: DropRequestInfo) {
         try {
-            await updateInboxRequest(inbox.id, { closed: inbox.closedAt === null });
-            toast.success(inbox.closedAt ? `"${inbox.title}" takes files again` : `"${inbox.title}" is paused`);
+            await updateDropRequest(request.id, { closed: request.closedAt === null });
+            toast.success(request.closedAt ? `"${request.title}" takes files again` : `"${request.title}" is paused`);
             await load();
         } catch (err: unknown) {
             toast.error(err instanceof Error ? err.message : "Could not change the link.");
@@ -458,7 +499,7 @@ export function InboxesSettings({ initialPath }: { initialPath?: string }) {
         if (!confirm) return;
         setRemoving(true);
         try {
-            await deleteInboxRequest(confirm.id);
+            await deleteDropRequest(confirm.id);
             toast.success(`"${confirm.title}" was deleted`);
             if (formFor !== "new" && formFor?.id === confirm.id) setFormFor(null);
             setConfirmOpen(false);
@@ -477,53 +518,52 @@ export function InboxesSettings({ initialPath }: { initialPath?: string }) {
 
             {list && !list.canCreate && (
                 <p className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-300">
-                    {list.enabled ? "Your account cannot create upload links." : "Upload links are switched off by the admin."}
+                    {list.enabled ? "Your account cannot create request links." : "Request links are switched off by the admin."}
                 </p>
             )}
 
             {list && list.canCreate && (formFor ? (
-                <InboxForm
+                <RequestForm
                     key={formKey}
                     list={list}
                     editing={formFor === "new" ? null : formFor}
-                    initial={formFor === "new" ? newForm(list, initialPath ?? "") : editForm(formFor)}
                     onCancel={() => setFormFor(null)}
                     onSaved={() => {
-                        toast.success(formFor === "new" ? "Upload link created" : "Saved");
+                        toast.success(formFor === "new" ? "Request link created" : "Saved");
                         setFormFor(null);
                         void load();
                     }}
                 />
             ) : (
-                <Button type="button" className="gap-1" onClick={() => openForm("new")}>
-                    <Plus className="h-4 w-4" />
-                    New upload link
-                </Button>
+                <div className="space-y-2 rounded-lg border border-white/5 bg-slate-900/30 p-3">
+                    <p className="text-xs text-slate-400">
+                        Make a link that lets people without an account send you files. What they send shows up here and under
+                        Send as your drops, and is deleted after the time you pick.
+                    </p>
+                    <Button type="button" className="gap-1" onClick={() => openForm("new")}>
+                        <Plus className="h-4 w-4" />
+                        New request link
+                    </Button>
+                </div>
             ))}
 
             {list && (
                 <section className="space-y-2">
-                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                        <p className="text-sm font-semibold text-slate-200">Your upload links</p>
-                        <p className="text-[11px] text-slate-500">
-                            {list.quota.limitBytes === null
-                                ? `${formatSize(list.quota.usedBytes, true)} received in all`
-                                : `${formatSize(list.quota.usedBytes, true)} of ${formatSize(list.quota.limitBytes, true)} received in all`}
-                        </p>
-                    </div>
-                    {list.inboxes.length === 0 ? (
-                        <p className="text-xs text-slate-500">No upload links yet.</p>
+                    <p className="text-sm font-semibold text-slate-200">Your request links</p>
+                    {list.requests.length === 0 ? (
+                        <p className="text-xs text-slate-500">No request links yet.</p>
                     ) : (
                         <ul className="space-y-2">
-                            {list.inboxes.map((inbox) => (
-                                <InboxCard
-                                    key={inbox.id}
-                                    inbox={inbox}
+                            {list.requests.map((request) => (
+                                <RequestCard
+                                    key={request.id}
+                                    request={request}
                                     now={now}
-                                    onEdit={() => openForm(inbox)}
-                                    onToggle={() => void toggle(inbox)}
+                                    onEdit={() => openForm(request)}
+                                    onToggle={() => void toggle(request)}
+                                    onChanged={() => void load()}
                                     onDelete={() => {
-                                        setConfirm(inbox);
+                                        setConfirm(request);
                                         setConfirmOpen(true);
                                     }}
                                 />
@@ -536,10 +576,10 @@ export function InboxesSettings({ initialPath }: { initialPath?: string }) {
             <AlertDialog open={confirmOpen} onOpenChange={(next) => !removing && !next && setConfirmOpen(false)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Delete this upload link?</AlertDialogTitle>
+                        <AlertDialogTitle>Delete this request link?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            The link to &quot;{confirm?.title ?? ""}&quot; stops working right away. Files it already received stay in{" "}
-                            <span className="font-mono">{confirm?.targetPath}</span>.
+                            The link &quot;{confirm?.title ?? ""}&quot; stops working right away. Files it already received stay in
+                            your drops until they expire.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

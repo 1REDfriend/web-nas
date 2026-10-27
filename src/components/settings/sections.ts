@@ -1,5 +1,5 @@
 import { RULE_ROLES, RuleRole } from "@/lib/security/file-actions";
-import { HardDrive, Inbox, KeyRound, LucideIcon, Send, ShieldAlert, Timer, User, Users } from "lucide-react";
+import { HardDrive, KeyRound, LucideIcon, Send, ShieldAlert, Timer, User, Users } from "lucide-react";
 
 export type SettingsSection = {
     href: string;
@@ -25,7 +25,6 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
             { href: "/settings/account", label: "Profile", icon: User, roles: EVERYONE },
             { href: "/settings/api-keys", label: "API keys", icon: KeyRound, roles: MEMBERS },
             { href: "/settings/drops", label: "Drops", icon: Send, roles: MEMBERS },
-            { href: "/settings/inboxes", label: "Upload links", icon: Inbox, roles: MEMBERS },
         ],
     },
     {
@@ -35,7 +34,6 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
             { href: "/settings/admin/storage", label: "Storage", icon: HardDrive, roles: ADMINS },
             { href: "/settings/admin/protected-folders", label: "Protected folders", icon: ShieldAlert, roles: ADMINS },
             { href: "/settings/admin/drops", label: "Drop limits", icon: Timer, roles: ADMINS },
-            { href: "/settings/admin/inboxes", label: "Upload link limits", icon: Inbox, roles: ADMINS },
         ],
     },
 ];

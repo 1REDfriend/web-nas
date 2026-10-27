@@ -1,3 +1,5 @@
+import type { DropRequestInfo } from "./drop-request.service";
+
 // Browser calls for drops. The logged-in session is accepted on /api/v1, so the
 // page uses the same endpoints as programs with an API key.
 
@@ -10,6 +12,9 @@ export type DropInfo = {
     expiresAt: string;
     maxDownloads: number | null;
     downloads: number;
+    // Set when someone sent it through one of your drop requests
+    requestId: string | null;
+    senderName: string | null;
     url: string;
     downloadUrl: string;
 };
@@ -31,7 +36,13 @@ export type DropSettings = {
     folder: { folder: string | null; current: string; default: string };
     usage: { drops: number; bytes: string };
     migration: { running: boolean; lastError: string | null; pending: number };
+    requests: {
+        settings: DropRequestSettings;
+        list: (DropRequestInfo & { owner: string })[];
+    };
 };
+
+export type DropRequestSettings = { enabled: boolean; roles: ("ADMIN" | "USER" | "GUEST")[]; allowNoExpiry: boolean };
 
 async function readV1(res: Response) {
     const body = await res.json().catch(() => null);
@@ -101,6 +112,7 @@ export async function saveDropSettings(body: {
     defaultHours: number;
     maxHours: number;
     quotaMB: number;
+    requests?: Partial<DropRequestSettings>;
 }): Promise<DropSettings> {
     return readJson(
         await fetch("/api/admin/drops", {

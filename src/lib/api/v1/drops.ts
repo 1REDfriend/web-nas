@@ -62,6 +62,9 @@ export function toApiDrop(drop: Drop, origin: string) {
         expiresAt: drop.expiresAt,
         maxDownloads: drop.maxDownloads,
         downloads: drop.downloads,
+        // Set when someone sent it through one of the owner's drop requests
+        requestId: drop.requestId,
+        senderName: drop.senderName,
         url: `${origin}/d/${drop.id}`,
         downloadUrl: `${origin}/api/public/drops/${drop.id}/download`,
     };

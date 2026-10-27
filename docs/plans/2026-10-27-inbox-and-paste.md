@@ -1,7 +1,7 @@
-# แผน เฟส 3: ลิงก์รับไฟล์ (Inbox) และ Paste / Gist
+# แผน เฟส 3: ลิงก์รับไฟล์ (Drop request) และ Paste / Gist
 
 วันที่: 2026-10-27
-สถานะ: ส่วน A (ขั้น 1–3) ทำเสร็จ 2026-10-27 ยังไม่ขึ้นระบบ · ส่วน B ยังไม่เริ่ม
+สถานะ: ส่วน A ทำเสร็จ และรวมเข้ากับฝากไฟล์ (Drops) แล้ว 2026-10-27 · ส่วน B ยังไม่เริ่ม
 ต่อจาก: [2026-10-25-temp-file-drop.md](2026-10-25-temp-file-drop.md)
 
 ## เป้าหมาย
@@ -9,8 +9,8 @@
 ตอนนี้ฝากไฟล์ (Drop) ไปได้ทางเดียว: **เจ้าของ** อัปไฟล์ → ได้ลิงก์ให้คนอื่น **โหลด**
 เฟสนี้เพิ่มสองอย่าง
 
-1. **ลิงก์รับไฟล์ (Inbox):** เจ้าของเปิดลิงก์ของตัวเอง เช่น `nas.supaxit.com/u/tong-homework`
-   แล้ว **คนอื่นที่ไม่ได้ล็อกอิน** เปิดลิงก์นั้นมาลากไฟล์ใส่ได้ ไฟล์ไปโผล่ในโฟลเดอร์ของเจ้าของ
+1. **ลิงก์รับไฟล์ (Drop request):** เจ้าของเปิดลิงก์ของตัวเอง เช่น `nas.supaxit.com/u/tong-homework`
+   แล้ว **คนอื่นที่ไม่ได้ล็อกอิน** เปิดลิงก์นั้นมาลากไฟล์ใส่ได้ ไฟล์กลายเป็น Drop ของเจ้าของ
    (แบบ File Request ของ Dropbox / Google Form ที่รับไฟล์)
 2. **Paste / Gist:** วางข้อความหรือโค้ดลงไป ได้ลิงก์สั้นๆ เปิดดูมีสีโค้ด มีปุ่ม raw ไว้ `curl`
    หนึ่ง paste มีได้หลายไฟล์แบบ gist ตั้งหมดอายุ / อ่านครั้งเดียวแล้วลบ / ใส่รหัสได้
@@ -27,111 +27,73 @@
 
 ---
 
-## ส่วน A: ลิงก์รับไฟล์ (Inbox)
+## ส่วน A: ลิงก์รับไฟล์ (Drop request)
+
+> **เปลี่ยนแผน 2026-10-27:** รุ่นแรกทำเป็นฟีเจอร์แยกชื่อ Inbox (ไฟล์ลงโฟลเดอร์ของเจ้าของ) และขึ้นระบบไปแล้ว
+> แต่ผู้ใช้อยากให้เป็นส่วนหนึ่งของฝากไฟล์ (Drops) เลย ไม่แยกกัน จึงรวมเข้าด้วยกันทั้งระบบ
+> ตารางเดิม `inboxes` / `inbox_uploads` ถูกลบ (ตอนนั้นยังไม่มีข้อมูล) หน้าและ API ของ Inbox เดิมถูกลบทั้งหมด
 
 ### A1. ไฟล์ที่คนอื่นส่งมาไปอยู่ไหน
 
-**ข้อเสนอ:** ลงใน **โฟลเดอร์ที่เจ้าของเลือกในพื้นที่ของตัวเอง** (เช่น `/Inbox/การบ้าน`) เห็นได้ในหน้าจัดการไฟล์ทันที
-ไม่ใช้โฟลเดอร์ฝากไฟล์ของ Drop เพราะของที่คนอื่นส่งมามักต้องการเก็บถาวร ไม่ใช่ลิงก์ชั่วคราว
+ไฟล์ที่คนส่งมา **กลายเป็น Drop ของเจ้าของลิงก์** หนึ่งไฟล์ = หนึ่ง Drop
 
-- ตอนสร้างและตอนรับไฟล์ทุกครั้ง ตรวจด้วย `authorizePath(owner, target, "upload")` — ถ้าเจ้าของเสียสิทธิ์โฟลเดอร์นั้นไป ลิงก์ก็รับไม่ได้
-- ชื่อซ้ำ → ต่อท้าย `(1)`, `(2)` ไม่เขียนทับของเดิมเด็ดขาด
-- ชื่อไฟล์จากคนส่งถูกทำความสะอาด (ตัด `/`, `\`, `..`, อักขระควบคุม, ยาวไม่เกิน 200 ตัว)
-- เลือกได้ว่าจะแยกโฟลเดอร์ย่อยตามชื่อคนส่ง (`/Inbox/การบ้าน/สมชาย/...`) หรือไม่
-- อัปโหลดเข้าไฟล์ชั่วคราวก่อน (`.webnas-part-<id>`) เสร็จแล้วค่อย rename เข้าที่ ถ้าหลุดกลางทาง ไม่มีไฟล์ครึ่งๆ โผล่
+- เก็บในโฟลเดอร์ฝากไฟล์ (`<โฟลเดอร์ drops>/<dropId>/file`) ไม่โผล่ในหน้าจัดการไฟล์
+- นับรวมในโควตา Drop ของเจ้าของ (`drops.quotaMB`) และอยู่ได้ตามที่ลิงก์ตั้งไว้ (`keepHours`) ไม่เกินอายุสูงสุดของ Drop
+- หมดอายุแล้วตัวกวาด Drop ลบให้เหมือน Drop ทั่วไป ไม่จำกัดจำนวนครั้งที่โหลด
+- เจ้าของเห็นไฟล์ที่ได้รับในหน้า Drops (แท็บส่ง จะเขียนว่า "received from …") ได้ลิงก์โหลด ลบเองได้
+- ชื่อไฟล์จากคนส่งถูกทำความสะอาด (ตัด `/`, `\`, `..`, อักขระควบคุม, ยาวไม่เกิน 200 ตัว) ชื่อซ้ำไม่มีปัญหาเพราะแต่ละไฟล์อยู่โฟลเดอร์ของตัวเอง
+- ลบลิงก์แล้ว Drop ที่รับมาแล้วยังอยู่จนหมดอายุ
 
 ### A2. ตั้งค่าต่อลิงก์
 
 | ค่า | ค่าเริ่มต้น | หมายเหตุ |
 |---|---|---|
 | ชื่อลิงก์ (slug) | สุ่ม | หรือตั้งเองได้ เช่น `tong-homework` (a-z 0-9 `-`, 3–40 ตัว, ห้ามซ้ำ) |
-| หัวข้อ + คำอธิบาย | — | แสดงบนหน้าที่คนส่งเห็น เช่น "ส่งการบ้านบทที่ 3" |
-| โฟลเดอร์ปลายทาง | — | ต้องเลือก |
-| หมดอายุ | 7 วัน | หรือไม่หมดอายุ (ADMIN ปิดตัวเลือกนี้ได้) |
+| หัวข้อ + คำอธิบาย | — | แสดงบนหน้าที่คนส่งเห็น |
+| ลิงก์รับไฟล์ได้ถึง | 7 วัน | หรือจนกว่าจะปิดเอง (ADMIN ปิดตัวเลือกนี้ได้) |
+| เก็บแต่ละไฟล์ไว้ | อายุสูงสุดของ Drop | 1 ชั่วโมงถึงอายุสูงสุดของ Drop ที่ ADMIN ตั้ง |
 | ขนาดต่อไฟล์สูงสุด | 100 MB | ติดเพดาน Cloudflare Free อยู่แล้ว |
 | ขนาดรวมสูงสุดของลิงก์ | 5 GB | ครบแล้วลิงก์ปิดรับเอง |
 | จำนวนไฟล์สูงสุด | ไม่จำกัด | |
-| ชนิดไฟล์ที่รับ | ทุกชนิด | เช่น `.pdf,.docx` (ตรวจจากนามสกุล) |
-| รหัสผ่าน | ไม่มี | เก็บเป็น hash (ใช้ตัวเดียวกับรหัสผู้ใช้) |
-| ให้ใส่ชื่อคนส่ง | ไม่บังคับ | ถ้าบังคับ จะใช้แยกโฟลเดอร์ย่อยได้ |
+| ชนิดไฟล์ที่รับ | ทุกชนิด | เช่น `pdf, docx` (ตรวจจากนามสกุล) |
+| รหัสผ่าน | ไม่มี | เก็บเป็น hash |
+| ให้ใส่ชื่อคนส่ง | ไม่บังคับ | ชื่อติดไปกับ Drop |
 | คนส่งเห็นรายการไฟล์ที่ส่งไปแล้ว | ไม่ | ถ้าเปิด เห็นแค่ชื่อ + ขนาด ไม่มีโหลด |
 
-เจ้าของ **ปิดรับชั่วคราว / เปิดใหม่ / ลบลิงก์** ได้ ลบลิงก์ไม่ลบไฟล์ที่รับมาแล้ว
+เจ้าของ **ปิดรับชั่วคราว / เปิดใหม่ / ลบลิงก์** ได้ มีได้ไม่เกิน 50 ลิงก์ต่อคน
 
 ### A3. กันโดนถล่ม
 
-ลิงก์นี้เปิดให้คนไม่ล็อกอินเขียนลงดิสก์ จึงต้องมีหลายชั้น
-
 - rate limit ต่อ IP: อัปโหลด 30 ไฟล์ / 10 นาที, เดารหัสผ่านผิด 10 ครั้ง / 15 นาที
-- โควตารวมต่อผู้ใช้ (ผลรวมทุก inbox) ที่ ADMIN ตั้ง ค่าเริ่มต้น 20 GB
-- ตรวจ `Content-Length` ก่อนรับ body (แบบ `assertDeclaredSize`) และนับจริงระหว่าง stream
-- จองโควตาในฐานข้อมูลด้วย `UPDATE ... WHERE usedBytes + size <= max` ทีเดียว กันอัปพร้อมกันจนเกิน
-- เหลือดิสก์น้อยกว่า 5% → ปิดรับทุก inbox
-- หน้า `/u/...` ใส่ `noindex` และไม่บอกว่ามีลิงก์อื่นของเจ้าของคนนี้
-- ADMIN ปิดฟีเจอร์ทั้งระบบได้ และเลือกได้ว่า role ไหนสร้าง inbox ได้ (ค่าเริ่มต้น ADMIN + USER)
+- โควตาคือโควตา Drop ของเจ้าของ (รวม Drop ที่อัปเองและที่ได้รับ)
+- ต้องมี `Content-Length` ตรวจก่อนรับ body และนับจริงระหว่าง stream
+- จองที่ในฐานข้อมูลใน transaction เดียว: `UPDATE drop_requests ... WHERE` (จำนวนไฟล์, ขนาดรวม, โควตา Drop) แล้วสร้างแถว Drop
+  SQLite ล็อกตอน UPDATE เลยอัปพร้อมกันกี่ไฟล์ก็ไม่เกิน ถ้าอัปพลาด ลบแถวและโฟลเดอร์ทิ้งและคืนที่
+- ดิสก์ของโฟลเดอร์ drops เหลือน้อยกว่า 5% → ไม่รับ (507)
+- IP คนส่งเก็บไว้ดูเรื่องใช้ผิดทาง ลบทิ้งหลัง 30 วัน
+- หน้า `/u/...` ใส่ `noindex`, ลิงก์ไม่มี / หมดอายุ / ปิดฟีเจอร์ ตอบ 404 เหมือนกันหมด
+- ADMIN ปิดฟีเจอร์ทั้งระบบได้ และเลือก role ที่สร้างลิงก์ได้ (ค่าเริ่มต้น ADMIN + USER; GUEST สร้าง Drop ไม่ได้อยู่แล้ว)
 
 ### A4. ฐานข้อมูล
 
-```prisma
-model Inbox {
-  id            String    @id                        // random, used in the link when slug is null
-  slug          String?   @unique                    // optional custom link name
-  title         String
-  description   String?
-  targetPath    String    @map("target_path")        // virtual path in the owner's space
-  splitBySender Boolean   @default(false) @map("split_by_sender")
-  requireName   Boolean   @default(false) @map("require_name")
-  showReceived  Boolean   @default(false) @map("show_received")
-  allowedExt    String?   @map("allowed_ext")         // comma-separated, null = any
-  maxFileBytes  BigInt?   @map("max_file_bytes")
-  maxTotalBytes BigInt?   @map("max_total_bytes")
-  maxFiles      Int?      @map("max_files")
-  passwordHash  String?   @map("password_hash")
-  usedBytes     BigInt    @default(0) @map("used_bytes")
-  fileCount     Int       @default(0) @map("file_count")
-  expiresAt     DateTime? @map("expires_at")
-  closedAt      DateTime? @map("closed_at")           // paused by the owner
-  createdAt     DateTime  @default(now()) @map("created_at")
-
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId        String    @map("user_id")
-  uploads       InboxUpload[]
-
-  @@index([userId], name: "idx_inbox_user_id")
-  @@map("inboxes")
-}
-
-// One file someone sent through an inbox (a receipt; the file itself lives in the owner's space)
-model InboxUpload {
-  id         String   @id @default(cuid())
-  fileName   String   @map("file_name")              // name it was saved under
-  path       String                                   // virtual path it was saved to
-  size       BigInt
-  senderName String?  @map("sender_name")
-  senderIp   String?  @map("sender_ip")               // kept for abuse checks, cleared after 30 days
-  createdAt  DateTime @default(now()) @map("created_at")
-
-  inbox      Inbox    @relation(fields: [inboxId], references: [id], onDelete: Cascade)
-  inboxId    String   @map("inbox_id")
-
-  @@index([inboxId], name: "idx_inbox_upload_inbox_id")
-  @@map("inbox_uploads")
-}
-```
+ตาราง `drop_requests` (model `DropRequest`) เก็บค่าตาม A2 กับ `usedBytes`, `fileCount`, `closedAt`
+ตาราง `drops` เพิ่ม `request_id` (ลบลิงก์แล้วเป็น null), `sender_name`, `sender_ip`
+migration: `prisma/migrations/20261028000000_drop_requests`
 
 ### A5. เส้นทาง
 
 | ใคร | Method / Path | ทำอะไร |
 |---|---|---|
 | คนส่ง | หน้า `/u/<slug หรือ id>` | หัวข้อ คำอธิบาย ช่องรหัส ช่องชื่อ ที่ลากไฟล์ แถบความคืบหน้าต่อไฟล์ |
-| คนส่ง | GET `/api/public/inbox/<id>` | ข้อมูลหน้า (ไม่มี path ปลายทาง ไม่มีชื่อเจ้าของนอกจากชื่อที่แสดง) |
-| คนส่ง | POST `/api/public/inbox/<id>/unlock` | ใส่รหัส → cookie อายุสั้นของลิงก์นั้น |
-| คนส่ง | POST `pages/api/public/inbox/upload.ts?id=` | อัปทีละไฟล์แบบ stream (เลี่ยง proxy.ts เหมือน drops) |
-| เจ้าของ | `/settings/inboxes` | สร้าง/แก้/ปิด/ลบ ดูไฟล์ที่ได้รับ (กดแล้วไปที่ไฟล์ในหน้าจัดการไฟล์) |
-| เจ้าของ | GET/POST/PATCH/DELETE `/api/user/inboxes` | ใช้กับหน้า settings |
-| ADMIN | `/settings/admin/inboxes` | เปิด/ปิดฟีเจอร์, role ที่ใช้ได้, โควตา, ดูลิงก์ทั้งหมดและปิดลิงก์ที่มีปัญหา |
+| คนส่ง | GET `/api/public/drop-requests/<id>` | ข้อมูลหน้า (ไม่มีชื่อเจ้าของ) |
+| คนส่ง | POST `/api/public/drop-requests/<id>/unlock` | ใส่รหัส → cookie `wn_req_<id>` อายุ 12 ชั่วโมง |
+| คนส่ง | POST `/api/public/drop-request-upload?id=&name=&sender=` | อัปทีละไฟล์แบบ stream (Pages API เลี่ยง proxy.ts) |
+| เจ้าของ | `/settings/drops` แท็บ **Receive** | สร้าง/แก้/ปิด/ลบลิงก์ ดูและลบไฟล์ที่ได้รับ |
+| เจ้าของ | GET/POST/PATCH/DELETE `/api/v1/drops/requests` | ใช้ได้ทั้ง session และ API key (scope `drop`) |
+| ADMIN | `/settings/admin/drops` | เปิด/ปิดฟีเจอร์, role ที่ใช้ได้, อนุญาตลิงก์ไม่มีวันปิด, ดูลิงก์ทั้งหมดและหยุดลิงก์ที่มีปัญหา |
+| ADMIN | PUT `/api/admin/drops` (`requests`), PATCH `/api/admin/drops/requests?id=` | ตั้งค่า / หยุด-เปิดลิงก์ของใครก็ได้ |
 
-ในหน้าจัดการไฟล์ เมนูคลิกขวาที่โฟลเดอร์มี **"สร้างลิงก์รับไฟล์ที่นี่"** เป็นทางลัด
+e2e: `drop-requests-manage`, `drop-requests-public`
 
 ---
 
@@ -229,7 +191,7 @@ model PasteFile {
 
 1. **Inbox: ฐานข้อมูล + service + test** — ตาราง `inboxes`, `inbox_uploads`, ตรวจโฟลเดอร์ปลายทาง, จองโควตา, ทำความสะอาดชื่อ, suite `inbox-service`
 2. **Inbox: อัปโหลดสาธารณะ** — route stream, รหัสผ่าน, rate limit, ไฟล์ `.part` + rename, suite `inbox-public` (รวมเคสยิงพร้อมกันเกินโควตา, ชื่อ `../`, ลิงก์หมดอายุ)
-3. **Inbox: หน้าเว็บ** — `/u/<id>` สำหรับคนส่ง, `/settings/inboxes` สำหรับเจ้าของ, ทางลัดในเมนูโฟลเดอร์, หน้า ADMIN
+3. **Inbox: หน้าเว็บ** (ขั้น 1–3 ทำแล้ว ต่อมารวมเข้า Drops ดูส่วน A) — `/u/<id>` สำหรับคนส่ง, `/settings/inboxes` สำหรับเจ้าของ, ทางลัดในเมนูโฟลเดอร์, หน้า ADMIN
    - **ขั้น 1–3 เสร็จ 2026-10-27** (เคาะคำถามทุกข้อตามข้อเสนอ ข้อความบนหน้าเว็บเป็นอังกฤษเหมือนหน้าอื่น)
      - โค้ดอยู่ที่ `src/lib/inbox/` (settings, names, inboxes, public, receive), migration `20261027000000_inboxes`
      - suite ชื่อ `inbox-manage` (ฝั่งเจ้าของ + ADMIN) และ `inbox-public` (ฝั่งคนส่ง) แทนชื่อในแผน

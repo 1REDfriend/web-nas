@@ -3,7 +3,6 @@ import fs from "fs-extra";
 import { prisma } from "@/lib/db";
 import { ENV } from "@/lib/ENV";
 import { logerror, logwarn } from "@/lib/logger";
-import { forgetOldSenderIps } from "@/lib/inbox/receive";
 import {
     DROPS_MARKER,
     DROP_ID_RE,
@@ -12,12 +11,13 @@ import {
     invalidateDropBases,
 } from "./locations";
 
-// Background upkeep for drops (deleting expired ones, moving drops into the
-// current drop folder) and for inbox receipts. Everything here runs one job at a time.
+// Background upkeep for drops: deleting expired ones, moving drops into the
+// current drop folder, forgetting old sender IPs. Everything here runs one job at a time.
 
 const STALE_UPLOAD_MS = 24 * 60 * 60 * 1000;   // an upload that never finished
 const KEEP_DELETED_MS = 7 * 24 * 60 * 60 * 1000; // deleted rows stay this long for the owner's list
 const ORPHAN_MIN_AGE_MS = 60 * 60 * 1000;       // leave fresh folders alone; an upload may be creating one
+const SENDER_IP_KEEP_MS = 30 * 24 * 60 * 60 * 1000; // IPs of people who sent files through a drop request
 
 let chain: Promise<unknown> = Promise.resolve();
 
@@ -173,6 +173,14 @@ async function deleteOrphanFolders(now: Date) {
         if (!stat?.isDirectory() || now.getTime() - stat.mtimeMs < ORPHAN_MIN_AGE_MS) continue;
         await fs.remove(full).catch((err) => logerror(`[drops] could not delete leftover folder ${full}:`, err));
     }
+}
+
+// Sender IPs are only kept for a while
+async function forgetOldSenderIps(now: Date) {
+    await prisma.drop.updateMany({
+        where: { senderIp: { not: null }, createdAt: { lt: new Date(now.getTime() - SENDER_IP_KEEP_MS) } },
+        data: { senderIp: null },
+    });
 }
 
 export async function sweepDrops(now = new Date()) {

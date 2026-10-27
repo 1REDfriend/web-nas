@@ -1,80 +1,66 @@
-// Browser calls for upload links (inboxes): the owner's settings page, the admin
-// page, and the public page people send files from.
+import type { DropInfo } from "./drop.service";
 
-export type InboxStatus = "open" | "closed" | "full" | "expired";
+// Browser calls for drop requests: links that let people send files to you.
+// The owner side uses /api/v1/drops/requests (the session is accepted there, like
+// for drops); the public page uses /api/public/drop-requests.
 
-export type InboxInfo = {
+export type RequestStatus = "open" | "closed" | "full" | "expired";
+
+export type DropRequestInfo = {
     id: string;
     slug: string | null;
     url: string;
     title: string;
     description: string | null;
-    targetPath: string;
-    splitBySender: boolean;
     requireName: boolean;
     showReceived: boolean;
     allowedExt: string | null;
     maxFileBytes: string | null;
     maxTotalBytes: string | null;
     maxFiles: number | null;
+    keepHours: number;
     hasPassword: boolean;
     usedBytes: string;
     fileCount: number;
     expiresAt: string | null;
     closedAt: string | null;
     createdAt: string;
-    status: InboxStatus;
+    status: RequestStatus;
 };
 
-export type InboxList = {
-    inboxes: InboxInfo[];
+export type DropRequestList = {
+    requests: DropRequestInfo[];
     canCreate: boolean;
     enabled: boolean;
     allowNoExpiry: boolean;
-    defaults: { expiresInDays: number; maxFileMB: number; maxTotalMB: number };
-    quota: { usedBytes: number; limitBytes: number | null };
-    origin: string;
+    defaults: { expiresInDays: number; maxFileMB: number; maxTotalMB: number; keepHours: number };
+    maxKeepHours: number;
 };
 
-export type InboxReceipt = {
-    id: string;
-    name: string;
-    path: string;
-    size: string;
-    senderName: string | null;
-    createdAt: string;
-};
-
-// What the owner sends to create or change a link. Leave a field out to keep it;
-// null means "no limit" (or "no password", "no expiry").
-export type InboxInput = Partial<{
+// What the owner sends to create or change a request. Leave a field out to keep it;
+// null means "no limit" (or "no password", "no end date").
+export type DropRequestInput = Partial<{
     title: string;
     description: string | null;
-    targetPath: string;
     slug: string | null;
     expiresInDays: number | null;
+    keepHours: number;
     maxFileMB: number | null;
     maxTotalMB: number | null;
     maxFiles: number | null;
     allowedExt: string | null;
     password: string | null;
     requireName: boolean;
-    splitBySender: boolean;
     showReceived: boolean;
     closed: boolean;
 }>;
 
-export type InboxAdminSettings = {
-    settings: { enabled: boolean; roles: ("ADMIN" | "USER" | "GUEST")[]; quotaMB: number; allowNoExpiry: boolean };
-    inboxes: (InboxInfo & { owner: string })[];
-};
-
-export type PublicInbox = {
+export type PublicDropRequest = {
     title: string;
     description: string | null;
     needsPassword: boolean;
     locked: boolean;
-    status: InboxStatus;
+    status: RequestStatus;
     expiresAt: string | null;
     // Only once unlocked
     requireName?: boolean;
@@ -84,6 +70,12 @@ export type PublicInbox = {
     filesLeft?: number | null;
     received?: { name: string; size: string; createdAt: string }[] | null;
 };
+
+async function readV1(res: Response) {
+    const body = await res.json().catch(() => null);
+    if (!res.ok || !body?.ok) throw new Error(body?.error || `Request failed (${res.status})`);
+    return body.data;
+}
 
 async function readJson(res: Response) {
     const data = await res.json().catch(() => ({}));
@@ -95,55 +87,49 @@ function sendJson(method: string, body: unknown): RequestInit {
     return { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
 }
 
-export async function fetchInboxes(): Promise<InboxList> {
-    return readJson(await fetch("/api/user/inboxes", { cache: "no-store" }));
+const ownApi = (id?: string) => `/api/v1/drops/requests${id ? `?${new URLSearchParams({ id })}` : ""}`;
+
+export async function fetchDropRequests(): Promise<DropRequestList> {
+    return readV1(await fetch(ownApi(), { cache: "no-store" }));
 }
 
-export async function createInboxRequest(input: InboxInput): Promise<InboxInfo> {
-    return (await readJson(await fetch("/api/user/inboxes", sendJson("POST", input)))).inbox;
+export async function createDropRequest(input: DropRequestInput): Promise<DropRequestInfo> {
+    return readV1(await fetch(ownApi(), sendJson("POST", input)));
 }
 
-export async function updateInboxRequest(id: string, input: InboxInput): Promise<InboxInfo> {
-    return (await readJson(await fetch(`/api/user/inboxes/${encodeURIComponent(id)}`, sendJson("PATCH", input)))).inbox;
+export async function updateDropRequest(id: string, input: DropRequestInput): Promise<DropRequestInfo> {
+    return readV1(await fetch(ownApi(id), sendJson("PATCH", input)));
 }
 
-export async function deleteInboxRequest(id: string): Promise<void> {
-    await readJson(await fetch(`/api/user/inboxes/${encodeURIComponent(id)}`, { method: "DELETE" }));
+export async function deleteDropRequest(id: string): Promise<void> {
+    await readV1(await fetch(ownApi(id), { method: "DELETE" }));
 }
 
-export async function fetchInboxReceipts(id: string): Promise<{ inbox: InboxInfo; uploads: InboxReceipt[] }> {
-    return readJson(await fetch(`/api/user/inboxes/${encodeURIComponent(id)}`, { cache: "no-store" }));
+export async function fetchReceivedDrops(id: string): Promise<{ request: DropRequestInfo; received: DropInfo[] }> {
+    return readV1(await fetch(ownApi(id), { cache: "no-store" }));
 }
 
-export async function fetchInboxAdmin(): Promise<InboxAdminSettings> {
-    return readJson(await fetch("/api/admin/inboxes", { cache: "no-store" }));
-}
-
-export async function saveInboxAdmin(body: Partial<InboxAdminSettings["settings"]>): Promise<InboxAdminSettings> {
-    return readJson(await fetch("/api/admin/inboxes", sendJson("PUT", body)));
-}
-
-export async function adminCloseInbox(id: string, closed: boolean): Promise<void> {
-    await readJson(await fetch(`/api/admin/inboxes/${encodeURIComponent(id)}`, sendJson("PATCH", { closed })));
+export async function adminCloseDropRequest(id: string, closed: boolean): Promise<void> {
+    await readJson(await fetch(`/api/admin/drops/requests?${new URLSearchParams({ id })}`, sendJson("PATCH", { closed })));
 }
 
 // --- public page ---
 
 function publicApi(link: string, part = "") {
-    return `/api/public/inbox/${encodeURIComponent(link)}${part}`;
+    return `/api/public/drop-requests/${encodeURIComponent(link)}${part}`;
 }
 
-export async function fetchPublicInbox(link: string): Promise<PublicInbox> {
-    return (await readJson(await fetch(publicApi(link), { cache: "no-store" }))).inbox;
+export async function fetchPublicDropRequest(link: string): Promise<PublicDropRequest> {
+    return (await readJson(await fetch(publicApi(link), { cache: "no-store" }))).request;
 }
 
-export async function unlockPublicInbox(link: string, password: string): Promise<PublicInbox> {
-    return (await readJson(await fetch(publicApi(link, "/unlock"), sendJson("POST", { password })))).inbox;
+export async function unlockPublicDropRequest(link: string, password: string): Promise<PublicDropRequest> {
+    return (await readJson(await fetch(publicApi(link, "/unlock"), sendJson("POST", { password })))).request;
 }
 
 // XMLHttpRequest instead of fetch: it reports upload progress.
 // The name and sender go in the query string so the server can refuse them before the file is sent.
-export function sendToInbox(
+export function sendToDropRequest(
     link: string,
     file: File,
     sender: string,
@@ -174,7 +160,7 @@ export function sendToInbox(
 
     const form = new FormData();
     form.append("file", file, file.name);
-    xhr.open("POST", `/api/public/inbox-upload?${params}`);
+    xhr.open("POST", `/api/public/drop-request-upload?${params}`);
     xhr.send(form);
 
     return { promise, cancel: () => xhr.abort() };

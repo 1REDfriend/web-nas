@@ -13,7 +13,7 @@ export default async function DropLimitsSettingsPage() {
     <>
       <SettingsHeader
         title="Drop limits"
-        description="Where drops are kept, how long they may live and how much space each user may use."
+        description="Where drops are kept, how long they may live, how much space each user may use, and who may make request links."
       />
       <DropLimitsSettings />
     </>

@@ -6,16 +6,17 @@ import { requirePageUser } from "@/lib/security/page-session";
 
 export const metadata: Metadata = { title: "Drops" };
 
-export default async function DropsSettingsPage() {
+export default async function DropsSettingsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   await requirePageUser(MEMBERS);
+  const { tab } = await searchParams;
 
   return (
     <>
       <SettingsHeader
         title="Drops"
-        description="Share a file by link for a while. When the time is up, or it has been downloaded enough times, it is deleted on its own."
+        description="Send a file by link, or make a link that lets others send files to you. Drops are deleted on their own when their time is up."
       />
-      <DropsSettings />
+      <DropsSettings initialTab={tab === "receive" ? "receive" : "send"} />
     </>
   );
 }

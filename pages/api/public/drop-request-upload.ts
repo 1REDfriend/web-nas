@@ -1,14 +1,14 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { logerror } from '@/lib/logger';
 import { FileAccessError } from '@/lib/security/path-guard';
-import { findPublicInbox, isUnlocked } from '@/lib/inbox/public';
-import { assertUploadRateLimit, receiveFile } from '@/lib/inbox/receive';
+import { findPublicRequest, isUnlocked } from '@/lib/drops/request-public';
+import { assertUploadRateLimit, receiveFile } from '@/lib/drops/receive';
 
-// POST /api/public/inbox-upload?id=<id or slug>&name=<file name>&sender=<name>
+// POST /api/public/drop-request-upload?id=<id or slug>&name=<file name>&sender=<name>
 //   multipart/form-data with one "file"
-// No login: anyone with the link may send a file. `name` and `sender` are in the
-// query so they are checked before the body arrives; the real file name is checked again.
-// Not behind proxy.ts, which would buffer the body in memory.
+// No login: anyone with the link may send a file; it becomes one of the owner's drops.
+// `name` and `sender` are in the query so they are checked before the body arrives;
+// the real file name is checked again. Not behind proxy.ts, which would buffer the body.
 
 export const config = {
     api: {
@@ -39,14 +39,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const headers = nodeHeaders(req);
     try {
         assertUploadRateLimit({ headers });
-        const { inbox, owner } = await findPublicInbox(queryValue(req.query.id));
-        if (!isUnlocked(inbox, req.headers.cookie)) throw new FileAccessError('This upload link needs a password', 401);
+        const { request } = await findPublicRequest(queryValue(req.query.id));
+        if (!isUnlocked(request, req.headers.cookie)) throw new FileAccessError('This link needs a password', 401);
 
         const file = await receiveFile({
             req,
             headers,
-            inbox,
-            owner,
+            request,
             senderName: queryValue(req.query.sender),
             fileName: queryValue(req.query.name),
         });
@@ -59,7 +58,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             if (err.status === 429) res.setHeader('Retry-After', '600');
             return res.status(err.status).json({ error: err.message });
         }
-        logerror('[inbox upload failed] : ' + err);
+        logerror('[drop request upload failed] : ' + err);
         return res.status(500).json({ error: 'Internal Error' });
     }
 }

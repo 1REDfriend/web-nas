@@ -1,7 +1,7 @@
 import path from "path";
 
-// File and folder names that come from people sending files to an inbox.
-// Nothing they type may pick where a file lands beyond one plain name.
+// Names typed by people sending files through a drop request: shown to the owner
+// and used as the drop's download name, so they are kept short and plain.
 
 const NAME_MAX = 200;
 const SENDER_MAX = 60;
@@ -36,19 +36,6 @@ export function cleanFileName(raw: string | null | undefined): string {
 export function cleanSenderName(raw: string | null | undefined): string | null {
     const name = cut((raw ?? "").normalize("NFC").replace(UNSAFE_CHARS, " ").replace(/\s+/g, " ").trim(), SENDER_MAX);
     return name || null;
-}
-
-// Sender name as a folder name (the shown name may still start with a dot)
-export function senderFolderName(sender: string): string {
-    return trimEdges(sender) || "unnamed";
-}
-
-// "a.txt", "a (1).txt", "a (2).txt", ...
-export function numberedName(name: string, n: number): string {
-    if (n === 0) return name;
-    const ext = path.extname(name);
-    const stem = ext && ext !== name ? name.slice(0, -ext.length) : name;
-    return `${stem} (${n})${ext === name ? "" : ext}`;
 }
 
 // ".PDF, docx ,.zip" -> ["pdf", "docx", "zip"]; empty -> null (anything is accepted)

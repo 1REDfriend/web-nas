@@ -1,13 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, Clock, Inbox, Link2Off, Loader2, Lock, UploadCloud, X, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, Inbox as InboxIcon, Link2Off, Loader2, Lock, UploadCloud, X, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { formatDate, formatSize, formatTimeLeft } from "@/lib/file-manager/format";
-import { PublicInbox, fetchPublicInbox, sendToInbox, unlockPublicInbox } from "@/lib/api/user/inbox.service";
+import { PublicDropRequest, fetchPublicDropRequest, sendToDropRequest, unlockPublicDropRequest } from "@/lib/api/user/drop-request.service";
 
 type QueueItem = {
     key: number;
@@ -28,17 +28,17 @@ function extensionOf(name: string) {
 }
 
 // A reason the file would be refused, checked before sending it
-function precheck(file: File, inbox: PublicInbox): string | null {
-    if (inbox.allowedExt && !inbox.allowedExt.includes(extensionOf(file.name))) {
-        return `Only ${inbox.allowedExt.map((e) => "." + e).join(", ")} files are accepted.`;
+function precheck(file: File, request: PublicDropRequest): string | null {
+    if (request.allowedExt && !request.allowedExt.includes(extensionOf(file.name))) {
+        return `Only ${request.allowedExt.map((e) => "." + e).join(", ")} files are accepted.`;
     }
-    if (inbox.maxFileBytes && file.size > Number(inbox.maxFileBytes)) {
-        return `Larger than ${formatSize(inbox.maxFileBytes, true)}, the most this link accepts.`;
+    if (request.maxFileBytes && file.size > Number(request.maxFileBytes)) {
+        return `Larger than ${formatSize(request.maxFileBytes, true)}, the most this link accepts.`;
     }
     return null;
 }
 
-function PasswordForm({ link, onUnlocked }: { link: string; onUnlocked: (inbox: PublicInbox) => void }) {
+function PasswordForm({ link, onUnlocked }: { link: string; onUnlocked: (request: PublicDropRequest) => void }) {
     const [password, setPassword] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
@@ -48,7 +48,7 @@ function PasswordForm({ link, onUnlocked }: { link: string; onUnlocked: (inbox: 
         setBusy(true);
         setError(null);
         try {
-            onUnlocked(await unlockPublicInbox(link, password));
+            onUnlocked(await unlockPublicDropRequest(link, password));
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : "Could not unlock.");
         } finally {
@@ -95,8 +95,8 @@ function QueueRow({ item, onCancel }: { item: QueueItem; onCancel: () => void })
 }
 
 // Public page behind /u/<link>: anyone with the link can send files to its owner
-export function InboxPage({ link }: { link: string }) {
-    const [inbox, setInbox] = useState<PublicInbox | null>(null);
+export function RequestPage({ link }: { link: string }) {
+    const [request, setRequest] = useState<PublicDropRequest | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [sender, setSender] = useState("");
     const [queue, setQueue] = useState<QueueItem[]>([]);
@@ -108,9 +108,9 @@ export function InboxPage({ link }: { link: string }) {
     const busyRef = useRef(false);
 
     const reload = useCallback(() => {
-        return fetchPublicInbox(link)
+        return fetchPublicDropRequest(link)
             .then((data) => {
-                setInbox(data);
+                setRequest(data);
                 setError(null);
             })
             .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not reach the server. Try again later."));
@@ -139,7 +139,7 @@ export function InboxPage({ link }: { link: string }) {
             setQueue((list) => list.map((q) => (q.key === next.key ? { ...q, ...patch } : q)));
         update({ state: "sending", progress: 0 });
 
-        const { promise, cancel } = sendToInbox(link, next.file, sender, (progress) => update({ progress }));
+        const { promise, cancel } = sendToDropRequest(link, next.file, sender, (progress) => update({ progress }));
         cancelRef.current = cancel;
         promise
             .then((saved) => update({ state: "done", message: saved.name !== next.file.name ? `Saved as ${saved.name}` : undefined }))
@@ -152,15 +152,15 @@ export function InboxPage({ link }: { link: string }) {
             });
     }, [queue, link, sender, reload]);
 
-    const expired = inbox?.expiresAt ? new Date(inbox.expiresAt).getTime() <= now : false;
-    const closedText = inbox && inbox.status !== "open" ? CLOSED_TEXT[inbox.status] : null;
-    const nameMissing = inbox?.requireName === true && sender.trim() === "";
+    const expired = request?.expiresAt ? new Date(request.expiresAt).getTime() <= now : false;
+    const closedText = request && request.status !== "open" ? CLOSED_TEXT[request.status] : null;
+    const nameMissing = request?.requireName === true && sender.trim() === "";
     const sending = queue.some((q) => q.state === "waiting" || q.state === "sending");
 
     function addFiles(files: FileList | null) {
-        if (!inbox || !files?.length || nameMissing) return;
+        if (!request || !files?.length || nameMissing) return;
         const items = Array.from(files).map<QueueItem>((file) => {
-            const problem = precheck(file, inbox);
+            const problem = precheck(file, request);
             return { key: ++keyRef.current, file, state: problem ? "failed" : "waiting", progress: 0, message: problem ?? undefined };
         });
         setQueue((list) => [...list, ...items]);
@@ -170,7 +170,7 @@ export function InboxPage({ link }: { link: string }) {
     return (
         <main className="flex min-h-screen items-center justify-center bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 px-4 py-10 text-slate-200">
             <div className="w-full max-w-lg rounded-xl border border-white/10 bg-slate-900/70 p-6 shadow-xl">
-                {!inbox && !error && (
+                {!request && !error && (
                     <div className="flex items-center justify-center gap-2 py-10 text-slate-400">
                         <Loader2 className="h-5 w-5 animate-spin" />
                         <span className="text-sm">Loading…</span>
@@ -180,22 +180,22 @@ export function InboxPage({ link }: { link: string }) {
                 {(error || expired) && (
                     <div className="flex flex-col items-center gap-3 py-10 text-center text-slate-400">
                         <Link2Off className="h-10 w-10 text-slate-600" />
-                        <p className="text-sm">{error ?? "This upload link has expired"}</p>
+                        <p className="text-sm">{error ?? "This link has expired"}</p>
                     </div>
                 )}
 
-                {inbox && !error && !expired && (
+                {request && !error && !expired && (
                     <div className="space-y-5">
                         <div className="flex items-start gap-3">
-                            <Inbox className="mt-0.5 h-8 w-8 shrink-0 text-sky-400" />
+                            <InboxIcon className="mt-0.5 h-8 w-8 shrink-0 text-sky-400" />
                             <div className="min-w-0">
-                                <h1 className="break-words text-lg font-semibold text-slate-100">{inbox.title}</h1>
-                                {inbox.description && <p className="whitespace-pre-line break-words text-sm text-slate-400">{inbox.description}</p>}
+                                <h1 className="break-words text-lg font-semibold text-slate-100">{request.title}</h1>
+                                {request.description && <p className="whitespace-pre-line break-words text-sm text-slate-400">{request.description}</p>}
                             </div>
                         </div>
 
-                        {inbox.locked ? (
-                            <PasswordForm link={link} onUnlocked={setInbox} />
+                        {request.locked ? (
+                            <PasswordForm link={link} onUnlocked={setRequest} />
                         ) : (
                             <>
                                 {closedText ? (
@@ -203,9 +203,9 @@ export function InboxPage({ link }: { link: string }) {
                                 ) : (
                                     <>
                                         <div className="space-y-2">
-                                            <Label htmlFor="inbox-sender">Your name{inbox.requireName ? "" : " (optional)"}</Label>
+                                            <Label htmlFor="request-sender">Your name{request.requireName ? "" : " (optional)"}</Label>
                                             <Input
-                                                id="inbox-sender"
+                                                id="request-sender"
                                                 value={sender}
                                                 maxLength={60}
                                                 disabled={sending}
@@ -240,17 +240,17 @@ export function InboxPage({ link }: { link: string }) {
                                             ref={inputRef}
                                             type="file"
                                             multiple
-                                            accept={inbox.allowedExt?.map((e) => "." + e).join(",")}
+                                            accept={request.allowedExt?.map((e) => "." + e).join(",")}
                                             className="hidden"
                                             onChange={(e) => addFiles(e.target.files)}
                                         />
 
                                         <ul className="space-y-1 text-xs text-slate-500">
-                                            {inbox.allowedExt && <li>Accepted: {inbox.allowedExt.map((e) => "." + e).join(", ")}</li>}
-                                            {inbox.maxFileBytes && <li>Up to {formatSize(inbox.maxFileBytes, true)} per file</li>}
-                                            {inbox.bytesLeft && <li>{formatSize(inbox.bytesLeft, true)} of space left</li>}
-                                            {inbox.filesLeft !== null && inbox.filesLeft !== undefined && (
-                                                <li>{inbox.filesLeft} more file{inbox.filesLeft === 1 ? "" : "s"}</li>
+                                            {request.allowedExt && <li>Accepted: {request.allowedExt.map((e) => "." + e).join(", ")}</li>}
+                                            {request.maxFileBytes && <li>Up to {formatSize(request.maxFileBytes, true)} per file</li>}
+                                            {request.bytesLeft && <li>{formatSize(request.bytesLeft, true)} of space left</li>}
+                                            {request.filesLeft !== null && request.filesLeft !== undefined && (
+                                                <li>{request.filesLeft} more file{request.filesLeft === 1 ? "" : "s"}</li>
                                             )}
                                         </ul>
                                     </>
@@ -264,11 +264,11 @@ export function InboxPage({ link }: { link: string }) {
                                     </ul>
                                 )}
 
-                                {inbox.received && inbox.received.length > 0 && (
+                                {request.received && request.received.length > 0 && (
                                     <section className="space-y-1">
                                         <p className="text-sm font-semibold text-slate-200">Already received</p>
                                         <ul className="max-h-48 space-y-1 overflow-y-auto text-xs text-slate-400">
-                                            {inbox.received.map((f, i) => (
+                                            {request.received.map((f, i) => (
                                                 <li key={i} className="flex justify-between gap-2">
                                                     <span className="truncate" title={f.name}>{f.name}</span>
                                                     <span className="shrink-0">{formatSize(f.size, true)}</span>
@@ -280,10 +280,10 @@ export function InboxPage({ link }: { link: string }) {
                             </>
                         )}
 
-                        {inbox.expiresAt && (
-                            <p className="flex items-center gap-2 text-xs text-slate-500" title={formatDate(inbox.expiresAt)}>
+                        {request.expiresAt && (
+                            <p className="flex items-center gap-2 text-xs text-slate-500" title={formatDate(request.expiresAt)}>
                                 <Clock className="h-3.5 w-3.5" />
-                                Closes {formatTimeLeft(inbox.expiresAt, now)}
+                                Closes {formatTimeLeft(request.expiresAt, now)}
                             </p>
                         )}
                     </div>
