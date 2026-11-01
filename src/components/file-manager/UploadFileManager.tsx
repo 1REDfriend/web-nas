@@ -158,7 +158,13 @@ export function UploadFileManager({
                     id: toastId,
                     description: `${percent}% completed`
                 });
-                await upload(targetDirectory, file);
+                // Only big files (sent in pieces) report progress within the file
+                await upload(targetDirectory, file, (filePercent) => {
+                    toast.loading(`Uploading: ${displayName}`, {
+                        id: toastId,
+                        description: `${filePercent}% of this file · ${i + 1} of ${files.length}`
+                    });
+                });
             }
 
             setUploadProgress(100);

@@ -43,6 +43,7 @@ Needs `npm install` and `npx prisma generate` first. The test server listens on 
 | `public-drops` | the public side: `/d/<id>` page (noindex), info, download counting, Range on unlimited drops only, limits never exceeded (also with parallel downloads), previews, expired / removed / used-up links |
 | `drop-requests-manage` | drop request links for the owner and admin: who may create them (roles, API key scope), input checks, keep time within drop lifetimes, link names, owners only, pausing, admin switches (off, roles, required end date) |
 | `drop-requests-public` | sending files through a drop request without login: files become the owner's drops in the drop folder (keep time, drop quota, listed with the sender), safe names, file types, size / count / total limits (also with parallel uploads), password unlock and its rate limit, paused / expired / deleted links, sweeping |
+| `chunked-uploads` | big uploads sent in pieces through `/api/uploads` for files, drops and drop request links: who may start and continue one, checks before any bytes, offsets and resent pieces, size limits, quota and link room held while uploading, finish and cancel clean-up, files that appeared meanwhile, idle uploads swept |
 | `upload` | browser upload route: success, name clash, large binary, missing folders, bad names, permissions |
 
 A suite prints one `PASS`/`FAIL` line per check and exits non-zero if any check fails; the runner shows the full output of failing suites only.

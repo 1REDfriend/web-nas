@@ -1,4 +1,5 @@
 import type { DropInfo } from "./drop.service";
+import { chunkedUpload, needsPieces } from "@/lib/api/chunked-upload";
 
 // Browser calls for drop requests: links that let people send files to you.
 // The owner side uses /api/v1/drops/requests (the session is accepted there, like
@@ -129,12 +130,18 @@ export async function unlockPublicDropRequest(link: string, password: string): P
 
 // XMLHttpRequest instead of fetch: it reports upload progress.
 // The name and sender go in the query string so the server can refuse them before the file is sent.
+// Big files go in pieces (see chunked-upload.ts).
 export function sendToDropRequest(
     link: string,
     file: File,
     sender: string,
     onProgress: (percent: number) => void
 ): { promise: Promise<{ name: string; size: number }>; cancel: () => void } {
+    if (needsPieces(file)) {
+        const { promise, cancel } = chunkedUpload<{ file: { name: string; size: number } }>("request", file, { link, sender: sender.trim() }, onProgress);
+        return { promise: promise.then((data) => data.file), cancel };
+    }
+
     const xhr = new XMLHttpRequest();
     const params = new URLSearchParams({ id: link, name: file.name });
     if (sender.trim()) params.set("sender", sender.trim());

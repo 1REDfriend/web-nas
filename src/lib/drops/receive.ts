@@ -80,7 +80,7 @@ async function adjust(requestId: string, bytes: number, files: number) {
         WHERE id = ${requestId}`;
 }
 
-async function assertDiskRoom(folder: string, bytes: number) {
+export async function assertDiskRoom(folder: string, bytes: number) {
     const space = await checkDiskSpace(folder).catch(() => null);
     if (!space || space.size === 0) return;
     if (space.free - bytes < space.size * MIN_FREE_SHARE) {
@@ -99,30 +99,65 @@ export type ReceiveInput = {
 
 export type Received = { name: string; size: number };
 
-export async function receiveFile({ req, headers, request, senderName, fileName }: ReceiveInput): Promise<Received> {
+// Every check that can run before the file arrives, then the placeholder drop that
+// holds `bytes` of the link's room and the owner's quota. `slack` allows for
+// multipart headers when `bytes` is a Content-Length rather than the file size.
+export async function prepareReceive(
+    request: DropRequest,
+    { senderName, fileName, bytes, ip, slack = 0 }: { senderName: unknown; fileName: unknown; bytes: number; ip: string; slack?: number }
+): Promise<{ drop: Drop; fileCap: number }> {
     if (requestStatus(request) !== "open") throw new FileAccessError("This link is not taking files right now", 403);
 
-    const sender = cleanSenderName(senderName);
+    const sender = cleanSenderName(typeof senderName === "string" ? senderName : null);
     if (request.requireName && !sender) throw new FileAccessError("Please enter your name", 400);
-    if (fileName && !extensionAllowed(cleanFileName(fileName), request.allowedExt)) {
+    if (typeof fileName === "string" && fileName && !extensionAllowed(cleanFileName(fileName), request.allowedExt)) {
         throw new FileAccessError("This type of file is not accepted here", 415);
     }
 
-    const declared = Number(headers.get("content-length"));
-    if (!Number.isInteger(declared) || declared <= 0) throw new FileAccessError("Content-Length is required", 411);
-
     const fileCap = request.maxFileBytes === null ? DEFAULT_MAX_UPLOAD_BYTES : Number(request.maxFileBytes);
-    if (declared > fileCap + MULTIPART_SLACK) throw new FileAccessError("File is larger than this link accepts", 413);
-    if (declared > (await remainingBytes(request))) throw new FileAccessError("This link has no room left for a file this large", 413);
+    if (bytes > fileCap + slack) throw new FileAccessError("File is larger than this link accepts", 413);
+    if (bytes > (await remainingBytes(request))) throw new FileAccessError("This link has no room left for a file this large", 413);
 
-    await assertDiskRoom(await currentDropBase(), declared);
-    const drop = await reserve(request, declared, sender, getClientIp({ headers }));
+    await assertDiskRoom(await currentDropBase(), bytes);
+    const drop = await reserve(request, bytes, sender, ip);
     if (!drop) throw new FileAccessError("This link has no room left for a file this large", 413);
+    await fs.ensureDir(dropDir(drop.baseDir, drop.id));
+    return { drop, fileCap };
+}
+
+// The file is at dropFilePath(drop): the drop goes live and the link's count is corrected
+export async function completeReceive(drop: Drop, requestId: string, keepHours: number, name: string, reserved: number): Promise<Drop> {
+    const saved = await finishDrop(drop, { name, lifetimeMs: keepHours * HOUR_MS, maxDownloads: null });
+    await adjust(requestId, Number(saved.size) - reserved, 0);
+    log(`[DROP REQUEST] ${requestId} received drop ${saved.id} "${name}" (${saved.size} bytes, until ${saved.expiresAt.toISOString()})`);
+    return saved;
+}
+
+// Undoes prepareReceive: removes the drop (and anything written) and frees its room
+export async function cancelReceive(drop: Drop, requestId: string, reserved: number) {
+    await abortDrop(drop);
+    await adjust(requestId, -reserved, -1).catch((err) => logerror("[drop request] could not release space:", err));
+}
+
+export async function receiveFile({ req, headers, request, senderName, fileName }: ReceiveInput): Promise<Received> {
+    const declared = Number(headers.get("content-length"));
+    if (!Number.isInteger(declared) || declared <= 0) {
+        // Same order of checks as before the length is known
+        if (requestStatus(request) !== "open") throw new FileAccessError("This link is not taking files right now", 403);
+        throw new FileAccessError("Content-Length is required", 411);
+    }
+
+    const { drop, fileCap } = await prepareReceive(request, {
+        senderName,
+        fileName,
+        bytes: declared,
+        ip: getClientIp({ headers }),
+        slack: MULTIPART_SLACK,
+    });
 
     let upload: ParsedUpload | null = null;
     let done = false;
     try {
-        await fs.ensureDir(dropDir(drop.baseDir, drop.id));
         // Written straight into the drop's folder, so nothing is copied afterwards
         upload = await parseUploadForm(req, {
             maxFileSize: Math.min(fileCap, declared),
@@ -136,18 +171,12 @@ export async function receiveFile({ req, headers, request, senderName, fileName 
         if (!extensionAllowed(name, request.allowedExt)) throw new FileAccessError("This type of file is not accepted here", 415);
 
         await fs.move(file.filepath, dropFilePath(drop), { overwrite: true });
-        const saved = await finishDrop(drop, { name, lifetimeMs: request.keepHours * HOUR_MS, maxDownloads: null });
-        await adjust(request.id, file.size - declared, 0);
+        await completeReceive(drop, request.id, request.keepHours, name, declared);
         done = true;
-
-        log(`[DROP REQUEST] ${request.id} received drop ${saved.id} "${name}" (${file.size} bytes, until ${saved.expiresAt.toISOString()})`);
         return { name, size: file.size };
     } finally {
         await upload?.cleanup();
-        if (!done) {
-            // abortDrop removes the folder (and any half-written temp file) and the row
-            await abortDrop(drop);
-            await adjust(request.id, -declared, -1).catch((err) => logerror("[drop request] could not release space:", err));
-        }
+        // cancelReceive removes the folder (and any half-written temp file) and the row
+        if (!done) await cancelReceive(drop, request.id, declared);
     }
 }

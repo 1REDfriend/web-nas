@@ -1,3 +1,4 @@
+import { chunkedUpload, needsPieces } from "@/lib/api/chunked-upload";
 import type { DropRequestInfo } from "./drop-request.service";
 
 // Browser calls for drops. The logged-in session is accepted on /api/v1, so the
@@ -66,11 +67,16 @@ export async function removeDropRequest(id: string): Promise<void> {
 
 // XMLHttpRequest instead of fetch: it reports upload progress.
 // Options go in the query string so the server can refuse them before the file is sent.
+// Big files go in pieces (see chunked-upload.ts).
 export function uploadDrop(
     file: File,
     options: DropUploadOptions,
     onProgress: (percent: number) => void
 ): { promise: Promise<DropInfo>; cancel: () => void } {
+    if (needsPieces(file)) {
+        return chunkedUpload<DropInfo>("drop", file, { expiresIn: options.expiresIn, maxDownloads: options.maxDownloads === null ? undefined : String(options.maxDownloads) }, onProgress);
+    }
+
     const xhr = new XMLHttpRequest();
     const params = new URLSearchParams();
     if (options.expiresIn) params.set("expiresIn", options.expiresIn);

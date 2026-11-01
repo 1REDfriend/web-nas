@@ -38,6 +38,7 @@ const GROUPS = [
     ["public-drops"],
     ["drop-requests-manage"],
     ["drop-requests-public"],
+    ["chunked-uploads"],
 ];
 
 function startServer(env) {

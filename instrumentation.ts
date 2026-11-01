@@ -4,5 +4,8 @@ export async function register() {
         // Expired drops must go away on time even when nobody opens the app
         const { startDropSweeper } = await import("@/lib/drops/maintenance");
         startDropSweeper();
+        // Big uploads sent in pieces and then abandoned are cleaned up the same way
+        const { startUploadSweeper } = await import("@/lib/uploads/sessions");
+        startUploadSweeper();
     }
 }

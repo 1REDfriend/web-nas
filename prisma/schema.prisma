@@ -234,3 +234,22 @@ model DropRequest {
   @@index([userId], name: "idx_drop_request_user_id")
   @@map("drop_requests")
 }
+
+// A large upload sent in pieces (each small enough for Cloudflare's 100 MB request cap).
+// Every check runs when it starts; the pieces are appended to `tempPath` and the
+// file is put in place when it finishes. Idle sessions are cleaned up by the sweeper.
+model UploadSession {
+  id        String   @id                          // random; also the capability for public uploads
+  kind      String                                // "file" | "drop" | "request"
+  userId    String   @map("user_id")              // who uploads (file, drop) or the link's owner (request)
+  size      BigInt                                // total bytes announced at the start
+  received  BigInt   @default(0)                  // bytes written so far
+  tempPath  String   @map("temp_path")
+  meta      String                                // JSON, kind-specific (target, drop options, ...)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId], name: "idx_upload_session_user_id")
+  @@index([updatedAt], name: "idx_upload_session_updated_at")
+  @@map("upload_sessions")
+}

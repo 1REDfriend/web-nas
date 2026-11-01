@@ -83,7 +83,7 @@ try {
     r = await call("GET", API, { cookie: alice });
     check("owner list starts empty, creating allowed", r.status === 200 && r.json?.data?.requests?.length === 0 && r.json?.data?.canCreate === true, show(r));
     check("list reports the defaults",
-        r.json?.data?.defaults?.expiresInDays === 7 && r.json?.data?.defaults?.maxFileMB === 100 &&
+        r.json?.data?.defaults?.expiresInDays === 7 && r.json?.data?.defaults?.maxFileMB === 2048 &&
         r.json?.data?.defaults?.keepHours === 168 && r.json?.data?.maxKeepHours === 168, show(r));
     r = await create(guest, { title: "g" });
     check("GUEST cannot create (no drops for GUEST)", r.status === 403, show(r));
@@ -117,9 +117,9 @@ try {
     const basic = r.json?.data;
     check("create -> 201", r.status === 201 && basic?.status === "open", show(r));
     check("link uses the random id", /\/u\/[A-Za-z0-9_-]{24}$/.test(basic?.url ?? ""), basic?.url);
-    check("defaults: 7 days, 100 MB per file, 5 GB in all, files kept as long as drops may",
+    check("defaults: 7 days, 2 GB per file, 5 GB in all, files kept as long as drops may",
         Math.abs(new Date(basic?.expiresAt).getTime() - (Date.now() + 7 * DAY_MS)) < 60_000 &&
-        basic?.maxFileBytes === String(100 * MB) && basic?.maxTotalBytes === String(5 * 1024 * MB) &&
+        basic?.maxFileBytes === String(2048 * MB) && basic?.maxTotalBytes === String(5 * 1024 * MB) &&
         basic?.maxFiles === null && basic?.keepHours === 168, show(r));
     check("response has no password hash or folder", !/passwordHash|password_hash|targetPath/.test(r.text), r.text);
 

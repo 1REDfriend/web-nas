@@ -117,7 +117,7 @@ try {
     check("info needs no login", r.status === 200 && r.json?.request?.title === "Send me files" && r.json?.request?.status === "open", show(r));
     check("info is not cached", (r.headers.get("cache-control") ?? "").includes("no-store"), "");
     check("info says nothing about the owner", !/alice\b|userId|e2e_alice|keepHours/.test(r.text.replace("alice-box", "")), r.text);
-    check("info gives the limits", r.json?.request?.maxFileBytes === String(100 * MB) && r.json?.request?.locked === false, show(r));
+    check("info gives the limits", r.json?.request?.maxFileBytes === String(2048 * MB) && r.json?.request?.locked === false, show(r));
     r = await call("GET", "/api/public/drop-requests/alice-box");
     check("custom link name works", r.status === 200 && r.json?.request?.title === "Send me files", show(r));
     for (const [id, label] of [["A".repeat(24), "unknown id"], ["no-such-box", "unknown name"], ["a", "malformed"], ["..%2F..%2Fetc", "path-like"]]) {

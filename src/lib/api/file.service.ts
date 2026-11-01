@@ -1,4 +1,5 @@
 import { logerror } from "@/lib/logger";
+import { chunkedUpload, needsPieces } from "@/lib/api/chunked-upload";
 
 const API_BASE = "/api/files";
 
@@ -217,10 +218,22 @@ export async function renameFile(
     return json;
 }
 
+// Big files go in pieces (see chunked-upload.ts); onProgress is only called for those
 export async function upload(
     currentPath: string,
-    file: File
+    file: File,
+    onProgress?: (percent: number) => void
 ) {
+    if (needsPieces(file)) {
+        try {
+            const data = await chunkedUpload<{ filePath: string }>("file", file, { dir: currentPath }, onProgress ?? (() => undefined)).promise;
+            return { message: 'File uploaded successfully', filePath: data.filePath };
+        } catch (error: unknown) {
+            logerror('[Error in upload service] : ' + error);
+            throw error;
+        }
+    }
+
     const formData = new FormData();
     formData.append('file', file);
     formData.append('currentPath', currentPath);

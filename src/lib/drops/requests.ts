@@ -13,7 +13,7 @@ import { parseExtensions } from "./names";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MB = 1024 * 1024;
 
-export const REQUEST_DEFAULTS = { expiresInDays: 7, maxFileMB: 100, maxTotalMB: 5 * 1024 };
+export const REQUEST_DEFAULTS = { expiresInDays: 7, maxFileMB: 2 * 1024, maxTotalMB: 5 * 1024 };
 const MAX_DAYS = 365;
 const MAX_FILE_MB = 100 * 1024;
 const MAX_TOTAL_MB = 10 * 1024 * 1024;

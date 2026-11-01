@@ -273,7 +273,7 @@ function RequestForm({
                 </div>
             </div>
             <p className="-mt-2 text-[11px] text-slate-500">
-                Empty = no limit. Files over 100 MB may not get through the internet connection to this server.
+                Empty = no limit. Big files are sent in pieces, so any size works up to these limits.
             </p>
 
             <div className="space-y-2">
