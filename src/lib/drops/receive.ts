@@ -14,6 +14,7 @@ import { currentDropBase, dropDir, newDropId } from "./locations";
 import { ensureDropBase } from "./maintenance";
 import { abortDrop, dropFilePath, dropFolderPath, finishDrop } from "./drops";
 import { remainingBytes } from "./request-public";
+import { newShareId } from "./request-sharing";
 
 // Taking one file from someone with a drop request link. The file becomes one of
 // the owner's drops: it lives in the drop folder, counts against the drop quota and
@@ -39,7 +40,7 @@ export function assertUploadRateLimit(request: { headers: Headers }) {
 }
 
 // Creates the placeholder drop, or returns null when the link or the quota has no room
-async function reserve(request: DropRequest, bytes: number, sender: string | null, ip: string): Promise<Drop | null> {
+async function reserve(request: DropRequest, bytes: number, sender: string | null, ip: string, senderKeyHash: string | null): Promise<Drop | null> {
     const { quotaMB } = await getDropLimits();
     const quota = quotaMB === 0 ? null : quotaMB * 1024 * 1024;
     const baseDir = await currentDropBase();
@@ -66,6 +67,8 @@ async function reserve(request: DropRequest, bytes: number, sender: string | nul
                 requestId: request.id,
                 senderName: sender,
                 senderIp: ip,
+                senderKeyHash,
+                shareId: newShareId(),
                 // Placeholder until the upload finishes, like any drop upload
                 expiresAt: new Date(Date.now() + 24 * HOUR_MS),
             },
@@ -95,6 +98,7 @@ export type ReceiveInput = {
     // Sent in the query string so they can be checked before the body arrives
     senderName: string | null | undefined;
     fileName: string | null | undefined;
+    senderKeyHash: string | null;
 };
 
 export type Received = { name: string; size: number };
@@ -104,7 +108,15 @@ export type Received = { name: string; size: number };
 // multipart headers when `bytes` is a Content-Length rather than the file size.
 export async function prepareReceive(
     request: DropRequest,
-    { senderName, fileName, bytes, ip, slack = 0 }: { senderName: unknown; fileName: unknown; bytes: number; ip: string; slack?: number }
+    { senderName, fileName, bytes, ip, senderKeyHash = null, slack = 0 }: {
+        senderName: unknown;
+        fileName: unknown;
+        bytes: number;
+        ip: string;
+        // Hash of the sender's browser key, so "own" sharing can show them their files
+        senderKeyHash?: string | null;
+        slack?: number;
+    }
 ): Promise<{ drop: Drop; fileCap: number }> {
     if (requestStatus(request) !== "open") throw new FileAccessError("This link is not taking files right now", 403);
 
@@ -119,7 +131,7 @@ export async function prepareReceive(
     if (bytes > (await remainingBytes(request))) throw new FileAccessError("This link has no room left for a file this large", 413);
 
     await assertDiskRoom(await currentDropBase(), bytes);
-    const drop = await reserve(request, bytes, sender, ip);
+    const drop = await reserve(request, bytes, sender, ip, senderKeyHash);
     if (!drop) throw new FileAccessError("This link has no room left for a file this large", 413);
     await fs.ensureDir(dropDir(drop.baseDir, drop.id));
     return { drop, fileCap };
@@ -139,7 +151,7 @@ export async function cancelReceive(drop: Drop, requestId: string, reserved: num
     await adjust(requestId, -reserved, -1).catch((err) => logerror("[drop request] could not release space:", err));
 }
 
-export async function receiveFile({ req, headers, request, senderName, fileName }: ReceiveInput): Promise<Received> {
+export async function receiveFile({ req, headers, request, senderName, fileName, senderKeyHash }: ReceiveInput): Promise<Received> {
     const declared = Number(headers.get("content-length"));
     if (!Number.isInteger(declared) || declared <= 0) {
         // Same order of checks as before the length is known
@@ -152,6 +164,7 @@ export async function receiveFile({ req, headers, request, senderName, fileName 
         fileName,
         bytes: declared,
         ip: getClientIp({ headers }),
+        senderKeyHash,
         slack: MULTIPART_SLACK,
     });
 

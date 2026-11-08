@@ -142,12 +142,12 @@ export async function startDropSession(caller: ApiCaller, input: StartInput): Pr
     }
 }
 
-export async function startRequestSession(found: PublicRequest, input: StartInput, ip: string): Promise<UploadSession> {
+export async function startRequestSession(found: PublicRequest, input: StartInput, ip: string, senderKeyHash: string | null): Promise<UploadSession> {
     const { request } = found;
     const size = totalSize(input.size);
     const name = cleanFileName(text(input.name));
 
-    const { drop } = await prepareReceive(request, { senderName: input.sender, fileName: name, bytes: size, ip });
+    const { drop } = await prepareReceive(request, { senderName: input.sender, fileName: name, bytes: size, ip, senderKeyHash });
     try {
         const meta: RequestMeta = { dropId: drop.id, requestId: request.id, keepHours: request.keepHours, name };
         return await createSession(newId(), "request", request.userId, size, `${dropFilePath(drop)}.part`, meta);

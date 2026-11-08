@@ -74,15 +74,29 @@ export type DropRequestSettings = {
     enabled: boolean;       // off = every request link answers 404 and nobody can create one
     roles: Role[];          // roles that may create request links
     allowNoExpiry: boolean; // may a request link stay open with no end date
+    allowOwn: boolean;      // may senders download the files they sent themselves
+    allowAll: boolean;      // may anyone with the link download every file it received
+    dailyDownloads: number; // downloads per link per UTC day through the request page; 0 = no limit
 };
 
 const REQUEST_KEYS: Record<keyof DropRequestSettings, string> = {
     enabled: "drops.requests.enabled",
     roles: "drops.requests.roles",
     allowNoExpiry: "drops.requests.allowNoExpiry",
+    allowOwn: "drops.requests.allowOwn",
+    allowAll: "drops.requests.allowAll",
+    dailyDownloads: "drops.requests.dailyDownloads",
 };
 
-export const DROP_REQUEST_DEFAULTS: DropRequestSettings = { enabled: true, roles: ["ADMIN", "USER"], allowNoExpiry: true };
+export const DROP_REQUEST_DEFAULTS: DropRequestSettings = {
+    enabled: true,
+    roles: ["ADMIN", "USER"],
+    allowNoExpiry: true,
+    allowOwn: true,
+    allowAll: true,
+    dailyDownloads: 2000,
+};
+const MAX_DAILY_DOWNLOADS = 1_000_000;
 
 export async function getDropRequestSettings(): Promise<DropRequestSettings> {
     const rows = await prisma.appSetting.findMany({ where: { key: { in: Object.values(REQUEST_KEYS) } } });
@@ -93,8 +107,12 @@ export async function getDropRequestSettings(): Promise<DropRequestSettings> {
     if (enabled !== undefined) settings.enabled = enabled === "1";
     const roles = value("roles");
     if (roles !== undefined) settings.roles = roles.split(",").map((r) => r.trim()).filter(isRuleRole);
-    const noExpiry = value("allowNoExpiry");
-    if (noExpiry !== undefined) settings.allowNoExpiry = noExpiry === "1";
+    for (const name of ["allowNoExpiry", "allowOwn", "allowAll"] as const) {
+        const flag = value(name);
+        if (flag !== undefined) settings[name] = flag === "1";
+    }
+    const daily = Number(value("dailyDownloads"));
+    if (value("dailyDownloads") !== undefined && Number.isInteger(daily) && daily >= 0) settings.dailyDownloads = daily;
     return settings;
 }
 
@@ -105,7 +123,7 @@ export async function validateDropRequestSettings(input: unknown): Promise<DropR
     if (!input || typeof input !== "object") throw new FileAccessError("requests must be an object", 400);
     const body = input as Partial<Record<keyof DropRequestSettings, unknown>>;
 
-    for (const name of ["enabled", "allowNoExpiry"] as const) {
+    for (const name of ["enabled", "allowNoExpiry", "allowOwn", "allowAll"] as const) {
         if (body[name] === undefined) continue;
         if (typeof body[name] !== "boolean") throw new FileAccessError(`${name} must be true or false`, 400);
         next[name] = body[name];
@@ -116,6 +134,13 @@ export async function validateDropRequestSettings(input: unknown): Promise<DropR
         }
         next.roles = [...new Set(body.roles)];
     }
+    if (body.dailyDownloads !== undefined) {
+        const daily = body.dailyDownloads;
+        if (typeof daily !== "number" || !Number.isInteger(daily) || daily < 0 || daily > MAX_DAILY_DOWNLOADS) {
+            throw new FileAccessError(`dailyDownloads must be a whole number from 0 (no limit) to ${MAX_DAILY_DOWNLOADS}`, 400);
+        }
+        next.dailyDownloads = daily;
+    }
     return next;
 }
 
@@ -124,6 +149,9 @@ export async function saveDropRequestSettings(settings: DropRequestSettings) {
         enabled: settings.enabled ? "1" : "0",
         roles: settings.roles.join(","),
         allowNoExpiry: settings.allowNoExpiry ? "1" : "0",
+        allowOwn: settings.allowOwn ? "1" : "0",
+        allowAll: settings.allowAll ? "1" : "0",
+        dailyDownloads: String(settings.dailyDownloads),
     };
     await prisma.$transaction(
         (Object.keys(REQUEST_KEYS) as (keyof DropRequestSettings)[]).map((name) =>

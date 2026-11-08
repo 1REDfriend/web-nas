@@ -121,6 +121,7 @@ try {
         Math.abs(new Date(basic?.expiresAt).getTime() - (Date.now() + 7 * DAY_MS)) < 60_000 &&
         basic?.maxFileBytes === String(2048 * MB) && basic?.maxTotalBytes === String(5 * 1024 * MB) &&
         basic?.maxFiles === null && basic?.keepHours === 168, show(r));
+    check("a new link lets anyone with it download, as the admin allows by default", basic?.shareMode === "all" && basic?.showSenders === false, show(r));
     check("response has no password hash or folder", !/passwordHash|password_hash|targetPath/.test(r.text), r.text);
 
     r = await create(alice, {

@@ -43,7 +43,14 @@ export type DropSettings = {
     };
 };
 
-export type DropRequestSettings = { enabled: boolean; roles: ("ADMIN" | "USER" | "GUEST")[]; allowNoExpiry: boolean };
+export type DropRequestSettings = {
+    enabled: boolean;
+    roles: ("ADMIN" | "USER" | "GUEST")[];
+    allowNoExpiry: boolean;
+    allowOwn: boolean;
+    allowAll: boolean;
+    dailyDownloads: number; // 0 = no limit
+};
 
 async function readV1(res: Response) {
     const body = await res.json().catch(() => null);

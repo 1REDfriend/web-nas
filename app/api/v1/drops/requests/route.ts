@@ -13,6 +13,7 @@ import {
     toOwnerRequest,
     updateRequest,
 } from "@/lib/drops/requests";
+import { defaultShareMode } from "@/lib/drops/request-sharing";
 
 // Drop requests: links that let people without an account send files to the
 // caller. Every file received becomes one of the caller's drops.  (scope: drop)
@@ -61,7 +62,9 @@ export async function GET(request: Request) {
             canCreate: settings.enabled && settings.roles.includes(caller.user.role),
             enabled: settings.enabled,
             allowNoExpiry: settings.allowNoExpiry,
-            defaults: { ...REQUEST_DEFAULTS, keepHours: limits.maxHours },
+            allowOwn: settings.allowOwn,
+            allowAll: settings.allowAll,
+            defaults: { ...REQUEST_DEFAULTS, keepHours: limits.maxHours, shareMode: defaultShareMode(settings) },
             maxKeepHours: limits.maxHours,
         });
     } catch (err: unknown) {

@@ -12,6 +12,7 @@ import { DropRequestSettings, DropSettings, fetchDropSettings, saveDropSettings 
 import { adminCloseDropRequest } from "@/lib/api/user/drop-request.service";
 
 type Role = DropRequestSettings["roles"][number];
+const SHARE_TEXT: Record<string, string> = { all: "anyone downloads", own: "senders download own", names: "names shown", none: "send only" };
 const ROLES: Role[] = ["ADMIN", "USER", "GUEST"];
 
 type Form = {
@@ -217,6 +218,49 @@ export function DropLimitsSettings() {
                     />
                     Allow links that take files until their owner closes them
                 </label>
+                <div className="space-y-1">
+                    <p className="text-xs text-slate-400">Downloads from the link&apos;s page</p>
+                    <label htmlFor="requests-allow-all" className="flex cursor-pointer items-center gap-2 text-sm text-slate-200">
+                        <input
+                            id="requests-allow-all"
+                            type="checkbox"
+                            className="h-4 w-4 accent-rose-500"
+                            disabled={!form.requests.enabled}
+                            checked={form.requests.allowAll}
+                            onChange={(e) => setRequests({ allowAll: e.target.checked })}
+                        />
+                        Anyone with the link may download every file
+                    </label>
+                    <label htmlFor="requests-allow-own" className="flex cursor-pointer items-center gap-2 text-sm text-slate-200">
+                        <input
+                            id="requests-allow-own"
+                            type="checkbox"
+                            className="h-4 w-4 accent-rose-500"
+                            disabled={!form.requests.enabled}
+                            checked={form.requests.allowOwn}
+                            onChange={(e) => setRequests({ allowOwn: e.target.checked })}
+                        />
+                        Senders may download the files they sent
+                    </label>
+                    <p className="text-[11px] text-slate-500">
+                        Switching one off stops those downloads on every link at once: links that let anyone download show only
+                        file names, and links for senders&apos; own files show nothing.
+                    </p>
+                </div>
+                <div className="space-y-1">
+                    <Label htmlFor="requests-daily">Downloads per link per day</Label>
+                    <Input
+                        id="requests-daily"
+                        type="number"
+                        min={0}
+                        step={1}
+                        className="w-40"
+                        disabled={!form.requests.enabled}
+                        value={String(form.requests.dailyDownloads)}
+                        onChange={(e) => setRequests({ dailyDownloads: e.target.value === "" ? 0 : Math.max(0, Math.floor(Number(e.target.value))) })}
+                    />
+                    <p className="text-[11px] text-slate-500">0 = no limit. Counted per UTC day; previews count too.</p>
+                </div>
             </fieldset>
 
             {error && <p className="text-xs text-red-400">{error}</p>}
@@ -242,7 +286,7 @@ export function DropLimitsSettings() {
                                         <Badge variant="outline" className="border-white/15 text-slate-400">{r.status}</Badge>
                                     </p>
                                     <p className="text-slate-500">
-                                        {r.owner} · {r.fileCount} file{r.fileCount === 1 ? "" : "s"}, {formatSize(r.usedBytes, true)}
+                                        {r.owner} · {r.fileCount} file{r.fileCount === 1 ? "" : "s"}, {formatSize(r.usedBytes, true)} · {SHARE_TEXT[r.shareMode]}
                                         {r.expiresAt ? ` · closes ${formatDate(r.expiresAt)}` : ""}
                                     </p>
                                 </div>

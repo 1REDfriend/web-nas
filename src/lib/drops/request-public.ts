@@ -9,6 +9,7 @@ import { REQUEST_ID_RE, REQUEST_LINK_RE, requestStatus } from "./requests";
 import { getDropRequestSettings } from "./settings";
 import { remainingDropQuota } from "./drops";
 import { parseExtensions } from "./names";
+import { canDownload, effectiveMode, readCookie, sharedFiles } from "./request-sharing";
 
 // What people with a drop request link (no login) may see and do.
 //
@@ -45,14 +46,6 @@ function sign(request: DropRequest, expires: number): string {
     return createHmac("sha256", ENV.JWT_SECRET)
         .update(`drop-request-unlock.${request.id}.${expires}.${request.passwordHash ?? ""}`)
         .digest("base64url");
-}
-
-function readCookie(cookieHeader: string | null | undefined, name: string): string | undefined {
-    for (const part of (cookieHeader ?? "").split(";")) {
-        const eq = part.indexOf("=");
-        if (eq > 0 && part.slice(0, eq).trim() === name) return part.slice(eq + 1).trim();
-    }
-    return undefined;
 }
 
 export function isUnlocked(request: DropRequest, cookieHeader: string | null | undefined): boolean {
@@ -104,10 +97,8 @@ export async function remainingBytes(request: DropRequest): Promise<number> {
     return Math.max(0, Math.min(linkLeft, await remainingDropQuota(request.userId)));
 }
 
-const RECEIVED_SHOWN = 100;
-
-// JSON for the sender's page
-export async function toPublicRequest(request: DropRequest, unlocked: boolean) {
+// JSON for the sender's page. The cookie header decides which files "own" mode shows.
+export async function toPublicRequest(request: DropRequest, unlocked: boolean, cookieHeader?: string | null) {
     const status = requestStatus(request);
     const left = await remainingBytes(request);
     const base = {
@@ -120,16 +111,7 @@ export async function toPublicRequest(request: DropRequest, unlocked: boolean) {
     };
     if (!unlocked) return base;
 
-    // Names and sizes only: received files are never downloadable from here
-    const received = request.showReceived
-        ? (await prisma.drop.findMany({
-            where: { requestId: request.id, completedAt: { not: null } },
-            orderBy: { createdAt: "desc" },
-            take: RECEIVED_SHOWN,
-            select: { fileName: true, size: true, createdAt: true },
-        })).map((d) => ({ name: d.fileName, size: String(d.size), createdAt: d.createdAt }))
-        : null;
-
+    const mode = effectiveMode(request, await getDropRequestSettings());
     return {
         ...base,
         requireName: request.requireName,
@@ -137,6 +119,9 @@ export async function toPublicRequest(request: DropRequest, unlocked: boolean) {
         maxFileBytes: request.maxFileBytes === null ? null : String(request.maxFileBytes),
         bytesLeft: Number.isFinite(left) ? String(left) : null,
         filesLeft: request.maxFiles === null ? null : Math.max(0, request.maxFiles - request.fileCount),
-        received,
+        shareMode: mode,
+        canDownload: canDownload(mode),
+        // Names, sizes and (when the mode allows) download ids; never drop ids
+        received: await sharedFiles(request, mode, cookieHeader),
     };
 }

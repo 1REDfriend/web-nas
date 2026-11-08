@@ -10,7 +10,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         assertShareRateLimit(request, "list");
         const found = await findPublicRequest((await params).id);
         const unlocked = isUnlocked(found.request, request.headers.get("cookie"));
-        return NextResponse.json({ request: await toPublicRequest(found.request, unlocked) }, { headers: { "Cache-Control": "no-store" } });
+        return NextResponse.json({ request: await toPublicRequest(found.request, unlocked, request.headers.get("cookie")) }, { headers: { "Cache-Control": "no-store" } });
     } catch (err: unknown) {
         const accessResponse = fileAccessErrorResponse(err);
         if (accessResponse) return accessResponse;

@@ -26,6 +26,7 @@ import {
     DropRequestInfo,
     DropRequestInput,
     DropRequestList,
+    ShareMode,
     createDropRequest,
     deleteDropRequest,
     fetchDropRequests,
@@ -41,6 +42,28 @@ const EXPIRY_CHOICES = ["1", "7", "30", "90", "365"];
 const KEEP_CHOICES = [24, 72, 168, 336, 720, 2160];
 const KEEP = "keep";
 const NEVER = "never";
+
+const SHARE_CHOICES: { value: ShareMode; label: string; hint: string }[] = [
+    { value: "all", label: "Every file, and they can download them", hint: "Everyone with the link sees and downloads everything sent to it." },
+    { value: "own", label: "Only their own files, and they can download them", hint: "Each sender sees what they sent from that browser. Another device or cleared cookies hide it." },
+    { value: "names", label: "Only the names of the files", hint: "Names and sizes of everything sent. Nothing can be downloaded from the link." },
+    { value: "none", label: "Nothing, they can only send", hint: "Only you see and download what was sent." },
+];
+
+// Modes the admin switched off are hidden, except the one a link already has
+function shareAllowed(mode: ShareMode, list: DropRequestList, editing: DropRequestInfo | null) {
+    if (editing?.shareMode === mode) return true;
+    if (mode === "all") return list.allowAll;
+    if (mode === "own") return list.allowOwn;
+    return true;
+}
+
+const SHARE_BADGE: Record<ShareMode, string> = {
+    all: "Anyone with the link can download",
+    own: "Senders download their own files",
+    names: "File names visible",
+    none: "Send only",
+};
 
 const STATUS_LABEL: Record<DropRequestInfo["status"], string> = { open: "Open", closed: "Paused", full: "Full", expired: "Ended" };
 const STATUS_STYLE: Record<DropRequestInfo["status"], string> = {
@@ -79,7 +102,8 @@ type Form = {
     password: string;        // "" = keep (edit) / none (create)
     removePassword: boolean;
     requireName: boolean;
-    showReceived: boolean;
+    shareMode: ShareMode;
+    showSenders: boolean;
 };
 
 const mbText = (bytes: string | null, per: number) => (bytes === null ? "" : String(Math.round((Number(bytes) / per) * 100) / 100));
@@ -98,7 +122,8 @@ function newForm(list: DropRequestList): Form {
         password: "",
         removePassword: false,
         requireName: false,
-        showReceived: false,
+        shareMode: list.defaults.shareMode,
+        showSenders: false,
     };
 }
 
@@ -116,7 +141,8 @@ function editForm(request: DropRequestInfo): Form {
         password: "",
         removePassword: false,
         requireName: request.requireName,
-        showReceived: request.showReceived,
+        shareMode: request.shareMode,
+        showSenders: request.showSenders,
     };
 }
 
@@ -138,7 +164,8 @@ function toInput(form: Form, editing: boolean): DropRequestInput {
         maxFiles: optionalNumber(form.maxFiles, "Number of files"),
         allowedExt: form.allowedExt.trim() || null,
         requireName: form.requireName,
-        showReceived: form.showReceived,
+        shareMode: form.shareMode,
+        showSenders: form.shareMode === "all" && form.showSenders,
     };
     if (form.expiry !== KEEP) input.expiresInDays = form.expiry === NEVER ? null : Number(form.expiry);
     if (form.removePassword) input.password = null;
@@ -300,13 +327,37 @@ function RequestForm({
 
             <div className="space-y-2">
                 <Check id={id("require-name")} label="Ask for the sender's name" checked={form.requireName} onChange={(v) => setForm({ ...form, requireName: v })} />
-                <Check
-                    id={id("show-received")}
-                    label="Show the names of received files on the link's page"
-                    hint="Everyone with the link sees them. Files can never be downloaded from there."
-                    checked={form.showReceived}
-                    onChange={(v) => setForm({ ...form, showReceived: v })}
-                />
+            </div>
+
+            <div className="space-y-2">
+                <Label htmlFor={id("share")}>What people with the link see</Label>
+                <Select value={form.shareMode} onValueChange={(shareMode) => setForm({ ...form, shareMode: shareMode as ShareMode })}>
+                    <SelectTrigger id={id("share")} className="w-full">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {SHARE_CHOICES.filter((c) => shareAllowed(c.value, list, editing)).map((c) => (
+                            <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <p className="text-[11px] text-slate-500">{SHARE_CHOICES.find((c) => c.value === form.shareMode)?.hint}</p>
+                {form.shareMode === "all" && (
+                    <>
+                        <Check
+                            id={id("show-senders")}
+                            label="Show who sent each file"
+                            checked={form.showSenders}
+                            onChange={(v) => setForm({ ...form, showSenders: v })}
+                        />
+                        {!form.password && !(editing?.hasPassword && !form.removePassword) && (
+                            <p className="rounded-md border border-amber-500/30 bg-amber-500/5 p-2 text-[11px] text-amber-300">
+                                Anyone who gets this link can upload and download every file in it. Add a password unless you
+                                want it public.
+                            </p>
+                        )}
+                    </>
+                )}
             </div>
 
             {error && <p className="text-xs text-red-400">{error}</p>}
@@ -441,6 +492,7 @@ function RequestCard({
                     {request.maxFiles !== null ? ` of ${request.maxFiles}` : ""}
                 </span>
                 <span>Files kept {hoursLabel(request.keepHours)}</span>
+                <span>{SHARE_BADGE[request.shareMode]}</span>
             </div>
             <button type="button" onClick={() => setOpen(!open)} className="flex items-center gap-1 text-xs text-sky-400 hover:underline">
                 {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}

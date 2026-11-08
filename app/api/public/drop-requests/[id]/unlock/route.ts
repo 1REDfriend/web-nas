@@ -10,7 +10,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const body = await request.json().catch(() => null);
         const { value, maxAge } = await unlockRequest(request, found.request, body?.password);
 
-        const response = NextResponse.json({ request: await toPublicRequest(found.request, true) }, { headers: { "Cache-Control": "no-store" } });
+        const response = NextResponse.json({ request: await toPublicRequest(found.request, true, request.headers.get("cookie")) }, { headers: { "Cache-Control": "no-store" } });
         if (value) {
             const secure = request.headers.get("x-forwarded-proto")?.split(",")[0].trim() === "https";
             response.headers.append("Set-Cookie", unlockCookie(found.request, value, maxAge, secure));

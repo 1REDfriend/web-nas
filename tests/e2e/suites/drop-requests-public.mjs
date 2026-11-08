@@ -112,7 +112,7 @@ try {
     const storageBefore = storageFiles().sort().join("|");
 
     // --- info ---
-    const open = await make({ description: "Anything goes", slug: "alice-box", keepHours: 48 });
+    const open = await make({ description: "Anything goes", slug: "alice-box", keepHours: 48, shareMode: "none" });
     let r = await call("GET", `/api/public/drop-requests/${open.id}`);
     check("info needs no login", r.status === 200 && r.json?.request?.title === "Send me files" && r.json?.request?.status === "open", show(r));
     check("info is not cached", (r.headers.get("cache-control") ?? "").includes("no-store"), "");

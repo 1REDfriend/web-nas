@@ -3,6 +3,7 @@ import { logerror } from '@/lib/logger';
 import { FileAccessError } from '@/lib/security/path-guard';
 import { findPublicRequest, isUnlocked } from '@/lib/drops/request-public';
 import { assertUploadRateLimit, receiveFile } from '@/lib/drops/receive';
+import { isSecureRequest, senderKeyFor } from '@/lib/drops/request-sharing';
 
 // POST /api/public/drop-request-upload?id=<id or slug>&name=<file name>&sender=<name>
 //   multipart/form-data with one "file"
@@ -42,13 +43,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const { request } = await findPublicRequest(queryValue(req.query.id));
         if (!isUnlocked(request, req.headers.cookie)) throw new FileAccessError('This link needs a password', 401);
 
+        // Remembers this browser, so "own" sharing can show the sender their files
+        const key = senderKeyFor(request, req.headers.cookie, isSecureRequest(headers));
         const file = await receiveFile({
             req,
             headers,
             request,
             senderName: queryValue(req.query.sender),
             fileName: queryValue(req.query.name),
+            senderKeyHash: key.hash,
         });
+        if (key.setCookie) res.setHeader('Set-Cookie', key.setCookie);
         return res.status(201).json({ ok: true, file });
     } catch (err: unknown) {
         // Stop reading a body that will not be used

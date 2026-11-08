@@ -1,13 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, Clock, Inbox as InboxIcon, Link2Off, Loader2, Lock, UploadCloud, X, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, Download, Eye, EyeOff, Inbox as InboxIcon, Link2Off, Loader2, Lock, UploadCloud, X, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { formatDate, formatSize, formatTimeLeft } from "@/lib/file-manager/format";
-import { PublicDropRequest, fetchPublicDropRequest, sendToDropRequest, unlockPublicDropRequest } from "@/lib/api/user/drop-request.service";
+import { MediaPreview } from "@/components/file-manager/MediaPreview";
+import {
+    PublicDropRequest,
+    SharedFile,
+    fetchPublicDropRequest,
+    sendToDropRequest,
+    sharedFileUrl,
+    unlockPublicDropRequest,
+} from "@/lib/api/user/drop-request.service";
 
 type QueueItem = {
     key: number;
@@ -94,7 +102,68 @@ function QueueRow({ item, onCancel }: { item: QueueItem; onCancel: () => void })
     );
 }
 
-// Public page behind /u/<link>: anyone with the link can send files to its owner
+const SHARED_TITLE: Record<string, string> = {
+    names: "Already received",
+    own: "Files you sent",
+    all: "Files in this link",
+};
+
+function SharedRow({ link, file, now }: { link: string; file: SharedFile; now: number }) {
+    const [open, setOpen] = useState(false);
+    return (
+        <li className="space-y-2 rounded-md border border-white/10 p-2">
+            <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm text-slate-100" title={file.name}>{file.name}</p>
+                    <p className="text-xs text-slate-500">
+                        {formatSize(file.size, true)}
+                        {file.sender ? ` · from ${file.sender}` : ""}
+                        {file.id ? ` · deleted ${formatTimeLeft(file.expiresAt, now)}` : ""}
+                    </p>
+                </div>
+                {file.id && file.preview && (
+                    <Button type="button" size="sm" variant="ghost" className="h-8 px-2" aria-label={open ? `Hide ${file.name}` : `Preview ${file.name}`} onClick={() => setOpen(!open)}>
+                        {open ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                )}
+                {file.id && (
+                    <Button asChild size="sm" variant="ghost" className="h-8 px-2" aria-label={`Download ${file.name}`}>
+                        <a href={sharedFileUrl(link, file.id)} download>
+                            <Download className="h-4 w-4" />
+                        </a>
+                    </Button>
+                )}
+            </div>
+            {open && file.id && file.preview && (
+                <MediaPreview key={file.id} src={sharedFileUrl(link, file.id, true)} name={file.name} kind={file.preview} />
+            )}
+        </li>
+    );
+}
+
+function SharedFiles({ link, request, now }: { link: string; request: PublicDropRequest; now: number }) {
+    const files = request.received;
+    if (!files || !request.shareMode || request.shareMode === "none") return null;
+    if (files.length === 0 && request.shareMode !== "own") return null;
+
+    return (
+        <section className="space-y-2">
+            <p className="text-sm font-semibold text-slate-200">{SHARED_TITLE[request.shareMode]}</p>
+            {files.length === 0 ? (
+                <p className="text-xs text-slate-500">Files you send from this browser show up here, and you can download them again.</p>
+            ) : (
+                <ul className="max-h-[28rem] space-y-1 overflow-y-auto">
+                    {files.map((f, i) => (
+                        <SharedRow key={f.id ?? i} link={link} file={f} now={now} />
+                    ))}
+                </ul>
+            )}
+        </section>
+    );
+}
+
+// Public page behind /u/<link>: anyone with the link can send files to its owner,
+// and see or download what was sent when the owner allows it
 export function RequestPage({ link }: { link: string }) {
     const [request, setRequest] = useState<PublicDropRequest | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -169,7 +238,7 @@ export function RequestPage({ link }: { link: string }) {
 
     return (
         <main className="flex min-h-screen items-center justify-center bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 px-4 py-10 text-slate-200">
-            <div className="w-full max-w-lg rounded-xl border border-white/10 bg-slate-900/70 p-6 shadow-xl">
+            <div className={`w-full ${request?.canDownload ? "max-w-2xl" : "max-w-lg"} rounded-xl border border-white/10 bg-slate-900/70 p-6 shadow-xl`}>
                 {!request && !error && (
                     <div className="flex items-center justify-center gap-2 py-10 text-slate-400">
                         <Loader2 className="h-5 w-5 animate-spin" />
@@ -264,19 +333,7 @@ export function RequestPage({ link }: { link: string }) {
                                     </ul>
                                 )}
 
-                                {request.received && request.received.length > 0 && (
-                                    <section className="space-y-1">
-                                        <p className="text-sm font-semibold text-slate-200">Already received</p>
-                                        <ul className="max-h-48 space-y-1 overflow-y-auto text-xs text-slate-400">
-                                            {request.received.map((f, i) => (
-                                                <li key={i} className="flex justify-between gap-2">
-                                                    <span className="truncate" title={f.name}>{f.name}</span>
-                                                    <span className="shrink-0">{formatSize(f.size, true)}</span>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </section>
-                                )}
+                                <SharedFiles link={link} request={request} now={now} />
                             </>
                         )}
 

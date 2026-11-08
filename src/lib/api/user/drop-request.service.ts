@@ -6,6 +6,8 @@ import { chunkedUpload, needsPieces } from "@/lib/api/chunked-upload";
 // for drops); the public page uses /api/public/drop-requests.
 
 export type RequestStatus = "open" | "closed" | "full" | "expired";
+// none: send only · names: file names only · own: senders download their own files · all: anyone downloads every file
+export type ShareMode = "none" | "names" | "own" | "all";
 
 export type DropRequestInfo = {
     id: string;
@@ -14,7 +16,8 @@ export type DropRequestInfo = {
     title: string;
     description: string | null;
     requireName: boolean;
-    showReceived: boolean;
+    shareMode: ShareMode;
+    showSenders: boolean;
     allowedExt: string | null;
     maxFileBytes: string | null;
     maxTotalBytes: string | null;
@@ -34,7 +37,9 @@ export type DropRequestList = {
     canCreate: boolean;
     enabled: boolean;
     allowNoExpiry: boolean;
-    defaults: { expiresInDays: number; maxFileMB: number; maxTotalMB: number; keepHours: number };
+    allowOwn: boolean;
+    allowAll: boolean;
+    defaults: { expiresInDays: number; maxFileMB: number; maxTotalMB: number; keepHours: number; shareMode: ShareMode };
     maxKeepHours: number;
 };
 
@@ -52,7 +57,8 @@ export type DropRequestInput = Partial<{
     allowedExt: string | null;
     password: string | null;
     requireName: boolean;
-    showReceived: boolean;
+    shareMode: ShareMode;
+    showSenders: boolean;
     closed: boolean;
 }>;
 
@@ -69,7 +75,19 @@ export type PublicDropRequest = {
     maxFileBytes?: string | null;
     bytesLeft?: string | null;
     filesLeft?: number | null;
-    received?: { name: string; size: string; createdAt: string }[] | null;
+    shareMode?: ShareMode;
+    canDownload?: boolean;
+    received?: SharedFile[] | null;
+};
+
+export type SharedFile = {
+    id?: string; // only when it can be downloaded
+    name: string;
+    size: string;
+    createdAt: string;
+    expiresAt: string;
+    preview?: "image" | "video" | "audio" | null;
+    sender?: string | null;
 };
 
 async function readV1(res: Response) {
@@ -126,6 +144,10 @@ export async function fetchPublicDropRequest(link: string): Promise<PublicDropRe
 
 export async function unlockPublicDropRequest(link: string, password: string): Promise<PublicDropRequest> {
     return (await readJson(await fetch(publicApi(link, "/unlock"), sendJson("POST", { password })))).request;
+}
+
+export function sharedFileUrl(link: string, fileId: string, raw = false): string {
+    return publicApi(link, `/files/${encodeURIComponent(fileId)}${raw ? "/raw" : ""}`);
 }
 
 // XMLHttpRequest instead of fetch: it reports upload progress.

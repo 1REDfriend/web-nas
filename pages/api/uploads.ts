@@ -7,6 +7,7 @@ import { authenticateUpload } from '@/lib/api/v1/upload';
 import { publicOrigin, toApiDrop } from '@/lib/api/v1/drops';
 import { findPublicRequest, isUnlocked } from '@/lib/drops/request-public';
 import { assertUploadRateLimit } from '@/lib/drops/receive';
+import { isSecureRequest, senderKeyFor } from '@/lib/drops/request-sharing';
 import {
     FinishResult,
     PIECE_MAX_BYTES,
@@ -119,7 +120,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 assertUploadRateLimit({ headers });
                 const found = await findPublicRequest(body.link);
                 if (!isUnlocked(found.request, req.headers.cookie)) throw new FileAccessError('This link needs a password', 401);
-                session = await startRequestSession(found, body, getClientIp({ headers }));
+                const key = senderKeyFor(found.request, req.headers.cookie, isSecureRequest(headers));
+                session = await startRequestSession(found, body, getClientIp({ headers }), key.hash);
+                if (key.setCookie) res.setHeader('Set-Cookie', key.setCookie);
             }
             return res.status(201).json({ ok: true, data: { id: session.id, pieceBytes: PIECE_MAX_BYTES } });
         }

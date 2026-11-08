@@ -5,6 +5,7 @@ import { AccessUser, FileAccessError } from "@/lib/security/path-guard";
 import { hashPassword } from "@/lib/security/credentials";
 import { getDropLimits, getDropRequestSettings } from "./settings";
 import { parseExtensions } from "./names";
+import { SHARE_MODES, ShareMode, assertModeAllowed, defaultShareMode, isShareMode, storedMode } from "./request-sharing";
 
 // Drop requests: links the owner hands out so people without an account can send
 // them files. Each file received becomes one of the owner's drops. This file is the
@@ -61,7 +62,9 @@ export type RequestInput = {
     allowedExt?: unknown;
     password?: unknown;
     requireName?: unknown;
-    showReceived?: unknown;
+    showReceived?: unknown; // older clients: true = "names", false = "none"
+    shareMode?: unknown;
+    showSenders?: unknown;
     closed?: unknown;
 };
 
@@ -162,7 +165,21 @@ async function toData(user: AccessUser, input: RequestInput, ownId: string | nul
     }
     if (input.password !== undefined) data.passwordHash = await passwordValue(input.password);
     if (input.requireName !== undefined) data.requireName = flag(input.requireName, "requireName");
-    if (input.showReceived !== undefined) data.showReceived = flag(input.showReceived, "showReceived");
+    // Who may see and download what was received; new links start as open as the admin allows
+    let mode: ShareMode | undefined;
+    if (input.shareMode !== undefined) {
+        if (!isShareMode(input.shareMode)) throw new FileAccessError(`shareMode must be one of ${SHARE_MODES.join(", ")}`, 400);
+        mode = input.shareMode;
+    } else if (input.showReceived !== undefined) {
+        mode = flag(input.showReceived, "showReceived") ? "names" : "none";
+    } else if (isNew) {
+        mode = defaultShareMode(settings);
+    }
+    if (mode !== undefined) {
+        assertModeAllowed(mode, settings);
+        data.shareMode = mode;
+    }
+    if (input.showSenders !== undefined) data.showSenders = flag(input.showSenders, "showSenders");
     if (input.closed !== undefined) data.closedAt = flag(input.closed, "closed") ? new Date() : null;
     return data;
 }
@@ -230,7 +247,8 @@ export function toOwnerRequest(request: DropRequest, origin: string) {
         title: request.title,
         description: request.description,
         requireName: request.requireName,
-        showReceived: request.showReceived,
+        shareMode: storedMode(request),
+        showSenders: request.showSenders,
         allowedExt: request.allowedExt,
         maxFileBytes: str(request.maxFileBytes),
         maxTotalBytes: str(request.maxTotalBytes),

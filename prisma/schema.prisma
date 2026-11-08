@@ -197,6 +197,8 @@ model Drop {
   requestId    String?   @map("request_id")
   senderName   String?   @map("sender_name")
   senderIp     String?   @map("sender_ip")                  // for abuse checks; cleared after 30 days
+  senderKeyHash String?  @map("sender_key_hash")            // sha256 of the sender's browser cookie, for "own" sharing
+  shareId      String?   @unique @map("share_id")           // id on the request page; never the drop id, so turning sharing off ends access
 
   @@index([userId], name: "idx_drop_user_id")
   @@index([requestId], name: "idx_drop_request_id")
@@ -214,7 +216,11 @@ model DropRequest {
   title         String
   description   String?
   requireName   Boolean   @default(false) @map("require_name")
-  showReceived  Boolean   @default(false) @map("show_received")
+  showReceived  Boolean   @default(false) @map("show_received")  // only read when shareMode is null (links made before share modes)
+  shareMode     String?   @map("share_mode")                 // none | names | own | all; null = "names" or "none" from showReceived
+  showSenders   Boolean   @default(false) @map("show_senders")  // sender names on the request page ("all" only)
+  downloadDay   String?   @map("download_day")               // UTC day the count below belongs to, YYYY-MM-DD
+  downloadCount Int       @default(0) @map("download_count")  // downloads through the request page that day
   allowedExt    String?   @map("allowed_ext")                // comma-separated, lower case, no dot; null = any
   maxFileBytes  BigInt?   @map("max_file_bytes")             // null = server upload cap
   maxTotalBytes BigInt?   @map("max_total_bytes")            // null = only the owner's drop quota
