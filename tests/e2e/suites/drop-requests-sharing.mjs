@@ -141,10 +141,10 @@ try {
 
     r = await file(all.id, txt.id, stranger);
     check("download -> the file, as an attachment", r.status === 200 && r.text === "hello world" && /attachment/i.test(r.headers.get("content-disposition") ?? ""), show(r));
-    const txtDrop = await prisma.drop.findUnique({ where: { shareId: txt.id } });
+    const txtDrop = await prisma.drop.findFirst({ where: { shareId: txt.id } });
     check("the download is counted on the drop", txtDrop?.downloads === 1, String(txtDrop?.downloads));
     r = await file(all.id, txt.id, stranger, { Range: "bytes=6-" });
-    check("a resumed part -> 206 and not counted", r.status === 206 && r.text === "world" && (await prisma.drop.findUnique({ where: { shareId: txt.id } }))?.downloads === 1, show(r));
+    check("a resumed part -> 206 and not counted", r.status === 206 && r.text === "world" && (await prisma.drop.findFirst({ where: { shareId: txt.id } }))?.downloads === 1, show(r));
     r = await raw(all.id, png.id, stranger);
     check("preview -> the image inline", r.status === 200 && r.buf.equals(PNG) && /image\/png/.test(r.headers.get("content-type") ?? ""), show(r));
     r = await raw(all.id, txt.id, stranger);

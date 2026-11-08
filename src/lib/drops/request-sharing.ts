@@ -159,7 +159,7 @@ export async function findSharedFile(request: DropRequest, rawShareId: unknown, 
         throw new FileAccessError(NOT_FOUND, 404);
     }
 
-    const drop = await prisma.drop.findUnique({ where: { shareId: rawShareId } });
+    const drop = await prisma.drop.findFirst({ where: { shareId: rawShareId } });
     if (!drop || drop.requestId !== request.id || !isDropAvailable(drop)) throw new FileAccessError(NOT_FOUND, 404);
     if (mode === "own" && (!drop.senderKeyHash || drop.senderKeyHash !== senderKeyHash(request, cookieHeader))) {
         throw new FileAccessError(NOT_FOUND, 404);

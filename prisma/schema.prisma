@@ -198,10 +198,13 @@ model Drop {
   senderName   String?   @map("sender_name")
   senderIp     String?   @map("sender_ip")                  // for abuse checks; cleared after 30 days
   senderKeyHash String?  @map("sender_key_hash")            // sha256 of the sender's browser cookie, for "own" sharing
-  shareId      String?   @unique @map("share_id")           // id on the request page; never the drop id, so turning sharing off ends access
+  // Id on the request page; never the drop id, so turning sharing off ends access. 18 random bytes:
+  // a plain index, because db push treats adding a unique one as possible data loss
+  shareId      String?   @map("share_id")
 
   @@index([userId], name: "idx_drop_user_id")
   @@index([requestId], name: "idx_drop_request_id")
+  @@index([shareId], name: "idx_drop_share_id")
   @@index([expiresAt], name: "idx_drop_expires_at")
   @@map("drops")
 }

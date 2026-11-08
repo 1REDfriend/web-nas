@@ -39,5 +39,5 @@ PRAGMA foreign_keys=ON;
 PRAGMA defer_foreign_keys=OFF;
 
 -- CreateIndex
-CREATE UNIQUE INDEX "drops_share_id_key" ON "drops"("share_id");
+CREATE INDEX "idx_drop_share_id" ON "drops"("share_id");
 
