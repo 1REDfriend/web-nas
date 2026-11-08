@@ -19,6 +19,7 @@ import { ensureDropBase } from "@/lib/drops/maintenance";
 import { cleanFileName } from "@/lib/drops/names";
 import { assertDiskRoom, cancelReceive, completeReceive, prepareReceive } from "@/lib/drops/receive";
 import type { PublicRequest } from "@/lib/drops/request-public";
+import { Member, assertAddRateLimit, completeFileItem, itemPath, removeItem, reserveItem } from "@/lib/pin/rooms";
 
 // Large uploads sent in pieces. Cloudflare's free plan refuses any request body over
 // 100 MB, so the browser sends a big file as several smaller requests:
@@ -29,8 +30,9 @@ import type { PublicRequest } from "@/lib/drops/request-public";
 //   finish  checks the size and puts the file in place, like a one-request upload
 //   cancel  undoes the start
 //
-// Three kinds share this: "file" (into the user's own folders), "drop" (a new drop)
-// and "request" (a file someone sends through a drop request link).
+// Four kinds share this: "file" (into the user's own folders), "drop" (a new drop),
+// "request" (a file someone sends through a drop request link) and "pin" (a file put
+// into a PIN room; small files come this way too, as a single piece).
 
 const MB = 1024 * 1024;
 export const PIECE_MAX_BYTES = 64 * MB;
@@ -42,17 +44,20 @@ export const SESSION_ID_RE = /^[A-Za-z0-9_-]{24}$/;
 // Temp files for "file" uploads live beside the drops: off the file manager, on the big disk
 const TEMP_FOLDER = ".webnas-uploads";
 
-export type SessionKind = "file" | "drop" | "request";
+export type SessionKind = "file" | "drop" | "request" | "pin";
 
 type FileMeta = { dir: string; name: string };
 type DropMeta = { dropId: string; keyId: string | null; name: string; lifetimeMs: number; maxDownloads: number | null };
 type RequestMeta = { dropId: string; requestId: string; keepHours: number; name: string };
+type PinMeta = { roomId: string; baseDir: string; itemId: string; name: string };
 
-// Who is calling: a browser session (file), a v1 caller (drop) or nobody (request)
+// Who is calling: a browser session (file), a v1 caller (drop), nobody (request)
+// or a member of a PIN room (pin)
 export type SessionCaller =
     | { kind: "file"; user: AccessUser }
     | { kind: "drop"; caller: ApiCaller }
-    | { kind: "request" };
+    | { kind: "request" }
+    | { kind: "pin"; member: Member };
 
 const busy = new Set<string>();
 
@@ -157,6 +162,23 @@ export async function startRequestSession(found: PublicRequest, input: StartInpu
     }
 }
 
+export async function startPinSession(member: Member, input: StartInput, headers: Headers): Promise<UploadSession> {
+    const size = totalSize(input.size);
+    const name = cleanFileName(text(input.name));
+    assertAddRateLimit(headers);
+    const owner = `pin:${member.room.id}`;
+    await assertRoomForSessions(owner);
+
+    const item = await reserveItem(member, { kind: "file", bytes: size, name, completed: false });
+    try {
+        const meta: PinMeta = { roomId: member.room.id, baseDir: member.room.baseDir, itemId: item.id, name };
+        return await createSession(newId(), "pin", owner, size, `${itemPath(member.room, item.id)}.part`, meta);
+    } catch (err: unknown) {
+        await removeItem(item, member.room.baseDir);
+        throw err;
+    }
+}
+
 // --- the caller must be the one who started it ---
 
 async function findSession(id: unknown, who: SessionCaller): Promise<UploadSession> {
@@ -170,6 +192,8 @@ async function findSession(id: unknown, who: SessionCaller): Promise<UploadSessi
         const meta = JSON.parse(session.meta) as DropMeta;
         if (session.userId !== who.caller.user.id || meta.keyId !== who.caller.keyId) throw gone;
     }
+    // Any member of the room may carry on an upload into it; nobody else can
+    if (who.kind === "pin" && (JSON.parse(session.meta) as PinMeta).roomId !== who.member.room.id) throw gone;
     return session;
 }
 
@@ -208,7 +232,7 @@ export async function writePiece(who: SessionCaller, id: unknown, rawOffset: unk
             where: { id: current.id },
             data: { received: BigInt(received + contentLength) },
         });
-        if (current.kind !== "file") {
+        if (current.kind === "drop" || current.kind === "request") {
             // Keep the placeholder drop from looking abandoned while pieces keep coming
             const { dropId } = JSON.parse(current.meta) as DropMeta | RequestMeta;
             await prisma.drop.updateMany({ where: { id: dropId, completedAt: null }, data: { expiresAt: new Date(Date.now() + PLACEHOLDER_MS) } });
@@ -228,7 +252,8 @@ export class UploadOffsetError extends FileAccessError {
 export type FinishResult =
     | { kind: "file"; path: string }
     | { kind: "drop"; drop: Drop }
-    | { kind: "request"; name: string; size: number };
+    | { kind: "request"; name: string; size: number }
+    | { kind: "pin"; id: string; name: string; size: number };
 
 export async function finishSession(who: SessionCaller, id: unknown): Promise<FinishResult> {
     const session = await findSession(id, who);
@@ -261,6 +286,16 @@ async function finishKind(session: UploadSession, who: SessionCaller): Promise<F
         return { kind: "file", path: target.virtualPath };
     }
 
+    if (session.kind === "pin") {
+        const m = JSON.parse(session.meta) as PinMeta;
+        const item = await prisma.pinItem.findUnique({ where: { id: m.itemId } });
+        if (!item || item.completedAt) throw new FileAccessError("The room has closed", 404);
+        await fs.promises.rename(session.tempPath, itemPath({ id: m.roomId, baseDir: m.baseDir }, item.id));
+        const done = await completeFileItem(m.roomId, item.id, m.name);
+        log(`[PIN] room ${m.roomId} received "${m.name}" (${session.size} bytes)`);
+        return { kind: "pin", id: done.id, name: m.name, size: Number(done.size) };
+    }
+
     const meta = JSON.parse(session.meta) as DropMeta | RequestMeta;
     const drop = await prisma.drop.findUnique({ where: { id: meta.dropId } });
     if (!drop || drop.deletedAt || drop.completedAt) throw new FileAccessError("Upload not found; it may have expired", 404);
@@ -283,6 +318,13 @@ async function undo(session: UploadSession) {
     try {
         if (session.kind === "file") {
             await fs.remove(session.tempPath);
+            return;
+        }
+        if (session.kind === "pin") {
+            const m = JSON.parse(session.meta) as PinMeta;
+            await fs.remove(session.tempPath);
+            const item = await prisma.pinItem.findUnique({ where: { id: m.itemId } });
+            if (item && !item.completedAt) await removeItem(item, m.baseDir);
             return;
         }
         const meta = JSON.parse(session.meta) as DropMeta | RequestMeta;

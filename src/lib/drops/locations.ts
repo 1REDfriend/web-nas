@@ -58,7 +58,9 @@ export async function getDropBases(): Promise<string[]> {
         distinct: ["baseDir"],
         select: { baseDir: true },
     });
-    const bases = [...new Set([current, ...rows.map((r) => r.baseDir)])];
+    // PIN rooms keep their files under the drop folder they were made in
+    const rooms = await prisma.pinRoom.findMany({ distinct: ["baseDir"], select: { baseDir: true } });
+    const bases = [...new Set([current, ...rows.map((r) => r.baseDir), ...rooms.map((r) => r.baseDir)])];
 
     cached = { at: Date.now(), bases };
     return bases;

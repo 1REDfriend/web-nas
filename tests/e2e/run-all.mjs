@@ -40,6 +40,7 @@ const GROUPS = [
     ["drop-requests-public"],
     ["drop-requests-sharing"],
     ["chunked-uploads"],
+    ["pin-rooms"],
 ];
 
 function startServer(env) {

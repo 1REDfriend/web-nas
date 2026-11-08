@@ -6,7 +6,7 @@ const MB = 1024 * 1024;
 export const PIECE_BYTES = 32 * MB;
 const RETRIES = 3;
 
-export type UploadKind = "file" | "drop" | "request";
+export type UploadKind = "file" | "drop" | "request" | "pin";
 
 export function needsPieces(file: File): boolean {
     return file.size > PIECE_BYTES;

@@ -8,6 +8,7 @@ import { publicOrigin, toApiDrop } from '@/lib/api/v1/drops';
 import { findPublicRequest, isUnlocked } from '@/lib/drops/request-public';
 import { assertUploadRateLimit } from '@/lib/drops/receive';
 import { isSecureRequest, senderKeyFor } from '@/lib/drops/request-sharing';
+import { findMember } from '@/lib/pin/rooms';
 import {
     FinishResult,
     PIECE_MAX_BYTES,
@@ -18,6 +19,7 @@ import {
     finishSession,
     startDropSession,
     startFileSession,
+    startPinSession,
     startRequestSession,
     writePiece,
 } from '@/lib/uploads/sessions';
@@ -29,6 +31,7 @@ import {
 //          file:    { dir }                       login session, like /api/files/upload
 //          drop:    { expiresIn, maxDownloads }   login session or API key with the drop scope
 //          request: { link, sender }              no login; the link's password cookie if it has one
+//          pin:     {}                            no login; the PIN room member cookie
 // PUT    /api/uploads?kind=...&id=...&offset=N   raw bytes of one piece    -> { received, size }
 //          a 409 carries `received`: send from there
 // POST   /api/uploads?action=finish&kind=...&id=...                        -> the finished file
@@ -90,7 +93,8 @@ async function identify(kind: string | undefined, req: NextApiRequest, headers: 
         return { kind: 'drop', caller: auth.caller };
     }
     if (kind === 'request') return { kind: 'request' };
-    throw new FileAccessError('kind must be file, drop or request', 400);
+    if (kind === 'pin') return { kind: 'pin', member: await findMember(req.headers.cookie) };
+    throw new FileAccessError('kind must be file, drop, request or pin', 400);
 }
 
 function finished(result: FinishResult, headers: Headers) {
@@ -98,6 +102,7 @@ function finished(result: FinishResult, headers: Headers) {
     if (result.kind === 'drop') {
         return JSON.parse(JSON.stringify(toApiDrop(result.drop, publicOrigin(headers)), (_k, v) => (typeof v === 'bigint' ? v.toString() : v)));
     }
+    if (result.kind === 'pin') return { item: { id: result.id, name: result.name, size: result.size } };
     return { file: { name: result.name, size: result.size } };
 }
 
@@ -116,6 +121,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             let session;
             if (who.kind === 'file') session = await startFileSession(who.user, body);
             else if (who.kind === 'drop') session = await startDropSession(who.caller, body);
+            else if (who.kind === 'pin') session = await startPinSession(who.member, body, headers);
             else {
                 assertUploadRateLimit({ headers });
                 const found = await findPublicRequest(body.link);

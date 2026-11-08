@@ -262,3 +262,40 @@ model UploadSession {
   @@index([updatedAt], name: "idx_upload_session_updated_at")
   @@map("upload_sessions")
 }
+
+// A PIN room: a short-lived public space where anyone who knows the PIN can put
+// files and notes and fetch them from another device. No login. See src/lib/pin/.
+model PinRoom {
+  id             String    @id                          // random; part of the member cookie
+  pin            String    @unique                      // 4 to 8 digits; freed when the room is deleted
+  baseDir        String    @map("base_dir")             // drop folder the room's files live under
+  creatorKeyHash String    @map("creator_key_hash")     // sha256 of the creator's member key
+  creatorIp      String    @map("creator_ip")
+  locked         Boolean   @default(false)              // no new devices may join
+  totalBytes     BigInt    @default(0) @map("total_bytes") // reserved and stored bytes, files and notes
+  itemCount      Int       @default(0) @map("item_count")
+  version        Int       @default(0)                  // goes up on every change, so polling can skip unchanged rooms
+  createdAt      DateTime  @default(now()) @map("created_at")
+  expiresAt      DateTime  @map("expires_at")
+  items          PinItem[]
+
+  @@index([expiresAt], name: "idx_pin_room_expires_at")
+  @@index([creatorIp], name: "idx_pin_room_creator_ip")
+  @@map("pin_rooms")
+}
+
+model PinItem {
+  id            String    @id                           // random; also the download id
+  roomId        String    @map("room_id")
+  kind          String                                  // "file" | "note"
+  name          String?                                 // file name
+  size          BigInt    @default(0)                   // file bytes, or the note's UTF-8 bytes
+  text          String?                                 // note text
+  senderKeyHash String    @map("sender_key_hash")       // sha256 of the member key that added it
+  completedAt   DateTime? @map("completed_at")          // null while a file is still uploading
+  createdAt     DateTime  @default(now()) @map("created_at")
+  room          PinRoom   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId], name: "idx_pin_item_room_id")
+  @@map("pin_items")
+}

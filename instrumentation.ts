@@ -7,5 +7,8 @@ export async function register() {
         // Big uploads sent in pieces and then abandoned are cleaned up the same way
         const { startUploadSweeper } = await import("@/lib/uploads/sessions");
         startUploadSweeper();
+        // PIN rooms are deleted, files and all, when they expire
+        const { startPinSweeper } = await import("@/lib/pin/rooms");
+        startPinSweeper();
     }
 }
